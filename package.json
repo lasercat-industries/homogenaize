@@ -1,0 +1,16 @@
+{
+  "name": "homogenaize",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "vite": "^7.0.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
+  }
+}

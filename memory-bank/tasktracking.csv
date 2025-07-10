@@ -1,0 +1,10 @@
+id,name,status,dependson,spec
+550e8400-e29b-41d4-a716-446655440001,Implement task tracking CSV system,done,,20250110-1430-implement-task-tracking-csv.md
+550e8400-e29b-41d4-a716-446655440002,Update CLAUDE.md with task tracking rules,done,550e8400-e29b-41d4-a716-446655440001,20250110-1435-update-claude-md-task-tracking.md
+550e8400-e29b-41d4-a716-446655440003,Add date-timestamp to spec file naming convention,done,,20250110-1440-update-spec-naming-convention.md
+550e8400-e29b-41d4-a716-446655440004,Add Beta Task Rules section to CLAUDE.md,done,,20250110-1450-add-beta-task-rules.md
+550e8400-e29b-41d4-a716-446655440005,Add TodoWrite/TodoRead hooks to settings.json,done,,20250110-1455-add-todo-hooks-settings.md
+550e8400-e29b-41d4-a716-446655440006,Initialize bun project,done,,20250110-1500-initialize-bun-project.md
+550e8400-e29b-41d4-a716-446655440007,Create .gitignore for bun TypeScript project,done,,20250110-1505-create-gitignore.md
+550e8400-e29b-41d4-a716-446655440008,Update project structure to colocate tests,done,,20250110-1510-update-project-structure-tests.md
+550e8400-e29b-41d4-a716-446655440009,Add zod and vite dependencies,done,,20250110-1515-add-zod-vite-dependencies.md
