@@ -36,6 +36,10 @@
                 "hooks": [
                     {
                         "type": "command",
+                        "command": "echo '🧪 TDD Check: If creating implementation code, ensure tests exist first!'"
+                    },
+                    {
+                        "type": "command",
                         "command": "bun run format"
                     },
                     {

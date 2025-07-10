@@ -216,4 +216,52 @@ Example evaluation process:
 TodoWrite called → Review each todo → Apply threshold rules → Create CSV tasks for qualifying items → Proceed with work
 ```
 
+## Test-Driven Development (TDD) Rules
+
+This project follows strict Test-Driven Development practices. All new functionality MUST follow the TDD cycle:
+
+### TDD Workflow
+1. **Red**: Write a failing test first
+2. **Green**: Write minimal code to make the test pass
+3. **Refactor**: Improve the code while keeping tests green
+
+### TDD Enforcement Rules
+
+1. **Test-First Requirement**
+   - NEVER write implementation code without a failing test
+   - Tests must be created in the same commit/task as the implementation
+   - Test files must use `.test.ts` suffix and be colocated with implementation
+
+2. **Task Creation for Features**
+   - Every feature task MUST include "Write tests for X" as the first step
+   - Implementation plan in spec files must explicitly list test creation first
+   - Task cannot be marked "done" without both tests and implementation
+
+3. **Test Coverage Requirements**
+   - All public APIs must have tests
+   - Edge cases and error conditions must be tested
+   - Tests should be readable and serve as documentation
+
+4. **TDD Task Workflow**
+   ```
+   Create Feature Task → Write Failing Tests → Implement Code → Verify Tests Pass → Refactor
+   ```
+
+5. **Code Review Checklist**
+   Before marking any feature task as complete:
+   - [ ] Tests exist for all new functionality
+   - [ ] Tests were written before implementation
+   - [ ] All tests pass
+   - [ ] Tests cover edge cases
+   - [ ] Tests are clear and descriptive
+
+### TDD Violations
+If you find yourself writing implementation code without tests:
+1. STOP immediately
+2. Create the missing tests
+3. Update the task spec to note the TDD violation
+4. Continue only after tests are in place
+
+REMEMBER: TDD is not optional in this project. Every feature starts with a test.
+
 IF YOU HAVE READ THESE RULES, START EACH RESPONSE WITH  🥶🥶🥶

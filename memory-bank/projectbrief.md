@@ -15,6 +15,7 @@ A TypeScript-native library designed to work seamlessly in both browser and back
   - Backend (Node.js/Bun compatible)
 
 ### Development Standards
+- Test-Driven Development (TDD) - tests must be written before implementation
 - Full TypeScript type safety
 - Runtime schema validation using Zod v4
 - Comprehensive test coverage

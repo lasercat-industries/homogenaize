@@ -8,3 +8,4 @@ id,name,status,dependson,spec
 550e8400-e29b-41d4-a716-446655440007,Create .gitignore for bun TypeScript project,done,,20250110-1505-create-gitignore.md
 550e8400-e29b-41d4-a716-446655440008,Update project structure to colocate tests,done,,20250110-1510-update-project-structure-tests.md
 550e8400-e29b-41d4-a716-446655440009,Add zod and vite dependencies,done,,20250110-1515-add-zod-vite-dependencies.md
+550e8400-e29b-41d4-a716-446655440010,Implement TDD enforcement rules,done,,20250110-1520-implement-tdd-enforcement.md
