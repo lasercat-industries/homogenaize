@@ -10,3 +10,5 @@ id,name,status,dependson,spec
 550e8400-e29b-41d4-a716-446655440009,Add zod and vite dependencies,done,,20250110-1515-add-zod-vite-dependencies.md
 550e8400-e29b-41d4-a716-446655440010,Implement TDD enforcement rules,done,,20250110-1520-implement-tdd-enforcement.md
 550e8400-e29b-41d4-a716-446655440011,Install dependencies for config files,done,,20250110-1530-install-config-dependencies.md
+550e8400-e29b-41d4-a716-446655440012,Create unified LLM library proposal,done,,20250110-1540-create-llm-library-proposal.md
+550e8400-e29b-41d4-a716-446655440013,Design provider-specific type system,done,,20250110-1550-provider-type-system.md

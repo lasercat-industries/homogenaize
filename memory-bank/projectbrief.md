@@ -1,7 +1,7 @@
 # Project Brief: Homogenaize Library
 
 ## Overview
-A TypeScript-native library designed to work seamlessly in both browser and backend environments, providing [specific functionality to be defined based on further requirements].
+A TypeScript-native library that provides a unified, type-safe interface for interacting with major LLM providers (OpenAI, Anthropic, Google Gemini). The key differentiator is first-class support for structured outputs and forced tool calls, addressing critical limitations in existing LLM libraries.
 
 ## Core Requirements
 
@@ -74,23 +74,43 @@ homogenaize/
 - Progressive disclosure of complexity
 - Strong typing with helpful generics
 
-## Questions for Clarification
-To complete this project brief, please provide details on:
+## Core Features
 
-1. **Primary Purpose**: What specific problem will this library solve?
-2. **Core Features**: What are the main functionalities you envision?
-3. **Target Audience**: Who are your colleagues and what are their use cases?
-4. **Similar Libraries**: Are there existing solutions you're drawing inspiration from?
-5. **Performance Requirements**: Any specific performance benchmarks or constraints?
-6. **API Style Preference**: Functional, object-oriented, or mixed approach?
-7. **Release Timeline**: When do you need the first version ready?
+1. **Unified API**: Single interface for OpenAI, Anthropic, and Google Gemini
+2. **Structured Outputs**: First-class support with Zod schema validation
+3. **Forced Tool Calls**: Require LLMs to use specific tools when needed
+4. **Type Safety**: Full TypeScript support with automatic type inference
+5. **Streaming Support**: Handle streaming responses with partial validation
+6. **Provider Transparency**: Access provider-specific features when needed
 
-## Next Steps
-Once the above questions are answered, we can:
-1. Define specific modules and their responsibilities
-2. Create detailed API specifications
-3. Set up the initial project structure
-4. Implement core functionality with tests
+## Target Audience
+TypeScript developers building LLM-powered applications who need:
+- Reliable structured outputs from LLMs
+- The ability to force tool usage
+- Type-safe responses without manual validation
+- Easy switching between LLM providers
+
+## API Design Philosophy
+- **Builder Pattern**: Fluent API for configuration
+- **Schema-First**: Define expected output structure upfront
+- **Async/Await**: Modern promise-based interface
+- **Progressive Enhancement**: Simple defaults with powerful options
+
+## Implementation Priorities
+
+1. **Core Provider Interface**: Abstract base for all LLM providers
+2. **Schema Validation System**: Zod integration for type-safe outputs
+3. **OpenAI Provider**: First implementation with structured outputs
+4. **Tool System**: Define and execute tools with forced usage
+5. **Anthropic & Gemini Providers**: Expand provider support
+6. **Streaming Support**: Handle partial responses with validation
+
+## Success Criteria
+- Seamless provider switching with identical APIs
+- 100% type safety for structured outputs
+- Reliable tool usage enforcement across providers
+- Minimal performance overhead vs direct SDKs
+- Excellent developer experience with clear documentation
 
 ---
 *This document will be updated as requirements are clarified and the project evolves.*
