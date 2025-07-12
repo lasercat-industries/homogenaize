@@ -1,15 +1,48 @@
 {
   "name": "homogenaize",
-  "module": "index.ts",
+  "version": "0.1.0",
+  "description": "A TypeScript-native library that provides a unified interface for multiple LLM providers (OpenAI, Anthropic, Gemini)",
+  "author": "Ryland Goldstein",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "type": "module",
-  "private": true,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "llm",
+    "ai",
+    "openai",
+    "anthropic",
+    "gemini",
+    "typescript",
+    "unified-api",
+    "gpt",
+    "claude",
+    "structured-output",
+    "zod"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rylandgoldstein/homogenaize.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rylandgoldstein/homogenaize/issues"
+  },
+  "homepage": "https://github.com/rylandgoldstein/homogenaize#readme",
   "scripts": {
+    "build": "bun build ./index.ts --outdir ./dist --format esm --sourcemap && tsc --emitDeclarationOnly --declaration --outDir dist",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "format": "echo 'Format script not configured yet'"
+    "format": "echo 'Format script not configured yet'",
+    "prepublishOnly": "bun run build && bun run test && bun run typecheck"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

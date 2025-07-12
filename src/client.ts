@@ -7,6 +7,8 @@ import type {
 } from './providers/types';
 import type { Message, Tool, ToolCall } from './providers/provider';
 import { OpenAIProvider } from './providers/openai';
+import { AnthropicProvider } from './providers/anthropic';
+import { GeminiProvider } from './providers/gemini';
 
 // Client configuration
 export interface LLMConfig<P extends ProviderName> {
@@ -186,10 +188,10 @@ export function createLLM<P extends ProviderName>(
       providerImpl = new OpenAIProvider(config.apiKey) as TypedProvider<P>;
       break;
     case 'anthropic':
-      // TODO: Implement AnthropicProvider
+      providerImpl = new AnthropicProvider(config.apiKey) as TypedProvider<P>;
       break;
     case 'gemini':
-      // TODO: Implement GeminiProvider
+      providerImpl = new GeminiProvider(config.apiKey) as TypedProvider<P>;
       break;
   }
   

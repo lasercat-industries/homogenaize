@@ -15,3 +15,5 @@ id,name,status,dependson,spec
 550e8400-e29b-41d4-a716-446655440014,Define provider interface,done,,20250110-1600-define-provider-interface.md
 550e8400-e29b-41d4-a716-446655440015,Implement basic OpenAI provider,done,550e8400-e29b-41d4-a716-446655440014,20250110-1605-implement-openai-provider.md
 550e8400-e29b-41d4-a716-446655440016,Build schema validation system,done,550e8400-e29b-41d4-a716-446655440014,20250110-1610-build-schema-validation.md
+550e8400-e29b-41d4-a716-446655440017,Implement Anthropic provider,done,550e8400-e29b-41d4-a716-446655440014,20250112-1700-implement-anthropic-provider.md
+550e8400-e29b-41d4-a716-446655440018,Implement Gemini provider,done,550e8400-e29b-41d4-a716-446655440014,20250112-1730-implement-gemini-provider.md
