@@ -1,13 +1,15 @@
 import path from 'node:path';
 
-import { mergeConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
+import { defineConfig, mergeConfig } from 'vitest/config';
 
 import configuration from './vite.config';
 
-export default mergeConfig(configuration, {
+export default defineConfig(({ mode }) => mergeConfig(configuration, {
   test: {
+    env: loadEnv(mode, process.cwd(), ''),
     globals: true,
-    environment: 'happy-dom',
+    environment: 'node',
     include: ['src/**/*.{test,spec}.{js,ts,tsx}'],
     exclude: ['node_modules', 'dist', 'tests', 'coverage'],
     testTimeout: 10000,
@@ -36,4 +38,4 @@ export default mergeConfig(configuration, {
       '$styles': path.resolve('src/components/styles/index.ts'),
     },
   },
-});
+}));

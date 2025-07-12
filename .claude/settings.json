@@ -41,14 +41,6 @@
                     {
                         "type": "command",
                         "command": "bun run format"
-                    },
-                    {
-                        "type": "command",
-                        "command": "bun run typecheck"
-                    },
-                    {
-                        "type": "command",
-                        "command": "bun run typecheck"
                     }
                 ]
             }

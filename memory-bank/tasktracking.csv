@@ -12,6 +12,6 @@ id,name,status,dependson,spec
 550e8400-e29b-41d4-a716-446655440011,Install dependencies for config files,done,,20250110-1530-install-config-dependencies.md
 550e8400-e29b-41d4-a716-446655440012,Create unified LLM library proposal,done,,20250110-1540-create-llm-library-proposal.md
 550e8400-e29b-41d4-a716-446655440013,Design provider-specific type system,done,,20250110-1550-provider-type-system.md
-550e8400-e29b-41d4-a716-446655440014,Define provider interface,active,,20250110-1600-define-provider-interface.md
-550e8400-e29b-41d4-a716-446655440015,Implement basic OpenAI provider,active,550e8400-e29b-41d4-a716-446655440014,20250110-1605-implement-openai-provider.md
-550e8400-e29b-41d4-a716-446655440016,Build schema validation system,active,550e8400-e29b-41d4-a716-446655440014,20250110-1610-build-schema-validation.md
+550e8400-e29b-41d4-a716-446655440014,Define provider interface,done,,20250110-1600-define-provider-interface.md
+550e8400-e29b-41d4-a716-446655440015,Implement basic OpenAI provider,done,550e8400-e29b-41d4-a716-446655440014,20250110-1605-implement-openai-provider.md
+550e8400-e29b-41d4-a716-446655440016,Build schema validation system,done,550e8400-e29b-41d4-a716-446655440014,20250110-1610-build-schema-validation.md
