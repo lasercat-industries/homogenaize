@@ -481,7 +481,7 @@ const response = await llm.chat({
 - [x] OpenAI structured output support
 - [x] Anthropic structured output support
 - [x] Gemini structured output support
-- [ ] Streaming with partial validation
+- [x] Streaming with partial validation
 
 ### Phase 3: Tool System (Week 5-6)
 - [ ] Tool definition API
