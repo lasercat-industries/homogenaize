@@ -473,14 +473,14 @@ const response = await llm.chat({
 
 ### Phase 1: Core Foundation (Week 1-2)
 - [x] Project setup with TypeScript, Vitest, Zod
-- [ ] Provider interface definition
-- [ ] Basic OpenAI implementation
-- [ ] Schema validation system
+- [x] Provider interface definition
+- [x] Basic OpenAI implementation
+- [x] Schema validation system
 
 ### Phase 2: Structured Outputs (Week 3-4)
-- [ ] OpenAI structured output support
-- [ ] Anthropic structured output support
-- [ ] Gemini structured output support
+- [x] OpenAI structured output support
+- [x] Anthropic structured output support
+- [x] Gemini structured output support
 - [ ] Streaming with partial validation
 
 ### Phase 3: Tool System (Week 5-6)

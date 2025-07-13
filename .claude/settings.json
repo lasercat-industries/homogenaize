@@ -6,15 +6,15 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "echo '⚠️  REMINDER: Evaluate each todo against task threshold rules in CLAUDE.md'"
+                        "command": "echo '⚠️  REMINDER: Evaluate each todo against task threshold rules in CLAUDE.md' && exit 2"
                     },
                     {
                         "type": "command",
-                        "command": "echo '📋 Check if todos require CSV tasks: Multi-file changes, dependency changes, verification needed'"
+                        "command": "echo '📋 Check if todos require CSV tasks: Multi-file changes, dependency changes, verification needed' && exit 2"
                     },
                     {
                         "type": "command",
-                        "command": "echo '➡️  If qualifying: Create CSV entry → Create spec file → Update status'"
+                        "command": "echo '➡️  If qualifying: Create CSV entry → Create spec file → Update status' && exit 2"
                     }
                 ]
             },
@@ -23,11 +23,11 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "echo '📊 Consider: Do any current todos need corresponding CSV tasks?'"
+                        "command": "echo '📊 Consider: Do any current todos need corresponding CSV tasks?' && exit 2"
                     },
                     {
                         "type": "command",
-                        "command": "echo '🔍 Review memory-bank/tasktracking.csv for task status alignment'"
+                        "command": "echo '🔍 Review memory-bank/tasktracking.csv for task status alignment' && exit 2"
                     }
                 ]
             },
@@ -36,11 +36,15 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "echo '🧪 TDD Check: If creating implementation code, ensure tests exist first!'"
+                        "command": "echo '🧪 TDD Check: If creating implementation code, ensure tests exist first!' && exit 2"
                     },
                     {
                         "type": "command",
                         "command": "bun run format"
+                    },
+                    {
+                        "type": "command",
+                        "command": "bun run typecheck"
                     }
                 ]
             }
