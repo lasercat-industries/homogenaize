@@ -484,13 +484,13 @@ const response = await llm.chat({
 - [x] Streaming with partial validation
 
 ### Phase 3: Tool System (Week 5-6)
-- [ ] Tool definition API
-- [ ] Forced tool usage implementation
-- [ ] Tool execution pipeline
-- [ ] Multi-tool support
+- [x] Tool definition API
+- [x] Forced tool usage implementation
+- [x] Tool execution pipeline
+- [x] Multi-tool support
 
 ### Phase 4: Advanced Features (Week 7-8)
-- [ ] Provider-specific features (thinking tokens, etc.)
+- [x] Provider-specific features (partial: OpenAI logprobs ✓, Gemini safety ✓, Anthropic thinking ✗)
 - [ ] Retry and error handling
 - [ ] Caching layer
 - [ ] Usage tracking and limits

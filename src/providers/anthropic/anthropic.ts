@@ -20,7 +20,8 @@ interface AnthropicMessage {
 type AnthropicContent = 
   | { type: 'text'; text: string }
   | { type: 'tool_use'; id: string; name: string; input: any }
-  | { type: 'tool_result'; tool_use_id: string; content: string };
+  | { type: 'tool_result'; tool_use_id: string; content: string }
+  | { type: 'thinking'; text: string };
 
 interface AnthropicTool {
   name: string;
@@ -39,6 +40,7 @@ interface AnthropicRequest {
   stream?: boolean;
   tools?: AnthropicTool[];
   tool_choice?: { type: 'auto' | 'any' | 'tool'; name?: string };
+  max_thinking_tokens?: number;
 }
 
 interface AnthropicResponse {
@@ -52,6 +54,7 @@ interface AnthropicResponse {
   usage: {
     input_tokens: number;
     output_tokens: number;
+    thinking_tokens?: number;
   };
 }
 
@@ -348,8 +351,10 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
     // Handle Anthropic-specific features
     if (request.features) {
-      // Features like thinking and cacheControl would be handled here
-      // For now, we'll just pass through standard options
+      if (request.features.thinking && request.features.maxThinkingTokens) {
+        anthropicRequest.max_thinking_tokens = request.features.maxThinkingTokens;
+      }
+      // cacheControl would be handled here when implemented
     }
 
     // Handle tools
@@ -406,12 +411,15 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
   private transformResponse<T>(response: AnthropicResponse, schema?: z.ZodSchema): ProviderChatResponse<'anthropic', T> {
     let content = '';
+    let thinking = '';
     const toolCalls: ToolCall[] = [];
 
     // Process content blocks
     for (const block of response.content) {
       if (block.type === 'text') {
         content += block.text;
+      } else if (block.type === 'thinking') {
+        thinking += block.text;
       } else if (block.type === 'tool_use') {
         toolCalls.push({
           id: block.id,
@@ -433,12 +441,16 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       parsedContent = content as T;
     }
 
+    const totalTokens = response.usage.input_tokens + 
+                       response.usage.output_tokens + 
+                       (response.usage.thinking_tokens || 0);
+
     const result: ProviderChatResponse<'anthropic', T> = {
       content: parsedContent,
       usage: {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
-        totalTokens: response.usage.input_tokens + response.usage.output_tokens
+        totalTokens: totalTokens
       },
       model: response.model,
       finishReason: response.stop_reason as any
@@ -447,6 +459,10 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
     if (toolCalls.length > 0) {
       result.toolCalls = toolCalls;
+    }
+
+    if (thinking) {
+      result.thinking = thinking;
     }
 
     return result;

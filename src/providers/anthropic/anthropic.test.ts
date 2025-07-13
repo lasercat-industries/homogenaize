@@ -239,6 +239,44 @@ describe('Anthropic Provider', () => {
       expect(global.fetch).toHaveBeenCalled();
     });
 
+    it('should handle thinking tokens feature', async () => {
+      const mockResponse = {
+        id: 'msg_123',
+        type: 'message',
+        role: 'assistant',
+        model: 'claude-3-opus-20240229',
+        content: [
+          { type: 'thinking', text: 'Let me think about this...' },
+          { type: 'text', text: 'The answer is 42.' }
+        ],
+        usage: { input_tokens: 100, output_tokens: 50, thinking_tokens: 25 }
+      };
+
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse
+      });
+
+      const request = {
+        messages: [{ role: 'user', content: 'What is the meaning of life?' }],
+        features: {
+          thinking: true,
+          maxThinkingTokens: 1000
+        }
+      };
+
+      const response = await provider.chat(request as any);
+
+      // Check that thinking feature is passed in request
+      const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);
+      expect(callArgs.max_thinking_tokens).toBe(1000);
+
+      // Check that thinking content is returned in response
+      expect(response.thinking).toBe('Let me think about this...');
+      expect(response.content).toBe('The answer is 42.');
+      expect(response.usage.totalTokens).toBe(175); // input + output + thinking
+    });
+
     it('should handle API errors', async () => {
       (global.fetch as any).mockResolvedValueOnce({
         ok: false,
