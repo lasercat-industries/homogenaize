@@ -60,6 +60,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "uuid-mcp": "^1.0.0",
     "zod": "^4.0.0",
     "zod-to-json-schema": "^3.24.6"
   }

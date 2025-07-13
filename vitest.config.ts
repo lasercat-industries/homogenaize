@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => mergeConfig(configuration, {
     environment: 'node',
     include: ['src/**/*.{test,spec}.{js,ts,tsx}'],
     exclude: ['node_modules', 'dist', 'tests', 'coverage'],
-    testTimeout: 10000,
+    testTimeout: 30000,
     hookTimeout: 10000,
     teardownTimeout: 10000,
     pool: 'forks',

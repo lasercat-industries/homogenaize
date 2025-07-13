@@ -6,7 +6,7 @@ import { createOpenAILLM } from '../client';
 const originalFetch = global.fetch;
 
 // Mock fetch globally
-global.fetch = vi.fn();
+global.fetch = vi.fn() as any;
 
 describe('OpenAI Client Integration', () => {
   beforeEach(() => {

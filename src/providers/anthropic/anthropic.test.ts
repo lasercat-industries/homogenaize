@@ -153,8 +153,8 @@ describe('Anthropic Provider', () => {
 
       const response = await provider.chat(request);
 
-      // Provider returns raw content, client handles parsing
-      expect(response.content).toBe('{"name":"John","age":30,"city":"NYC"}');
+      // Provider returns parsed content when schema is provided
+      expect(response.content).toEqual({ name: "John", age: 30, city: "NYC" });
       
       // Check that system prompt was added for JSON
       const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);

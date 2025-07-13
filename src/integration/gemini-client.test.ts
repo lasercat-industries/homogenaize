@@ -6,7 +6,7 @@ import { createGeminiLLM } from '../client';
 const originalFetch = global.fetch;
 
 // Mock fetch globally
-global.fetch = vi.fn();
+global.fetch = vi.fn() as any;
 
 describe('Gemini Client Integration', () => {
   beforeEach(() => {
@@ -75,7 +75,7 @@ describe('Gemini Client Integration', () => {
       city: z.string()
     });
 
-    type Person = z.infer<typeof PersonSchema>;
+    // type Person = z.infer<typeof PersonSchema>;
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
@@ -162,7 +162,7 @@ describe('Gemini Client Integration', () => {
 
     expect(response.content).toBe('Safe response');
     expect(response.safetyRatings).toBeDefined();
-    expect(response.safetyRatings![0].category).toBe('HARM_CATEGORY_DANGEROUS_CONTENT');
+    expect(response.safetyRatings?.[0]?.category).toBe('HARM_CATEGORY_DANGEROUS_CONTENT');
   });
 
   it('should define and execute tools', async () => {

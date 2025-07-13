@@ -137,7 +137,7 @@ describe('OpenAI Provider', () => {
         schema
       });
 
-      expect(response.content).toBe('{"answer": "Paris", "confidence": 0.95}');
+      expect(response.content).toEqual({ answer: "Paris", confidence: 0.95 });
       
       // Verify response_format was set
       const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);

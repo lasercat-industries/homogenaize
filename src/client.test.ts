@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import type { LLMClient } from './client';
 import { createLLM, createOpenAILLM, createAnthropicLLM, createGeminiLLM } from './client';
+import type { ProviderChatResponse } from './providers/types';
 
 describe('LLM Client', () => {
   describe('Factory functions', () => {
@@ -67,7 +68,7 @@ describe('LLM Client', () => {
 
   describe('Type safety', () => {
     it('should enforce provider-specific features at compile time', () => {
-      const openaiClient = createOpenAILLM({
+      createOpenAILLM({
         apiKey: 'test-key',
         model: 'gpt-4'
       });
@@ -102,9 +103,9 @@ describe('LLM Client', () => {
         }
       ) {}
 
-      async chat(options: any) {
+      async chat<T = string>(_options: any): Promise<ProviderChatResponse<P, T>> {
         return {
-          content: 'Mock response',
+          content: 'Mock response' as T,
           usage: {
             inputTokens: 10,
             outputTokens: 5,
@@ -112,22 +113,22 @@ describe('LLM Client', () => {
           },
           model: this.model,
           provider: this.provider
-        };
+        } as ProviderChatResponse<P, T>;
       }
 
-      async stream(options: any) {
+      async stream<T = string>(_options: any): Promise<{ complete(): Promise<ProviderChatResponse<P, T>>; [Symbol.asyncIterator](): AsyncIterator<T, any, any>; }> {
         const chunks = ['Mock', ' ', 'stream'];
         let index = 0;
         
         return {
-          async *[Symbol.asyncIterator]() {
+          async *[Symbol.asyncIterator](): AsyncIterator<T, any, any> {
             while (index < chunks.length) {
-              yield chunks[index++];
+              yield chunks[index++] as T;
             }
           },
-          async complete() {
+          async complete(): Promise<ProviderChatResponse<P, T>> {
             return {
-              content: 'Mock stream',
+              content: 'Mock stream' as T,
               usage: {
                 inputTokens: 10,
                 outputTokens: 5,
@@ -135,7 +136,7 @@ describe('LLM Client', () => {
               },
               model: 'mock-model',
               provider: 'mock' as any
-            };
+            } as ProviderChatResponse<P, T>;
           }
         };
       }
@@ -175,7 +176,9 @@ describe('LLM Client', () => {
       
       const chunks: string[] = [];
       for await (const chunk of stream) {
-        chunks.push(chunk);
+        if (chunk !== undefined) {
+          chunks.push(chunk);
+        }
       }
       
       expect(chunks).toEqual(['Mock', ' ', 'stream']);
@@ -187,7 +190,7 @@ describe('LLM Client', () => {
         name: 'get_weather',
         description: 'Get weather',
         schema: z.object({ location: z.string() }),
-        execute: async (params) => ({ temp: 20, location: params.location })
+        execute: async (params: any) => ({ temp: 20, location: params.location })
       });
       
       expect(tool.name).toBe('get_weather');

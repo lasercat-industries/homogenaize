@@ -1,11 +1,7 @@
 import { z } from 'zod';
 import type { 
-  Provider, 
-  ChatRequest, 
-  ChatResponse, 
   StreamingResponse,
   ProviderCapabilities,
-  Tool,
   ToolCall,
   Message
 } from '../provider';
@@ -175,7 +171,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     }
   }
 
-  async chat(request: ProviderChatRequest<'anthropic'>): Promise<ProviderChatResponse<'anthropic'>> {
+  async chat<T = string>(request: ProviderChatRequest<'anthropic'>): Promise<ProviderChatResponse<'anthropic', T>> {
     const anthropicRequest = this.transformRequest(request);
     
     const response = await fetch(`${this.baseURL}/messages`, {
@@ -194,7 +190,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     }
 
     const data: AnthropicResponse = await response.json();
-    return this.transformResponse(data);
+    return this.transformResponse<T>(data, request.schema);
   }
 
   async stream(request: ProviderChatRequest<'anthropic'>): Promise<StreamingResponse> {
@@ -225,8 +221,8 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     let finishReason: any;
     let messageId = '';
 
-    return {
-      async *[Symbol.asyncIterator]() {
+    const streamResponse = {
+      async *[Symbol.asyncIterator](): AsyncIterator<T> {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -279,14 +275,26 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         }
       },
 
-      async complete(): Promise<ProviderChatResponse<'anthropic'>> {
+      async complete(): Promise<ProviderChatResponse<'anthropic', T>> {
         // Drain any remaining content
-        for await (const _ of this) {
+        for await (const _ of streamResponse) {
           // Just consume
         }
 
+        let parsedContent: T;
+        if (request.schema && content) {
+          try {
+            const parsed = JSON.parse(content);
+            parsedContent = request.schema.parse(parsed) as T;
+          } catch {
+            parsedContent = content as T;
+          }
+        } else {
+          parsedContent = content as T;
+        }
+
         return {
-          content,
+          content: parsedContent,
           usage: {
             inputTokens: usage.input_tokens,
             outputTokens: usage.output_tokens,
@@ -298,6 +306,8 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         };
       }
     };
+    
+    return streamResponse;
   }
 
   supportsFeature(feature: string): boolean {
@@ -391,7 +401,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     };
   }
 
-  private transformResponse(response: AnthropicResponse): ProviderChatResponse<'anthropic'> {
+  private transformResponse<T>(response: AnthropicResponse, schema?: z.ZodSchema): ProviderChatResponse<'anthropic', T> {
     let content = '';
     const toolCalls: ToolCall[] = [];
 
@@ -408,8 +418,20 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       }
     }
 
-    const result: ProviderChatResponse<'anthropic'> = {
-      content,
+    let parsedContent: T;
+    if (schema && content) {
+      try {
+        const parsed = JSON.parse(content);
+        parsedContent = schema.parse(parsed) as T;
+      } catch {
+        parsedContent = content as T;
+      }
+    } else {
+      parsedContent = content as T;
+    }
+
+    const result: ProviderChatResponse<'anthropic', T> = {
+      content: parsedContent,
       usage: {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,

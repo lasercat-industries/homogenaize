@@ -1,11 +1,7 @@
 import { z } from 'zod';
 import type { 
-  Provider, 
-  ChatRequest, 
-  ChatResponse, 
   StreamingResponse,
   ProviderCapabilities,
-  Tool,
   ToolCall,
   Message
 } from '../provider';
@@ -203,7 +199,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     }
   }
 
-  async chat(request: ProviderChatRequest<'openai'>): Promise<ProviderChatResponse<'openai'>> {
+  async chat<T = string>(request: ProviderChatRequest<'openai'>): Promise<ProviderChatResponse<'openai', T>> {
     const openAIRequest = this.transformRequest(request);
     
     const response = await fetch(`${this.baseURL}/chat/completions`, {
@@ -221,10 +217,10 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     }
 
     const data: OpenAIResponse = await response.json();
-    return this.transformResponse(data);
+    return this.transformResponse<T>(data, request.schema);
   }
 
-  async stream(request: ProviderChatRequest<'openai'>): Promise<StreamingResponse> {
+  async stream<T = string>(request: ProviderChatRequest<'openai'>): Promise<StreamingResponse<T>> {
     const openAIRequest = this.transformRequest(request);
     openAIRequest.stream = true;
     openAIRequest.stream_options = { include_usage: true };
@@ -251,8 +247,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     let model = '';
     let finishReason: any;
 
-    return {
-      async *[Symbol.asyncIterator]() {
+    const streamResponse = {
+      async *[Symbol.asyncIterator](): AsyncIterator<T> {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -273,7 +269,11 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
                 if (chunk.choices[0]?.delta?.content) {
                   const chunkContent = chunk.choices[0].delta.content;
                   content += chunkContent;
-                  yield chunkContent;
+                  // For structured output, we can't yield partial JSON
+                  // So we only yield for string content
+                  if (!request.schema) {
+                    yield chunkContent as T;
+                  }
                 }
                 
                 if (chunk.usage) {
@@ -295,14 +295,26 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         }
       },
 
-      async complete(): Promise<ProviderChatResponse<'openai'>> {
+      async complete(): Promise<ProviderChatResponse<'openai', T>> {
         // Drain any remaining content
-        for await (const _ of this) {
+        for await (const _ of streamResponse) {
           // Just consume
         }
 
+        let parsedContent: T;
+        if (request.schema && content) {
+          try {
+            const parsed = JSON.parse(content);
+            parsedContent = request.schema.parse(parsed) as T;
+          } catch {
+            parsedContent = content as T;
+          }
+        } else {
+          parsedContent = content as T;
+        }
+
         return {
-          content,
+          content: parsedContent,
           usage: usage ? {
             inputTokens: usage.prompt_tokens,
             outputTokens: usage.completion_tokens,
@@ -317,6 +329,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         };
       }
     };
+    
+    return streamResponse;
   }
 
   supportsFeature(feature: string): boolean {
@@ -350,7 +364,6 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     // Handle structured output via schema
     if (request.schema) {
       const jsonSchema = zodToOpenAISchema(request.schema);
-      console.log('Converted schema:', JSON.stringify(jsonSchema, null, 2));
       openAIRequest.response_format = {
         type: 'json_schema',
         json_schema: {
@@ -415,12 +428,24 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     };
   }
 
-  private transformResponse(response: OpenAIResponse): ProviderChatResponse<'openai'> {
+  private transformResponse<T>(response: OpenAIResponse, schema?: z.ZodSchema): ProviderChatResponse<'openai', T> {
     const choice = response.choices[0];
     const message = choice.message;
     
-    const result: ProviderChatResponse<'openai'> = {
-      content: message.content || '',
+    let content: T;
+    if (schema && message.content) {
+      try {
+        const parsed = JSON.parse(message.content);
+        content = schema.parse(parsed) as T;
+      } catch {
+        content = message.content as T;
+      }
+    } else {
+      content = (message.content || '') as T;
+    }
+
+    const result: ProviderChatResponse<'openai', T> = {
+      content,
       usage: {
         inputTokens: response.usage.prompt_tokens,
         outputTokens: response.usage.completion_tokens,

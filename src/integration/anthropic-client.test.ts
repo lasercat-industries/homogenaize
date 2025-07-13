@@ -6,7 +6,7 @@ import { createAnthropicLLM } from '../client';
 const originalFetch = global.fetch;
 
 // Mock fetch globally
-global.fetch = vi.fn();
+global.fetch = vi.fn() as any;
 
 describe('Anthropic Client Integration', () => {
   beforeEach(() => {
@@ -72,7 +72,7 @@ describe('Anthropic Client Integration', () => {
       city: z.string()
     });
 
-    type Person = z.infer<typeof PersonSchema>;
+    // type Person = z.infer<typeof PersonSchema>;
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
@@ -142,7 +142,7 @@ describe('Anthropic Client Integration', () => {
     });
 
     expect(response.content).toBe('Thoughtful response');
-    expect(response.id).toBe('msg_123');
+    expect((response as any).id).toBe('msg_123');
   });
 
   it('should define and execute tools', async () => {
@@ -193,13 +193,13 @@ describe('Anthropic Client Integration', () => {
     });
 
     expect(response.toolCalls).toHaveLength(1);
-    expect(response.toolCalls![0].name).toBe('get_weather');
+    expect(response.toolCalls?.[0]?.name).toBe('get_weather');
 
     // Execute the tool
     const results = await client.executeTools(response.toolCalls!);
     console.log('Tool execution results:', results);
     expect(results).toHaveLength(1);
-    expect(results[0].result).toEqual({
+    expect(results[0]?.result).toEqual({
       temperature: 72,
       location: 'San Francisco'
     });

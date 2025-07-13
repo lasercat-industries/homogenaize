@@ -13,7 +13,7 @@ describe('Real API Integration Tests', () => {
     
     beforeAll(() => {
       client = createOpenAILLM({
-        apiKey: process.env.OPENAI_API_KEY!,
+        apiKey: process.env.OPENAI_API_KEY || '',
         model: 'gpt-4o-mini'
       });
     });
@@ -191,7 +191,7 @@ describe('Real API Integration Tests', () => {
     
     beforeAll(() => {
       client = createAnthropicLLM({
-        apiKey: process.env.ANTHROPIC_API_KEY!,
+        apiKey: process.env.ANTHROPIC_API_KEY || '',
         model: 'claude-3-opus-20240229'
       });
     });
@@ -254,8 +254,7 @@ describe('Real API Integration Tests', () => {
       expect(complete.usage.totalTokens).toBeGreaterThan(0);
     });
 
-    it.skip('should handle tool calls', async () => {
-      // Skip this test for now - Anthropic's tool calling can be slow
+    it('should handle tool calls', async () => {
       // Define a weather tool
       const weatherTool = client.defineTool({
         name: 'get_weather',
@@ -363,7 +362,7 @@ describe('Real API Integration Tests', () => {
     
     beforeAll(() => {
       client = createGeminiLLM({
-        apiKey: process.env.GEMINI_API_KEY!,
+        apiKey: process.env.GEMINI_API_KEY || '',
         model: 'gemini-1.5-flash-latest'
       });
     });

@@ -1,14 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { 
-  ProviderName, 
-  ProviderFeatures, 
-  ProviderResponses,
   ProviderChatRequest,
   ProviderChatResponse,
   TypedProvider
 } from './types';
 import type { ChatResponse } from './provider';
-import { isOpenAIResponse, isAnthropicResponse, isGeminiResponse } from './types';
+import { isOpenAIResponse, isAnthropicResponse } from './types';
 
 describe('Provider Types', () => {
   describe('Provider-specific features', () => {

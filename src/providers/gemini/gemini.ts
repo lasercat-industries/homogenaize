@@ -1,11 +1,7 @@
 import { z } from 'zod';
 import type { 
-  Provider, 
-  ChatRequest, 
-  ChatResponse, 
   StreamingResponse,
   ProviderCapabilities,
-  Tool,
   ToolCall,
   Message
 } from '../provider';
@@ -154,7 +150,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     }
   }
 
-  async chat(request: ProviderChatRequest<'gemini'>): Promise<ProviderChatResponse<'gemini'>> {
+  async chat<T = string>(request: ProviderChatRequest<'gemini'>): Promise<ProviderChatResponse<'gemini', T>> {
     const geminiRequest = this.transformRequest(request);
     const model = request.model || 'gemini-1.5-pro-latest';
     
@@ -175,10 +171,10 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     }
 
     const data: GeminiResponse = await response.json();
-    return this.transformResponse(data, model);
+    return this.transformResponse<T>(data, model, request.schema);
   }
 
-  async stream(request: ProviderChatRequest<'gemini'>): Promise<StreamingResponse> {
+  async stream<T = string>(request: ProviderChatRequest<'gemini'>): Promise<StreamingResponse<T>> {
     const geminiRequest = this.transformRequest(request);
     const model = request.model || 'gemini-1.5-pro-latest';
     
@@ -205,8 +201,8 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     let usage = { promptTokenCount: 0, candidatesTokenCount: 0 };
     let finishReason: string | undefined;
 
-    return {
-      async *[Symbol.asyncIterator]() {
+    const streamResponse = {
+      async *[Symbol.asyncIterator](): AsyncIterator<T> {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -233,7 +229,10 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
                   for (const part of candidate.content.parts) {
                     if ('text' in part && part.text) {
                       content += part.text;
-                      yield part.text;
+                      // For structured output, we can't yield partial JSON
+                      if (!request.schema) {
+                        yield part.text as T;
+                      }
                     }
                   }
                 }
@@ -255,14 +254,26 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         }
       },
 
-      async complete(): Promise<ProviderChatResponse<'gemini'>> {
+      async complete(): Promise<ProviderChatResponse<'gemini', T>> {
         // Drain any remaining content
-        for await (const _ of this) {
+        for await (const _ of streamResponse) {
           // Just consume
         }
 
+        let parsedContent: T;
+        if (request.schema && content) {
+          try {
+            const parsed = JSON.parse(content);
+            parsedContent = request.schema.parse(parsed) as T;
+          } catch {
+            parsedContent = content as T;
+          }
+        } else {
+          parsedContent = content as T;
+        }
+
         return {
-          content,
+          content: parsedContent,
           usage: {
             inputTokens: usage.promptTokenCount,
             outputTokens: usage.candidatesTokenCount,
@@ -273,6 +284,8 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         };
       }
     };
+    
+    return streamResponse;
   }
 
   supportsFeature(feature: string): boolean {
@@ -369,7 +382,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     return { role, parts };
   }
 
-  private transformResponse(response: GeminiResponse, model: string): ProviderChatResponse<'gemini'> {
+  private transformResponse<T>(response: GeminiResponse, model: string, schema?: z.ZodSchema): ProviderChatResponse<'gemini', T> {
     const candidate = response.candidates[0];
     let content = '';
     const toolCalls: ToolCall[] = [];
@@ -390,8 +403,20 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
       }
     }
 
-    const result: ProviderChatResponse<'gemini'> = {
-      content,
+    let parsedContent: T;
+    if (schema && content) {
+      try {
+        const parsed = JSON.parse(content);
+        parsedContent = schema.parse(parsed) as T;
+      } catch {
+        parsedContent = content as T;
+      }
+    } else {
+      parsedContent = content as T;
+    }
+
+    const result: ProviderChatResponse<'gemini', T> = {
+      content: parsedContent,
       usage: response.usageMetadata ? {
         inputTokens: response.usageMetadata.promptTokenCount,
         outputTokens: response.usageMetadata.candidatesTokenCount,

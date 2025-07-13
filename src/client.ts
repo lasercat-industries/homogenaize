@@ -5,7 +5,7 @@ import type {
   ProviderChatResponse,
   TypedProvider
 } from './providers/types';
-import type { Message, Tool, ToolCall } from './providers/provider';
+import type { Tool, ToolCall } from './providers/provider';
 import { OpenAIProvider } from './providers/openai';
 import { AnthropicProvider } from './providers/anthropic';
 import { GeminiProvider } from './providers/gemini';
@@ -94,20 +94,9 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       model: this.model,
     } as ProviderChatRequest<P>;
 
-    const response = await this.providerImpl.chat(request);
+    const response = await this.providerImpl.chat<T>(request);
     
-    // Validate response if schema provided
-    if (options.schema && typeof response.content === 'string') {
-      try {
-        const parsed = JSON.parse(response.content);
-        const validated = options.schema.parse(parsed);
-        return { ...response, content: validated as T };
-      } catch (error) {
-        throw new Error(`Response validation failed: ${error}`);
-      }
-    }
-
-    return response as ProviderChatResponse<P, T>;
+    return response;
   }
 
   async stream<T = string>(
@@ -185,13 +174,13 @@ export function createLLM<P extends ProviderName>(
   // Create provider implementation based on provider name
   switch (config.provider) {
     case 'openai':
-      providerImpl = new OpenAIProvider(config.apiKey) as TypedProvider<P>;
+      providerImpl = new OpenAIProvider(config.apiKey) as unknown as TypedProvider<P>;
       break;
     case 'anthropic':
-      providerImpl = new AnthropicProvider(config.apiKey) as TypedProvider<P>;
+      providerImpl = new AnthropicProvider(config.apiKey) as unknown as TypedProvider<P>;
       break;
     case 'gemini':
-      providerImpl = new GeminiProvider(config.apiKey) as TypedProvider<P>;
+      providerImpl = new GeminiProvider(config.apiKey) as unknown as TypedProvider<P>;
       break;
   }
   
