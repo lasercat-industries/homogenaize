@@ -24,9 +24,16 @@ yarn add homogenaize
 ## Quick Start
 
 ```typescript
-import { createOpenAILLM, createAnthropicLLM, createGeminiLLM } from 'homogenaize';
+import { createLLM, createOpenAILLM, createAnthropicLLM, createGeminiLLM } from 'homogenaize';
 
-// Create a client for your preferred provider
+// Option 1: Generic client (recommended for flexibility)
+const client = createLLM({
+  provider: 'openai', // or 'anthropic' or 'gemini'
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: 'gpt-4o-mini'
+});
+
+// Option 2: Provider-specific clients (for better type hints)
 const openai = createOpenAILLM({
   apiKey: process.env.OPENAI_API_KEY!,
   model: 'gpt-4o-mini'
@@ -43,7 +50,7 @@ const gemini = createGeminiLLM({
 });
 
 // Use the same interface for all providers
-const response = await openai.chat({
+const response = await client.chat({
   messages: [
     { role: 'system', content: 'You are a helpful assistant' },
     { role: 'user', content: 'Hello!' }
@@ -56,13 +63,24 @@ console.log(response.content);
 
 ## Structured Outputs with Zod
 
+Define a schema and get validated, typed responses from any provider:
+
 ```typescript
 import { z } from 'zod';
+import { createLLM } from 'homogenaize';
 
 const PersonSchema = z.object({
   name: z.string(),
   age: z.number(),
-  occupation: z.string()
+  occupation: z.string(),
+  hobbies: z.array(z.string())
+});
+
+// Works with the generic createLLM function
+const client = createLLM({
+  provider: 'openai', // or 'anthropic' or 'gemini'
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: 'gpt-4o-mini'
 });
 
 // Get validated, typed responses
@@ -71,8 +89,16 @@ const response = await client.chat({
   schema: PersonSchema
 });
 
-// response.content is fully typed as { name: string, age: number, occupation: string }
-console.log(response.content.name);
+// response.content is fully typed as { name: string, age: number, occupation: string, hobbies: string[] }
+console.log(response.content.name);        // TypeScript knows this is a string
+console.log(response.content.hobbies[0]);  // TypeScript knows this is a string[]
+
+// Also works with provider-specific clients
+const anthropic = createAnthropicLLM({ /* ... */ });
+const anthropicResponse = await anthropic.chat({
+  messages: [{ role: 'user', content: 'Generate a person profile' }],
+  schema: PersonSchema  // Same schema works across all providers!
+});
 ```
 
 ## Streaming Responses
@@ -170,7 +196,9 @@ const geminiResponse = await gemini.chat({
 ### Creating Clients
 
 ```typescript
-createOpenAILLM(config: {
+// Generic client creation (recommended)
+createLLM(config: {
+  provider: 'openai' | 'anthropic' | 'gemini';
   apiKey: string;
   model: string;
   defaultOptions?: {
@@ -180,6 +208,13 @@ createOpenAILLM(config: {
     frequencyPenalty?: number;
     presencePenalty?: number;
   };
+})
+
+// Provider-specific clients (for better type inference)
+createOpenAILLM(config: {
+  apiKey: string;
+  model: string;
+  defaultOptions?: { /* same options */ };
 })
 
 createAnthropicLLM(config: { /* same as above */ })
