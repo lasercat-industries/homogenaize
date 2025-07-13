@@ -166,11 +166,11 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     );
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error = await response.json().catch(() => ({ error: { message: response.statusText } })) as { error?: { message?: string } };
       throw new Error(`Gemini API error (${response.status}): ${error.error?.message || 'Unknown error'}`);
     }
 
-    const data: GeminiResponse = await response.json();
+    const data = await response.json() as GeminiResponse;
     return this.transformResponse<T>(data, model, request.schema);
   }
 
@@ -190,7 +190,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     );
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error = await response.json().catch(() => ({ error: { message: response.statusText } })) as { error?: { message?: string } };
       throw new Error(`Gemini API error (${response.status}): ${error.error?.message || 'Unknown error'}`);
     }
 
@@ -280,7 +280,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
             totalTokens: usage.promptTokenCount + usage.candidatesTokenCount
           },
           model,
-          finishReason
+          finishReason: finishReason as any
         };
       }
     };
@@ -373,7 +373,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     // Handle multi-modal content
     const parts: GeminiPart[] = message.content.map(c => {
       if (c.type === 'text') {
-        return { text: c.text };
+        return { text: c.text || '' };
       }
       // Handle image content if needed
       return { text: '[Image content]' };
@@ -384,6 +384,9 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
 
   private transformResponse<T>(response: GeminiResponse, model: string, schema?: z.ZodSchema): ProviderChatResponse<'gemini', T> {
     const candidate = response.candidates[0];
+    if (!candidate) {
+      throw new Error('No candidate in response');
+    }
     let content = '';
     const toolCalls: ToolCall[] = [];
 
@@ -391,9 +394,9 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     if (candidate.content && candidate.content.parts) {
       for (let i = 0; i < candidate.content.parts.length; i++) {
         const part = candidate.content.parts[i];
-        if ('text' in part && part.text) {
+        if (part && 'text' in part && part.text) {
           content += part.text;
-        } else if ('functionCall' in part) {
+        } else if (part && 'functionCall' in part) {
           toolCalls.push({
             id: `${part.functionCall.name}_${i}`,
             name: part.functionCall.name,
@@ -427,7 +430,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         totalTokens: 0
       },
       model,
-      finishReason: candidate.finishReason
+      finishReason: candidate.finishReason as any
     };
 
     if (toolCalls.length > 0) {

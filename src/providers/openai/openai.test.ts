@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import { z } from 'zod';
 import { OpenAIProvider } from './openai';
-import type { ChatRequest } from '../provider';
+// import type { ChatRequest } from '../provider';
 
 // Store original fetch
 const originalFetch = global.fetch;
 
 // Mock fetch for API calls
-global.fetch = vi.fn();
+global.fetch = vi.fn() as any;
 
 describe('OpenAI Provider', () => {
   let provider: OpenAIProvider;
@@ -259,8 +259,8 @@ describe('OpenAI Provider', () => {
 
       expect(response.systemFingerprint).toBe('fp_12345');
       expect(response.logprobs).toBeDefined();
-      expect(response.logprobs![0].token).toBe('Response');
-      expect(response.logprobs![0].topLogprobs).toHaveLength(2);
+      expect(response.logprobs?.[0]?.token).toBe('Response');
+      expect(response.logprobs?.[0]?.topLogprobs).toHaveLength(2);
 
       // Verify features were passed
       const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);

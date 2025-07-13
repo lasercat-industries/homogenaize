@@ -7,7 +7,7 @@ import type { ChatRequest } from '../provider';
 const originalFetch = global.fetch;
 
 // Mock fetch for API calls
-global.fetch = vi.fn();
+global.fetch = vi.fn() as any;
 
 describe('Gemini Provider', () => {
   let provider: GeminiProvider;

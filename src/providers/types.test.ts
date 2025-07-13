@@ -154,18 +154,18 @@ describe('Provider Types', () => {
           vision: true,
           maxTokens: 128000
         },
-        async chat(request) {
+        async chat<T = string>(request: any) {
           // Request should have OpenAI-specific features
           if (request.features?.logprobs) {
             return {
-              content: 'Response',
+              content: 'Response' as T,
               usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
               model: 'gpt-4',
               logprobs: [{ token: 'Response', logprob: -0.1 }]
             };
           }
           return {
-            content: 'Response',
+            content: 'Response' as T,
             usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
             model: 'gpt-4'
           };

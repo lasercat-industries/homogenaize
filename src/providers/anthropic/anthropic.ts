@@ -185,15 +185,15 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error = await response.json().catch(() => ({ error: { message: response.statusText } })) as { error?: { message?: string } };
       throw new Error(`Anthropic API error (${response.status}): ${error.error?.message || 'Unknown error'}`);
     }
 
-    const data: AnthropicResponse = await response.json();
+    const data = await response.json() as AnthropicResponse;
     return this.transformResponse<T>(data, request.schema);
   }
 
-  async stream(request: ProviderChatRequest<'anthropic'>): Promise<StreamingResponse> {
+  async stream<T = string>(request: ProviderChatRequest<'anthropic'>): Promise<StreamingResponse<T>> {
     const anthropicRequest = this.transformRequest(request);
     anthropicRequest.stream = true;
 
@@ -208,7 +208,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error = await response.json().catch(() => ({ error: { message: response.statusText } })) as { error?: { message?: string } };
       throw new Error(`Anthropic API error (${response.status}): ${error.error?.message || 'Unknown error'}`);
     }
 
@@ -219,7 +219,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     let usage = { input_tokens: 0, output_tokens: 0 };
     let model = '';
     let finishReason: any;
-    let messageId = '';
+    // let messageId = ''; // Not needed since id is not part of response type
 
     const streamResponse = {
       async *[Symbol.asyncIterator](): AsyncIterator<T> {
@@ -233,7 +233,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
           for (const line of lines) {
             if (line.startsWith('event: ')) {
-              const eventType = line.slice(7);
+              // We don't need the event type for now
               continue;
             }
             
@@ -247,7 +247,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
                 switch (event.type) {
                   case 'message_start':
                     const msgStart = event as MessageStartEvent;
-                    messageId = msgStart.message.id;
+                    // messageId = msgStart.message.id;
                     model = msgStart.message.model;
                     usage.input_tokens = msgStart.message.usage.input_tokens;
                     break;
@@ -257,7 +257,10 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
                     if (delta.delta.type === 'text_delta') {
                       const text = delta.delta.text;
                       content += text;
-                      yield text;
+                      // For structured output, we can't yield partial JSON
+                      if (!request.schema) {
+                        yield text as T;
+                      }
                     }
                     break;
                     
@@ -302,7 +305,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
           },
           model,
           finishReason,
-          id: messageId
+          // id: messageId // Not part of the response type
         };
       }
     };
@@ -389,7 +392,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     // Handle multi-modal content
     const anthropicContent: AnthropicContent[] = message.content.map(c => {
       if (c.type === 'text') {
-        return { type: 'text' as const, text: c.text };
+        return { type: 'text' as const, text: c.text || '' };
       }
       // Handle image content if needed
       return { type: 'text' as const, text: '[Image content]' };
@@ -438,8 +441,8 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         totalTokens: response.usage.input_tokens + response.usage.output_tokens
       },
       model: response.model,
-      finishReason: response.stop_reason,
-      id: response.id
+      finishReason: response.stop_reason as any
+      // id: response.id // Not part of the response type
     };
 
     if (toolCalls.length > 0) {

@@ -7,7 +7,7 @@ import type { ChatRequest } from '../provider';
 const originalFetch = global.fetch;
 
 // Mock fetch for API calls
-global.fetch = vi.fn();
+global.fetch = vi.fn() as any;
 
 describe('Anthropic Provider', () => {
   let provider: AnthropicProvider;
@@ -234,7 +234,6 @@ describe('Anthropic Provider', () => {
 
       await provider.chat(request as any);
 
-      const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);
       // Anthropic-specific features would be in the request
       // For now, we'll just verify the call was made
       expect(global.fetch).toHaveBeenCalled();

@@ -2,7 +2,6 @@ import { z } from 'zod';
 import type { 
   StreamingResponse,
   ProviderCapabilities,
-  ToolCall,
   Message
 } from '../provider';
 import type { 
@@ -140,7 +139,7 @@ function zodToOpenAISchema(schema: z.ZodSchema): any {
         for (const [key, value] of Object.entries(shape)) {
           const fieldSchema = processZodType((value as any)._def);
           // Remove the __isOptional marker and use it to determine required fields
-          const isOptional = fieldSchema.__isOptional;
+          // const isOptional = fieldSchema.__isOptional;
           delete fieldSchema.__isOptional;
           properties[key] = fieldSchema;
           
@@ -212,11 +211,11 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error = await response.json().catch(() => ({ error: { message: response.statusText } })) as { error?: { message?: string } };
       throw new Error(`OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`);
     }
 
-    const data: OpenAIResponse = await response.json();
+    const data = await response.json() as OpenAIResponse;
     return this.transformResponse<T>(data, request.schema);
   }
 
@@ -235,7 +234,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } }));
+      const error = await response.json().catch(() => ({ error: { message: response.statusText } })) as { error?: { message?: string } };
       throw new Error(`OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`);
     }
 
@@ -430,6 +429,9 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
   private transformResponse<T>(response: OpenAIResponse, schema?: z.ZodSchema): ProviderChatResponse<'openai', T> {
     const choice = response.choices[0];
+    if (!choice) {
+      throw new Error('No choice in response');
+    }
     const message = choice.message;
     
     let content: T;

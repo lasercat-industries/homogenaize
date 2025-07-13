@@ -216,11 +216,11 @@ describe('Gemini Client Integration', () => {
     });
 
     expect(response.toolCalls).toHaveLength(1);
-    expect(response.toolCalls![0].name).toBe('get_weather');
+    expect(response.toolCalls?.[0]?.name).toBe('get_weather');
 
     // Execute the tool
-    const results = await client.executeTools(response.toolCalls!);
-    expect(results[0].result).toEqual({
+    const results = await client.executeTools(response.toolCalls || []);
+    expect(results[0]?.result).toEqual({
       temperature: 72,
       location: 'San Francisco'
     });

@@ -18,3 +18,4 @@ id,name,status,dependson,spec
 550e8400-e29b-41d4-a716-446655440017,Implement Anthropic provider,done,550e8400-e29b-41d4-a716-446655440014,20250112-1700-implement-anthropic-provider.md
 550e8400-e29b-41d4-a716-446655440018,Implement Gemini provider,done,550e8400-e29b-41d4-a716-446655440014,20250112-1730-implement-gemini-provider.md
 0739e778-7e9b-4628-9d9d-013f0d450e7a,Fix TypeScript type errors in providers,done,,20250712-2050-fix-typescript-errors.md
+7a7a7c03-3452-4350-a9b6-90a4aabf31a7,Fix remaining TypeScript errors,done,,20250713-1254-fix-remaining-typescript-errors.md

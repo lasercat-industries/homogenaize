@@ -166,7 +166,7 @@ describe('OpenAI Client Integration', () => {
 
     expect(response.systemFingerprint).toBe('fp_12345');
     expect(response.logprobs).toBeDefined();
-    expect(response.logprobs![0].token).toBe('Response');
+    expect(response.logprobs?.[0]?.token).toBe('Response');
 
     // Verify features were passed to API
     const callBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
@@ -205,7 +205,7 @@ describe('OpenAI Client Integration', () => {
     }]);
 
     expect(results).toHaveLength(1);
-    expect(results[0].result).toEqual({
+    expect(results[0]?.result).toEqual({
       temperature: 20,
       unit: 'celsius',
       condition: 'sunny'

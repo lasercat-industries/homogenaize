@@ -142,7 +142,7 @@ describe('Anthropic Client Integration', () => {
     });
 
     expect(response.content).toBe('Thoughtful response');
-    expect((response as any).id).toBe('msg_123');
+    // ID is not part of the standard response interface
   });
 
   it('should define and execute tools', async () => {

@@ -37,8 +37,8 @@ describe('Provider Interface', () => {
       };
       
       expect(multiModalMessage.content).toHaveLength(2);
-      expect(multiModalMessage.content[0].type).toBe('text');
-      expect(multiModalMessage.content[1].type).toBe('image');
+      expect(multiModalMessage.content[0]?.type).toBe('text');
+      expect(multiModalMessage.content[1]?.type).toBe('image');
     });
   });
 
@@ -137,13 +137,13 @@ describe('Provider Interface', () => {
         maxTokens: 4096
       };
 
-      async chat(request: ChatRequest): Promise<ChatResponse> {
+      async chat<T = string>(request: ChatRequest): Promise<ChatResponse<T>> {
         if (request.stream) {
           throw new Error('Use stream() method for streaming requests');
         }
         
         return {
-          content: 'Mock response',
+          content: 'Mock response' as T,
           usage: {
             inputTokens: 10,
             outputTokens: 5,
@@ -154,20 +154,20 @@ describe('Provider Interface', () => {
         };
       }
 
-      async stream(request: ChatRequest): Promise<StreamingResponse> {
+      async stream<T = string>(_request: ChatRequest): Promise<StreamingResponse<T>> {
         const chunks = ['Mock', ' ', 'streaming', ' ', 'response'];
         let index = 0;
         
         return {
-          async *[Symbol.asyncIterator]() {
+          async *[Symbol.asyncIterator](): AsyncIterator<T> {
             while (index < chunks.length) {
-              yield chunks[index++];
+              yield chunks[index++] as T;
             }
           },
           
-          async complete(): Promise<ChatResponse> {
+          async complete(): Promise<ChatResponse<T>> {
             return {
-              content: chunks.join(''),
+              content: chunks.join('') as T,
               usage: {
                 inputTokens: 10,
                 outputTokens: 5,
