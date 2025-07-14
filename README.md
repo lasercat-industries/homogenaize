@@ -30,32 +30,32 @@ import { createLLM, createOpenAILLM, createAnthropicLLM, createGeminiLLM } from 
 const client = createLLM({
   provider: 'openai', // or 'anthropic' or 'gemini'
   apiKey: process.env.OPENAI_API_KEY!,
-  model: 'gpt-4o-mini'
+  model: 'gpt-4o-mini',
 });
 
 // Option 2: Provider-specific clients (for better type hints)
 const openai = createOpenAILLM({
   apiKey: process.env.OPENAI_API_KEY!,
-  model: 'gpt-4o-mini'
+  model: 'gpt-4o-mini',
 });
 
 const anthropic = createAnthropicLLM({
   apiKey: process.env.ANTHROPIC_API_KEY!,
-  model: 'claude-3-sonnet-20240229'
+  model: 'claude-3-sonnet-20240229',
 });
 
 const gemini = createGeminiLLM({
   apiKey: process.env.GEMINI_API_KEY!,
-  model: 'gemini-1.5-pro'
+  model: 'gemini-1.5-pro',
 });
 
 // Use the same interface for all providers
 const response = await client.chat({
   messages: [
     { role: 'system', content: 'You are a helpful assistant' },
-    { role: 'user', content: 'Hello!' }
+    { role: 'user', content: 'Hello!' },
   ],
-  temperature: 0.7
+  temperature: 0.7,
 });
 
 console.log(response.content);
@@ -73,31 +73,33 @@ const PersonSchema = z.object({
   name: z.string(),
   age: z.number(),
   occupation: z.string(),
-  hobbies: z.array(z.string())
+  hobbies: z.array(z.string()),
 });
 
 // Works with the generic createLLM function
 const client = createLLM({
   provider: 'openai', // or 'anthropic' or 'gemini'
   apiKey: process.env.OPENAI_API_KEY!,
-  model: 'gpt-4o-mini'
+  model: 'gpt-4o-mini',
 });
 
 // Get validated, typed responses
 const response = await client.chat({
   messages: [{ role: 'user', content: 'Generate a random person profile' }],
-  schema: PersonSchema
+  schema: PersonSchema,
 });
 
 // response.content is fully typed as { name: string, age: number, occupation: string, hobbies: string[] }
-console.log(response.content.name);        // TypeScript knows this is a string
-console.log(response.content.hobbies[0]);  // TypeScript knows this is a string[]
+console.log(response.content.name); // TypeScript knows this is a string
+console.log(response.content.hobbies[0]); // TypeScript knows this is a string[]
 
 // Also works with provider-specific clients
-const anthropic = createAnthropicLLM({ /* ... */ });
+const anthropic = createAnthropicLLM({
+  /* ... */
+});
 const anthropicResponse = await anthropic.chat({
   messages: [{ role: 'user', content: 'Generate a person profile' }],
-  schema: PersonSchema  // Same schema works across all providers!
+  schema: PersonSchema, // Same schema works across all providers!
 });
 ```
 
@@ -106,7 +108,7 @@ const anthropicResponse = await anthropic.chat({
 ```typescript
 const stream = await client.stream({
   messages: [{ role: 'user', content: 'Write a short story' }],
-  maxTokens: 1000
+  maxTokens: 1000,
 });
 
 // Stream chunks as they arrive
@@ -128,19 +130,19 @@ const weatherTool = client.defineTool({
   description: 'Get the current weather for a location',
   schema: z.object({
     location: z.string().describe('City and country'),
-    units: z.enum(['celsius', 'fahrenheit']).optional()
+    units: z.enum(['celsius', 'fahrenheit']).optional(),
   }),
   execute: async (params) => {
     // Your implementation here
     return { temperature: 22, condition: 'sunny', location: params.location };
-  }
+  },
 });
 
 // Let the model decide when to use tools
 const response = await client.chat({
-  messages: [{ role: 'user', content: 'What\'s the weather in Paris?' }],
+  messages: [{ role: 'user', content: "What's the weather in Paris?" }],
   tools: [weatherTool],
-  toolChoice: 'auto' // or 'required' to force tool use
+  toolChoice: 'auto', // or 'required' to force tool use
 });
 
 // Execute any tool calls
@@ -161,8 +163,8 @@ const openaiResponse = await openai.chat({
   features: {
     logprobs: true,
     topLogprobs: 2,
-    seed: 12345
-  }
+    seed: 12345,
+  },
 });
 
 // Access logprobs if available
@@ -175,19 +177,21 @@ const anthropicResponse = await anthropic.chat({
   messages: [{ role: 'user', content: 'Hello' }],
   features: {
     thinking: true,
-    cacheControl: true
-  }
+    cacheControl: true,
+  },
 });
 
 // Gemini-specific features
 const geminiResponse = await gemini.chat({
   messages: [{ role: 'user', content: 'Hello' }],
   features: {
-    safetySettings: [{
-      category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-      threshold: 'BLOCK_ONLY_HIGH'
-    }]
-  }
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_ONLY_HIGH',
+      },
+    ],
+  },
 });
 ```
 

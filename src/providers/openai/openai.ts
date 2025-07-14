@@ -1,14 +1,6 @@
 import { z } from 'zod';
-import type { 
-  StreamingResponse,
-  ProviderCapabilities,
-  Message
-} from '../provider';
-import type { 
-  TypedProvider, 
-  ProviderChatRequest, 
-  ProviderChatResponse 
-} from '../types';
+import type { StreamingResponse, ProviderCapabilities, Message } from '../provider';
+import type { TypedProvider, ProviderChatRequest, ProviderChatResponse } from '../types';
 
 // OpenAI-specific types
 interface OpenAIMessage {
@@ -117,11 +109,11 @@ interface OpenAIStreamChunk {
 function zodToOpenAISchema(schema: z.ZodSchema): any {
   // Handle both Zod v3 and v4 structure
   const zodType = schema._def || (schema as any).def;
-  
+
   if (!zodType) {
     throw new Error('Invalid Zod schema: missing _def property');
   }
-  
+
   function processZodType(def: any): any {
     switch (def.type) {
       case 'string':
@@ -131,15 +123,21 @@ function zodToOpenAISchema(schema: z.ZodSchema): any {
       case 'boolean':
         return { type: 'boolean' };
       case 'array':
-        const itemDef = def.valueType?._def || def.valueType?.def || def.valueType || def.element?._def || def.element?.def || def.element;
+        const itemDef =
+          def.valueType?._def ||
+          def.valueType?.def ||
+          def.valueType ||
+          def.element?._def ||
+          def.element?.def ||
+          def.element;
         return {
           type: 'array',
-          items: itemDef ? processZodType(itemDef) : { type: 'any' }
+          items: itemDef ? processZodType(itemDef) : { type: 'any' },
         };
       case 'object':
         const properties: any = {};
         const required: string[] = [];
-        
+
         // Access shape directly from def
         const shape = def.shape || {};
         for (const [key, value] of Object.entries(shape)) {
@@ -150,17 +148,17 @@ function zodToOpenAISchema(schema: z.ZodSchema): any {
           // const isOptional = fieldSchema.__isOptional;
           delete fieldSchema.__isOptional;
           properties[key] = fieldSchema;
-          
+
           // OpenAI requires all fields to be in the required array, even optional ones
           // For optional fields, we'll handle it differently in the API
           required.push(key);
         }
-        
+
         return {
           type: 'object',
           properties,
           required: required.length > 0 ? required : undefined,
-          additionalProperties: false
+          additionalProperties: false,
         };
       case 'optional':
         // For OpenAI, we need to handle optional fields differently
@@ -171,19 +169,19 @@ function zodToOpenAISchema(schema: z.ZodSchema): any {
       case 'enum':
         return {
           type: 'string',
-          enum: def.values
+          enum: def.values,
         };
       case 'literal':
         return {
           type: typeof def.value,
-          const: def.value
+          const: def.value,
         };
       default:
         // Fallback for unsupported types
         return { type: 'string' };
     }
   }
-  
+
   return processZodType(zodType);
 }
 
@@ -194,7 +192,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     tools: true,
     structuredOutput: true,
     vision: true,
-    maxTokens: 128000
+    maxTokens: 128000,
   };
 
   private apiKey: string;
@@ -207,24 +205,32 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     }
   }
 
-  async chat<T = string>(request: ProviderChatRequest<'openai'>): Promise<ProviderChatResponse<'openai', T>> {
+  async chat<T = string>(
+    request: ProviderChatRequest<'openai'>,
+  ): Promise<ProviderChatResponse<'openai', T>> {
     const openAIRequest = this.transformRequest(request);
-    
+
     const response = await fetch(`${this.baseURL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(openAIRequest)
+      body: JSON.stringify(openAIRequest),
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } })) as { error?: { message?: string } };
-      throw new Error(`OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`);
+      const error = (await response
+        .json()
+        .catch(() => ({ error: { message: response.statusText } }))) as {
+        error?: { message?: string };
+      };
+      throw new Error(
+        `OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
+      );
     }
 
-    const data = await response.json() as OpenAIResponse;
+    const data = (await response.json()) as OpenAIResponse;
     return this.transformResponse<T>(data, request.schema);
   }
 
@@ -239,12 +245,18 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(openAIRequest)
+      body: JSON.stringify(openAIRequest),
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: { message: response.statusText } })) as { error?: { message?: string } };
-      throw new Error(`OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`);
+      const error = (await response
+        .json()
+        .catch(() => ({ error: { message: response.statusText } }))) as {
+        error?: { message?: string };
+      };
+      throw new Error(
+        `OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
+      );
     }
 
     const reader = response.body!.getReader();
@@ -254,6 +266,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     let usage: any;
     let model = '';
     let finishReason: any;
+    let toolCallArguments = '';
+    let currentToolCall: any = null;
 
     const streamResponse = {
       async *[Symbol.asyncIterator](): AsyncIterator<T> {
@@ -269,11 +283,11 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
               if (data === '[DONE]') continue;
-              
+
               try {
                 const chunk: OpenAIStreamChunk = JSON.parse(data);
                 model = chunk.model;
-                
+
                 if (chunk.choices[0]?.delta?.content) {
                   const chunkContent = chunk.choices[0].delta.content;
                   content += chunkContent;
@@ -283,15 +297,28 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
                     yield chunkContent as T;
                   }
                 }
-                
+
+                // Handle tool call streaming
+                if (chunk.choices[0]?.delta?.tool_calls) {
+                  for (const toolCallDelta of chunk.choices[0].delta.tool_calls) {
+                    if (toolCallDelta.id) {
+                      currentToolCall = toolCallDelta;
+                      toolCallArguments = '';
+                    }
+                    if (toolCallDelta.function?.arguments) {
+                      toolCallArguments += toolCallDelta.function.arguments;
+                    }
+                  }
+                }
+
                 if (chunk.usage) {
                   usage = {
                     prompt_tokens: chunk.usage.prompt_tokens,
                     completion_tokens: chunk.usage.completion_tokens,
-                    total_tokens: chunk.usage.total_tokens
+                    total_tokens: chunk.usage.total_tokens,
                   };
                 }
-                
+
                 if (chunk.choices[0]?.finish_reason) {
                   finishReason = chunk.choices[0].finish_reason;
                 }
@@ -310,7 +337,20 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         }
 
         let parsedContent: T;
-        if (request.schema && content) {
+
+        // If we used schema-based tool calling, extract from tool call
+        if (
+          request.schema &&
+          toolCallArguments &&
+          currentToolCall?.function?.name === 'respond_with_structured_output'
+        ) {
+          try {
+            const parsed = JSON.parse(toolCallArguments);
+            parsedContent = request.schema.parse(parsed) as T;
+          } catch {
+            parsedContent = content as T;
+          }
+        } else if (request.schema && content) {
           try {
             const parsed = JSON.parse(content);
             parsedContent = request.schema.parse(parsed) as T;
@@ -323,21 +363,23 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
         return {
           content: parsedContent,
-          usage: usage ? {
-            inputTokens: usage.prompt_tokens,
-            outputTokens: usage.completion_tokens,
-            totalTokens: usage.total_tokens
-          } : {
-            inputTokens: 0,
-            outputTokens: 0,
-            totalTokens: 0
-          },
+          usage: usage
+            ? {
+                inputTokens: usage.prompt_tokens,
+                outputTokens: usage.completion_tokens,
+                totalTokens: usage.total_tokens,
+              }
+            : {
+                inputTokens: 0,
+                outputTokens: 0,
+                totalTokens: 0,
+              },
           model,
-          finishReason
+          finishReason,
         };
-      }
+      },
     };
-    
+
     return streamResponse;
   }
 
@@ -369,29 +411,35 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       }
     }
 
-    // Handle structured output via schema
-    if (request.schema) {
+    // Handle structured output via schema using forced tool calling
+    if (request.schema && !request.tools) {
+      // Create a hidden tool for structured output
       const jsonSchema = zodToOpenAISchema(request.schema);
-      openAIRequest.response_format = {
-        type: 'json_schema',
-        json_schema: {
-          name: 'response',
-          strict: true,
-          schema: jsonSchema
-        }
-      };
+      openAIRequest.tools = [
+        {
+          type: 'function' as const,
+          function: {
+            name: 'respond_with_structured_output',
+            description: 'Respond with structured data matching the required schema',
+            parameters: jsonSchema,
+            strict: true,
+          },
+        },
+      ];
+      // Force the model to use this tool
+      openAIRequest.tool_choice = 'required';
     }
 
     // Handle tools
     if (request.tools) {
-      openAIRequest.tools = request.tools.map(tool => ({
+      openAIRequest.tools = request.tools.map((tool) => ({
         type: 'function' as const,
         function: {
           name: tool.name,
           description: tool.description,
           parameters: zodToOpenAISchema(tool.parameters),
-          strict: true
-        }
+          strict: true,
+        },
       }));
     }
 
@@ -406,7 +454,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       } else if (typeof request.toolChoice === 'object' && 'name' in request.toolChoice) {
         openAIRequest.tool_choice = {
           type: 'function',
-          function: { name: request.toolChoice.name }
+          function: { name: request.toolChoice.name },
         };
       }
     }
@@ -418,7 +466,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     if (typeof message.content === 'string') {
       return {
         role: message.role as any,
-        content: message.content
+        content: message.content,
       };
     }
 
@@ -426,25 +474,44 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     // For now, we'll just concatenate text content
     // Full image support would require base64 encoding
     const textContent = message.content
-      .filter(c => c.type === 'text')
-      .map(c => c.text)
+      .filter((c) => c.type === 'text')
+      .map((c) => c.text)
       .join('\n');
 
     return {
       role: message.role as any,
-      content: textContent
+      content: textContent,
     };
   }
 
-  private transformResponse<T>(response: OpenAIResponse, schema?: z.ZodSchema): ProviderChatResponse<'openai', T> {
+  private transformResponse<T>(
+    response: OpenAIResponse,
+    schema?: z.ZodSchema,
+  ): ProviderChatResponse<'openai', T> {
     const choice = response.choices[0];
     if (!choice) {
       throw new Error('No choice in response');
     }
     const message = choice.message;
-    
+
     let content: T;
-    if (schema && message.content) {
+
+    // If we used schema-based tool calling, extract the structured data from tool call
+    if (schema && message.tool_calls && message.tool_calls.length > 0) {
+      const toolCall = message.tool_calls.find(
+        (tc) => tc.function.name === 'respond_with_structured_output',
+      );
+      if (toolCall) {
+        try {
+          const parsed = JSON.parse(toolCall.function.arguments);
+          content = schema.parse(parsed) as T;
+        } catch (error) {
+          content = (message.content || '') as T;
+        }
+      } else {
+        content = (message.content || '') as T;
+      }
+    } else if (schema && message.content) {
       try {
         const parsed = JSON.parse(message.content);
         content = schema.parse(parsed) as T;
@@ -460,28 +527,28 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       usage: {
         inputTokens: response.usage.prompt_tokens,
         outputTokens: response.usage.completion_tokens,
-        totalTokens: response.usage.total_tokens
+        totalTokens: response.usage.total_tokens,
       },
       model: response.model,
       finishReason: choice.finish_reason,
-      systemFingerprint: response.system_fingerprint
+      systemFingerprint: response.system_fingerprint,
     };
 
-    // Handle tool calls
-    if (message.tool_calls) {
-      result.toolCalls = message.tool_calls.map(tc => ({
+    // Handle tool calls - but not if we used schema-based tool calling
+    if (message.tool_calls && !schema) {
+      result.toolCalls = message.tool_calls.map((tc) => ({
         id: tc.id,
         name: tc.function.name,
-        arguments: JSON.parse(tc.function.arguments)
+        arguments: JSON.parse(tc.function.arguments),
       }));
     }
 
     // Handle logprobs
     if (choice.logprobs) {
-      result.logprobs = choice.logprobs.content.map(lp => ({
+      result.logprobs = choice.logprobs.content.map((lp) => ({
         token: lp.token,
         logprob: lp.logprob,
-        topLogprobs: lp.top_logprobs
+        topLogprobs: lp.top_logprobs,
       }));
     }
 

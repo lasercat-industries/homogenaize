@@ -29,25 +29,25 @@ describe('Anthropic Client Integration', () => {
       stop_sequence: null,
       usage: {
         input_tokens: 10,
-        output_tokens: 20
-      }
+        output_tokens: 20,
+      },
     };
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
-      json: async () => mockResponse
+      json: async () => mockResponse,
     });
 
     const client = createAnthropicLLM({
       apiKey: 'test-key',
-      model: 'claude-3-opus-20240229'
+      model: 'claude-3-opus-20240229',
     });
 
     const response = await client.chat({
       messages: [
         { role: 'system', content: 'You are a helpful assistant' },
-        { role: 'user', content: 'Hello' }
-      ]
+        { role: 'user', content: 'Hello' },
+      ],
     });
 
     expect(response.content).toBe('Hello from Claude!');
@@ -59,9 +59,7 @@ describe('Anthropic Client Integration', () => {
     expect(callBody).toMatchObject({
       model: 'claude-3-opus-20240229',
       system: 'You are a helpful assistant',
-      messages: [
-        { role: 'user', content: 'Hello' }
-      ]
+      messages: [{ role: 'user', content: 'Hello' }],
     });
   });
 
@@ -69,7 +67,7 @@ describe('Anthropic Client Integration', () => {
     const PersonSchema = z.object({
       name: z.string(),
       age: z.number(),
-      city: z.string()
+      city: z.string(),
     });
 
     // type Person = z.infer<typeof PersonSchema>;
@@ -81,36 +79,41 @@ describe('Anthropic Client Integration', () => {
         type: 'message',
         role: 'assistant',
         model: 'claude-3-opus-20240229',
-        content: [{ 
-          type: 'text', 
-          text: '{"name":"Alice","age":30,"city":"New York"}' 
-        }],
-        stop_reason: 'end_turn',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'tool_123',
+            name: 'respond_with_structured_output',
+            input: { name: 'Alice', age: 30, city: 'New York' },
+          },
+        ],
+        stop_reason: 'tool_use',
         stop_sequence: null,
-        usage: { input_tokens: 50, output_tokens: 20 }
-      })
+        usage: { input_tokens: 50, output_tokens: 20 },
+      }),
     });
 
     const client = createAnthropicLLM({
       apiKey: 'test-key',
-      model: 'claude-3-opus-20240229'
+      model: 'claude-3-opus-20240229',
     });
 
     const response = await client.chat({
       messages: [{ role: 'user', content: 'Generate a person' }],
-      schema: PersonSchema
+      schema: PersonSchema,
     });
 
     expect(response.content).toEqual({
       name: 'Alice',
       age: 30,
-      city: 'New York'
+      city: 'New York',
     });
 
-    // Verify schema was included in system prompt
+    // Verify tools were created internally for structured output
     const callBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
-    expect(callBody.system).toContain('JSON');
-    expect(callBody.system).toContain('schema');
+    expect(callBody.tools).toBeDefined();
+    expect(callBody.tools).toHaveLength(1);
+    expect(callBody.tools[0].name).toBe('respond_with_structured_output');
   });
 
   it('should handle Anthropic-specific features', async () => {
@@ -124,21 +127,21 @@ describe('Anthropic Client Integration', () => {
         content: [{ type: 'text', text: 'Thoughtful response' }],
         stop_reason: 'end_turn',
         stop_sequence: null,
-        usage: { input_tokens: 100, output_tokens: 50 }
-      })
+        usage: { input_tokens: 100, output_tokens: 50 },
+      }),
     });
 
     const client = createAnthropicLLM({
       apiKey: 'test-key',
-      model: 'claude-3-opus-20240229'
+      model: 'claude-3-opus-20240229',
     });
 
     const response = await client.chat({
       messages: [{ role: 'user', content: 'Think step by step' }],
       features: {
         thinking: true,
-        cacheControl: true
-      } as any
+        cacheControl: true,
+      } as any,
     });
 
     expect(response.content).toBe('Thoughtful response');
@@ -150,16 +153,16 @@ describe('Anthropic Client Integration', () => {
       name: 'get_weather',
       description: 'Get the current weather',
       schema: z.object({
-        location: z.string()
+        location: z.string(),
       }),
       execute: async (params: { location: string }) => {
         return { temperature: 72, location: params.location };
-      }
+      },
     };
 
     const client = createAnthropicLLM({
       apiKey: 'test-key',
-      model: 'claude-3-opus-20240229'
+      model: 'claude-3-opus-20240229',
     });
 
     const tool = client.defineTool(weatherTool);
@@ -178,18 +181,18 @@ describe('Anthropic Client Integration', () => {
             type: 'tool_use',
             id: 'tool_123',
             name: 'get_weather',
-            input: { location: 'San Francisco' }
-          }
+            input: { location: 'San Francisco' },
+          },
         ],
         stop_reason: 'tool_use',
         stop_sequence: null,
-        usage: { input_tokens: 50, output_tokens: 30 }
-      })
+        usage: { input_tokens: 50, output_tokens: 30 },
+      }),
     });
 
     const response = await client.chat({
       messages: [{ role: 'user', content: 'What is the weather?' }],
-      tools: [tool]
+      tools: [tool],
     });
 
     expect(response.toolCalls).toHaveLength(1);
@@ -201,7 +204,7 @@ describe('Anthropic Client Integration', () => {
     expect(results).toHaveLength(1);
     expect(results[0]?.result).toEqual({
       temperature: 72,
-      location: 'San Francisco'
+      location: 'San Francisco',
     });
   });
 });

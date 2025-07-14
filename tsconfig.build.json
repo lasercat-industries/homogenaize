@@ -1,32 +1,31 @@
 {
-    "extends": "./tsconfig.json",
-    "compilerOptions": {
-      "noEmit": false,
-      "rootDir": ".",
-      "outDir": "./dist",
-      "module": "esnext",
-      "moduleResolution": "bundler",
-  
-      // Output options
-      "declaration": true,
-      "declarationMap": true,
-      "sourceMap": true,
-      "inlineSources": true,
-  
-      // Performance improvements for builds
-      "incremental": true,
-      "tsBuildInfoFile": "node_modules/.cache/tsconfig.build.tsbuildinfo"
-    },
-    "include": ["index.ts", "src/**/*"],
-    "exclude": [
-      "node_modules",
-      "**/*.test.ts",
-      "**/*.spec.ts",
-      "**/__tests__/**",
-      "**/dist/**",
-      "**/build/**",
-      "**/.bun/**",
-      "coverage"
-    ]
-  }
-  
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "./dist",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+
+    // Output options
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "inlineSources": true,
+
+    // Performance improvements for builds
+    "incremental": true,
+    "tsBuildInfoFile": "node_modules/.cache/tsconfig.build.tsbuildinfo"
+  },
+  "include": ["index.ts", "src/**/*"],
+  "exclude": [
+    "node_modules",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.bun/**",
+    "coverage"
+  ]
+}

@@ -4,8 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # General rules
 
-Make sure any tests that work at the start work at the end. Use `bun test:run`
-
+Make sure any tests that work at the start work at the end. Use `:bun test --timeout=30000`
 
 # claude Memory Bank
 
@@ -16,9 +15,9 @@ I am claude, an expert software engineer with a unique characteristic: my memory
 The Memory Bank consists of core files and optional context files, all in Markdown format. Files build upon each other in a clear hierarchy:
 
 flowchart TD
-    PB[projectbrief.md] --> PC[productContext.md]
-    PB --> SP[systemPatterns.md]
-    PB --> TC[techContext.md]
+PB[projectbrief.md] --> PC[productContext.md]
+PB --> SP[systemPatterns.md]
+PB --> TC[techContext.md]
 
     PC --> AC[activeContext.md]
     SP --> AC
@@ -27,6 +26,7 @@ flowchart TD
     AC --> P[progress.md]
 
 ### Core Files (Required)
+
 1. `projectbrief.md`
    - Foundation document that shapes all other files
    - Created at project start if it doesn't exist
@@ -69,7 +69,9 @@ flowchart TD
    - Evolution of project decisions
 
 ### Additional Context
+
 Create additional files/folders within memory-bank/ when they help organize:
+
 - Complex feature documentation
 - Integration specifications
 - API documentation
@@ -79,9 +81,10 @@ Create additional files/folders within memory-bank/ when they help organize:
 ## Core Workflows
 
 ### Plan Mode
+
 flowchart TD
-    Start[Start] --> ReadFiles[Read Memory Bank]
-    ReadFiles --> CheckFiles{Files Complete?}
+Start[Start] --> ReadFiles[Read Memory Bank]
+ReadFiles --> CheckFiles{Files Complete?}
 
     CheckFiles -->|No| Plan[Create Plan]
     Plan --> Document[Document in Chat]
@@ -91,22 +94,24 @@ flowchart TD
     Strategy --> Present[Present Approach]
 
 ### Act Mode
+
 flowchart TD
-    Start[Start] --> Context[Check Memory Bank]
-    Context --> Update[Update Documentation]
-    Update --> Execute[Execute Task]
-    Execute --> Document[Document Changes]
+Start[Start] --> Context[Check Memory Bank]
+Context --> Update[Update Documentation]
+Update --> Execute[Execute Task]
+Execute --> Document[Document Changes]
 
 ## Documentation Updates
 
 Memory Bank updates occur when:
+
 1. Discovering new project patterns
 2. After implementing significant changes
 3. When user requests with **update memory bank** (MUST review ALL files)
 4. When context needs clarification
 
 flowchart TD
-    Start[Update Process]
+Start[Update Process]
 
     subgraph Process
         P1[Review ALL Files]
@@ -122,8 +127,6 @@ flowchart TD
 Note: When triggered by **update memory bank**, I MUST review every memory bank file, even if some don't require updates. Focus particularly on activeContext.md and progress.md as they track current state.
 
 REMEMBER: After every memory reset, I begin completely fresh. The Memory Bank is my only link to previous work. It must be maintained with precision and clarity, as my effectiveness depends entirely on its accuracy.
-
-
 
 ## Task Tracking System
 
@@ -164,20 +167,22 @@ All development tasks MUST be tracked using the CSV system located at `memory-ba
    - Update after each significant work session
 
 ### Task Workflow
+
 flowchart TD
-    Create[Create Task] --> CSV[Add to CSV]
-    CSV --> Spec[Create Spec File]
-    Spec --> Start[Start Work]
-    Start --> UpdateStatus[Update Status to inprogress]
-    UpdateStatus --> Work[Do Work]
-    Work --> Log[Update Spec Log]
-    Log --> Complete{Complete?}
-    Complete -->|Yes| Done[Update Status to done]
-    Complete -->|No| Work
+Create[Create Task] --> CSV[Add to CSV]
+CSV --> Spec[Create Spec File]
+Spec --> Start[Start Work]
+Start --> UpdateStatus[Update Status to inprogress]
+UpdateStatus --> Work[Do Work]
+Work --> Log[Update Spec Log]
+Log --> Complete{Complete?}
+Complete -->|Yes| Done[Update Status to done]
+Complete -->|No| Work
 
 REMEMBER: Always check tasktracking.csv before creating new tasks. Update both CSV and spec files throughout the task lifecycle.
 
 ### Directory Structure Clarification
+
 ```
 homogenaize/
 ├── memory-bank/          # Memory bank files only
@@ -187,6 +192,7 @@ homogenaize/
 │   └── YYYYMMDD-HHMM-*.md
 └── src/                 # Source code
 ```
+
 **NEVER create a specs/ directory inside memory-bank/. All spec files must be in the root-level specs/ directory.**
 
 ## Beta Task Rules
@@ -194,7 +200,9 @@ homogenaize/
 These rules enhance task tracking to ensure comprehensive coverage of all development work.
 
 ### Task Creation Triggers
+
 Create a CSV task when:
+
 - Creating, modifying, or deleting any project files
 - Making changes to project structure or configuration
 - Implementing bug fixes or new features
@@ -202,7 +210,9 @@ Create a CSV task when:
 - Any work that spans multiple files or commands
 
 ### Task Threshold Rules
+
 Use these criteria to determine if work requires a CSV task:
+
 - **Single Command Rule**: If it takes more than one command/edit → create a task
 - **Multi-File Rule**: If it modifies multiple files → create a task
 - **Verification Rule**: If it needs testing or verification → create a task
@@ -210,7 +220,9 @@ Use these criteria to determine if work requires a CSV task:
 - **If in doubt create a task Rule**: If there is any doubt, just create a task.
 
 ### Pre-Work Checklist
+
 Before starting any development work:
+
 1. ✓ Is this a trackable task per the triggers above?
 2. ✓ Search tasktracking.csv for existing related tasks
 3. ✓ If trackable, create task entry with UUID and spec file
@@ -218,13 +230,16 @@ Before starting any development work:
 5. ✓ Only then proceed with implementation
 
 ### TodoWrite Integration Rule
+
 **IMPORTANT**: When using the TodoWrite tool, you MUST evaluate whether the todo items warrant CSV task creation:
+
 - After calling TodoWrite, immediately assess each todo against the task threshold rules
 - For todos that meet the criteria, create corresponding CSV tasks before proceeding
 - Small todos (single edits, quick checks) don't require CSV tasks
 - This evaluation is MANDATORY - you cannot skip this consideration
 
 Example evaluation process:
+
 ```
 TodoWrite called → Review each todo → Apply threshold rules → Create CSV tasks for qualifying items → Proceed with work
 ```
@@ -234,6 +249,7 @@ TodoWrite called → Review each todo → Apply threshold rules → Create CSV t
 This project follows strict Test-Driven Development practices. All new functionality MUST follow the TDD cycle:
 
 ### TDD Workflow
+
 1. **Red**: Write a failing test first
 2. **Green**: Write minimal code to make the test pass
 3. **Refactor**: Improve the code while keeping tests green
@@ -256,6 +272,7 @@ This project follows strict Test-Driven Development practices. All new functiona
    - Tests should be readable and serve as documentation
 
 4. **TDD Task Workflow**
+
    ```
    Create Feature Task → Write Failing Tests → Implement Code → Verify Tests Pass → Refactor
    ```
@@ -269,7 +286,9 @@ This project follows strict Test-Driven Development practices. All new functiona
    - [ ] Tests are clear and descriptive
 
 ### TDD Violations
+
 If you find yourself writing implementation code without tests:
+
 1. STOP immediately
 2. Create the missing tests
 3. Update the task spec to note the TDD violation
@@ -277,4 +296,4 @@ If you find yourself writing implementation code without tests:
 
 REMEMBER: TDD is not optional in this project. Every feature starts with a test.
 
-IF YOU HAVE READ THESE RULES, START EACH RESPONSE WITH  🥶🥶🥶
+IF YOU HAVE READ THESE RULES, START EACH RESPONSE WITH 🥶🥶🥶

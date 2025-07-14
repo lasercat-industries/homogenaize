@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { 
-  ProviderChatRequest,
-  ProviderChatResponse,
-  TypedProvider
-} from './types';
+import type { ProviderChatRequest, ProviderChatResponse, TypedProvider } from './types';
 import type { ChatResponse } from './provider';
 import { isOpenAIResponse, isAnthropicResponse } from './types';
 
@@ -15,13 +11,13 @@ describe('Provider Types', () => {
         features: {
           logprobs: true,
           topLogprobs: 5,
-          seed: 12345
-        }
+          seed: 12345,
+        },
       };
-      
+
       expect(openAIRequest.features?.logprobs).toBe(true);
       expect(openAIRequest.features?.topLogprobs).toBe(5);
-      
+
       // @ts-expect-error - thinking is not an OpenAI feature
       openAIRequest.features.thinking = true;
     });
@@ -32,13 +28,13 @@ describe('Provider Types', () => {
         features: {
           thinking: true,
           maxThinkingTokens: 1000,
-          cacheControl: true
-        }
+          cacheControl: true,
+        },
       };
-      
+
       expect(anthropicRequest.features?.thinking).toBe(true);
       expect(anthropicRequest.features?.maxThinkingTokens).toBe(1000);
-      
+
       // @ts-expect-error - logprobs is not an Anthropic feature
       anthropicRequest.features.logprobs = true;
     });
@@ -48,18 +44,18 @@ describe('Provider Types', () => {
         messages: [{ role: 'user', content: 'Hello' }],
         features: {
           safetySettings: [
-            { category: 'HARM_CATEGORY_DANGEROUS', threshold: 'BLOCK_LOW_AND_ABOVE' }
+            { category: 'HARM_CATEGORY_DANGEROUS', threshold: 'BLOCK_LOW_AND_ABOVE' },
           ],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 1000
-          }
-        }
+            maxOutputTokens: 1000,
+          },
+        },
       };
-      
+
       expect(geminiRequest.features?.safetySettings).toHaveLength(1);
       expect(geminiRequest.features?.generationConfig?.temperature).toBe(0.7);
-      
+
       // @ts-expect-error - thinking is not a Gemini feature
       geminiRequest.features.thinking = true;
     });
@@ -71,15 +67,13 @@ describe('Provider Types', () => {
         content: 'Hello!',
         usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
         model: 'gpt-4',
-        logprobs: [
-          { token: 'Hello', logprob: -0.5 }
-        ],
-        systemFingerprint: 'fp_12345'
+        logprobs: [{ token: 'Hello', logprob: -0.5 }],
+        systemFingerprint: 'fp_12345',
       };
-      
+
       expect(openAIResponse.logprobs).toBeDefined();
       expect(openAIResponse.systemFingerprint).toBe('fp_12345');
-      
+
       // @ts-expect-error - thinking is not an OpenAI response field
       openAIResponse.thinking = 'some thoughts';
     });
@@ -92,13 +86,13 @@ describe('Provider Types', () => {
         thinking: 'Let me think about this...',
         cacheInfo: {
           cacheCreationInputTokens: 100,
-          cacheReadInputTokens: 50
-        }
+          cacheReadInputTokens: 50,
+        },
       };
-      
+
       expect(anthropicResponse.thinking).toBe('Let me think about this...');
       expect(anthropicResponse.cacheInfo?.cacheCreationInputTokens).toBe(100);
-      
+
       // @ts-expect-error - logprobs is not an Anthropic response field
       anthropicResponse.logprobs = [];
     });
@@ -108,12 +102,12 @@ describe('Provider Types', () => {
     const baseResponse: ChatResponse = {
       content: 'Hello',
       usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
-      model: 'test-model'
+      model: 'test-model',
     };
 
     it('should correctly identify OpenAI responses', () => {
       const response = { ...baseResponse };
-      
+
       if (isOpenAIResponse(response, 'openai')) {
         // TypeScript should know this is an OpenAI response
         // The type guard works at compile time
@@ -121,14 +115,14 @@ describe('Provider Types', () => {
       } else {
         expect(false).toBe(true); // Should not reach here
       }
-      
+
       expect(isOpenAIResponse(response, 'anthropic')).toBe(false);
       expect(isOpenAIResponse(response, 'gemini')).toBe(false);
     });
 
     it('should correctly identify Anthropic responses', () => {
       const response = { ...baseResponse };
-      
+
       if (isAnthropicResponse(response, 'anthropic')) {
         // TypeScript should know this is an Anthropic response
         // The type guard works at compile time
@@ -136,7 +130,7 @@ describe('Provider Types', () => {
       } else {
         expect(false).toBe(true); // Should not reach here
       }
-      
+
       expect(isAnthropicResponse(response, 'openai')).toBe(false);
       expect(isAnthropicResponse(response, 'gemini')).toBe(false);
     });
@@ -152,7 +146,7 @@ describe('Provider Types', () => {
           tools: true,
           structuredOutput: true,
           vision: true,
-          maxTokens: 128000
+          maxTokens: 128000,
         },
         async chat<T = string>(request: any) {
           // Request should have OpenAI-specific features
@@ -161,13 +155,13 @@ describe('Provider Types', () => {
               content: 'Response' as T,
               usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
               model: 'gpt-4',
-              logprobs: [{ token: 'Response', logprob: -0.1 }]
+              logprobs: [{ token: 'Response', logprob: -0.1 }],
             };
           }
           return {
             content: 'Response' as T,
             usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
-            model: 'gpt-4'
+            model: 'gpt-4',
           };
         },
         async stream() {
@@ -175,9 +169,9 @@ describe('Provider Types', () => {
         },
         supportsFeature(feature: string) {
           return feature in this.capabilities;
-        }
+        },
       };
-      
+
       expect(openAIProvider.name).toBe('openai');
       expect(openAIProvider.capabilities.vision).toBe(true);
     });

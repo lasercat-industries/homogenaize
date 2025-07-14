@@ -70,14 +70,16 @@ export interface ProviderChatRequest<P extends ProviderName> extends ChatRequest
 }
 
 // Extended response type with provider-specific fields
-export type ProviderChatResponse<P extends ProviderName, T = string> = 
-  ChatResponse<T> & ProviderResponses[P];
+export type ProviderChatResponse<P extends ProviderName, T = string> = ChatResponse<T> &
+  ProviderResponses[P];
 
 // Provider with specific type
 export interface TypedProvider<P extends ProviderName> extends Provider {
   readonly name: P;
   chat<T = string>(request: ProviderChatRequest<P>): Promise<ProviderChatResponse<P, T>>;
-  stream<T = string>(request: ProviderChatRequest<P>): Promise<{
+  stream<T = string>(
+    request: ProviderChatRequest<P>,
+  ): Promise<{
     [Symbol.asyncIterator](): AsyncIterator<T>;
     complete(): Promise<ProviderChatResponse<P, T>>;
   }>;
@@ -86,21 +88,21 @@ export interface TypedProvider<P extends ProviderName> extends Provider {
 // Type guards
 export function isOpenAIResponse<T>(
   _response: ChatResponse<T>,
-  provider: ProviderName
+  provider: ProviderName,
 ): _response is ProviderChatResponse<'openai', T> {
   return provider === 'openai';
 }
 
 export function isAnthropicResponse<T>(
   _response: ChatResponse<T>,
-  provider: ProviderName
+  provider: ProviderName,
 ): _response is ProviderChatResponse<'anthropic', T> {
   return provider === 'anthropic';
 }
 
 export function isGeminiResponse<T>(
   _response: ChatResponse<T>,
-  provider: ProviderName
+  provider: ProviderName,
 ): _response is ProviderChatResponse<'gemini', T> {
   return provider === 'gemini';
 }

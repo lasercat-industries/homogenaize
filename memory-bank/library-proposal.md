@@ -7,6 +7,7 @@ Homogenaize is a TypeScript-native library that provides a unified, type-safe in
 ## Problem Statement
 
 Based on the analysis of your colleague's codebase:
+
 1. Existing libraries like `@themaximalist/llm.js` provide basic unification but lack robust structured output support
 2. No reliable way to force LLM providers to use tool calls when needed
 3. Type safety is incomplete, especially for structured responses
@@ -39,8 +40,8 @@ const llm = createLLM({
 const response = await llm.chat({
   messages: [
     { role: 'system', content: 'You are a helpful assistant' },
-    { role: 'user', content: 'Hello!' }
-  ]
+    { role: 'user', content: 'Hello!' },
+  ],
 });
 ```
 
@@ -57,9 +58,7 @@ const analysisSchema = z.object({
 
 // Get typed, validated response
 const analysis = await llm.chat({
-  messages: [
-    { role: 'user', content: 'I love this new TypeScript library!' }
-  ],
+  messages: [{ role: 'user', content: 'I love this new TypeScript library!' }],
   schema: analysisSchema, // ✨ Response will be typed and validated
 });
 
@@ -82,14 +81,12 @@ const weatherTool = llm.defineTool({
   execute: async ({ location, units }) => {
     // Fetch weather data
     return { temp: 20, condition: 'sunny' };
-  }
+  },
 });
 
 // Force tool usage - key differentiator!
 const result = await llm.chat({
-  messages: [
-    { role: 'user', content: "What's the weather in Paris?" }
-  ],
+  messages: [{ role: 'user', content: "What's the weather in Paris?" }],
   tools: [weatherTool],
   toolChoice: 'required', // ✨ Forces the LLM to use a tool
 });
@@ -115,7 +112,7 @@ const response = await llm.chat({
   messages: [{ role: 'user', content: 'Solve this complex problem...' }],
   features: {
     thinking: true, // ✅ TypeScript allows this for Anthropic
-  }
+  },
 });
 
 // response.thinking is typed as string | undefined
@@ -134,7 +131,7 @@ const response = await llm.chat({
   features: {
     thinking: true, // ✅ Allowed for 'anthropic' provider
     // TypeScript would error if you tried OpenAI-only features
-  }
+  },
 });
 
 // Solution 3: Provider-aware method chaining
@@ -142,7 +139,7 @@ const response = await llm
   .asAnthropic() // Returns AnthropicLLM type
   .withThinking() // Now available
   .chat({
-    messages: [{ role: 'user', content: 'Solve this complex problem...' }]
+    messages: [{ role: 'user', content: 'Solve this complex problem...' }],
   });
 ```
 
@@ -153,10 +150,12 @@ const stream = await llm.stream({
   messages: [{ role: 'user', content: 'Tell me a story' }],
   schema: z.object({
     title: z.string(),
-    chapters: z.array(z.object({
-      number: z.number(),
-      content: z.string(),
-    })),
+    chapters: z.array(
+      z.object({
+        number: z.number(),
+        content: z.string(),
+      }),
+    ),
   }),
 });
 
@@ -291,7 +290,7 @@ const response = await openai.chat({
 // Example 3: Runtime provider switching with type narrowing
 function createDynamicLLM(provider: Provider) {
   const config = { provider, apiKey: 'key', model: 'model' };
-  
+
   switch (provider) {
     case 'anthropic':
       return createAnthropicLLM(config); // Returns LLMClient<'anthropic'>
@@ -367,11 +366,11 @@ class GeminiProvider implements Provider {
 ```typescript
 class SchemaValidator<T extends z.ZodSchema> {
   constructor(private schema: T) {}
-  
+
   async validateStreaming(chunks: AsyncIterable<any>): AsyncIterable<Partial<z.infer<T>>> {
     // Progressive validation as data streams
   }
-  
+
   validate(data: unknown): z.infer<T> {
     return this.schema.parse(data);
   }
@@ -383,7 +382,7 @@ class SchemaValidator<T extends z.ZodSchema> {
 ```typescript
 class ToolManager {
   private tools = new Map<string, ToolDefinition>();
-  
+
   defineTool<T extends z.ZodSchema>(config: {
     name: string;
     description: string;
@@ -392,7 +391,7 @@ class ToolManager {
   }) {
     // Register tool with validation
   }
-  
+
   async executeTool(call: ToolCall) {
     const tool = this.tools.get(call.name);
     const params = tool.schema.parse(call.arguments);
@@ -404,17 +403,20 @@ class ToolManager {
 ## Provider-Specific Implementation Details
 
 ### OpenAI
+
 - Use `response_format` with JSON schema for structured outputs
 - Use `tool_choice: "required"` to force tool usage
 - Support parallel tool calls
 - Handle strict mode for functions
 
 ### Anthropic
+
 - Use `tool_choice: { type: "tool", name: "specific_tool" }` to force specific tool
 - Support thinking tokens with proper role handling
 - Handle Claude's specific tool result format
 
 ### Google Gemini
+
 - Use `response_mime_type: "application/json"` with `response_schema`
 - Use `tool_config` with `function_calling_config.mode: "ANY"`
 - Handle Gemini's different message format
@@ -452,9 +454,9 @@ For users of `@themaximalist/llm.js`:
 
 ```typescript
 // Before (llm.js)
-const response = await LLM.prompt(messages, { 
+const response = await LLM.prompt(messages, {
   json: true,
-  tools: toolsArray 
+  tools: toolsArray,
 });
 // Manual validation needed
 const validated = schema.parse(response);
@@ -464,7 +466,7 @@ const response = await llm.chat({
   messages,
   schema, // Automatic validation
   tools: toolsArray,
-  toolChoice: 'required' // Force tool use!
+  toolChoice: 'required', // Force tool use!
 });
 // response is already typed and validated
 ```
@@ -472,30 +474,35 @@ const response = await llm.chat({
 ## Development Roadmap
 
 ### Phase 1: Core Foundation (Week 1-2)
+
 - [x] Project setup with TypeScript, Vitest, Zod
 - [x] Provider interface definition
 - [x] Basic OpenAI implementation
 - [x] Schema validation system
 
 ### Phase 2: Structured Outputs (Week 3-4)
+
 - [x] OpenAI structured output support
 - [x] Anthropic structured output support
 - [x] Gemini structured output support
 - [x] Streaming with partial validation
 
 ### Phase 3: Tool System (Week 5-6)
+
 - [x] Tool definition API
 - [x] Forced tool usage implementation
 - [x] Tool execution pipeline
 - [x] Multi-tool support
 
 ### Phase 4: Advanced Features (Week 7-8)
+
 - [x] Provider-specific features
 - [ ] Retry and error handling
 - [ ] Caching layer
 - [ ] Usage tracking and limits
 
 ### Phase 5: Polish and Release (Week 9-10)
+
 - [ ] Comprehensive documentation
 - [ ] Migration guides
 - [ ] Performance optimization

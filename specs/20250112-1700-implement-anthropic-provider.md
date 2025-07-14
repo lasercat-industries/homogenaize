@@ -1,9 +1,11 @@
 # Task: Implement Anthropic provider
 
 ## Task definition
+
 Create the Anthropic provider implementation that conforms to the provider interface. This will be our second concrete provider implementation.
 
 ## Implementation plan
+
 1. Write tests for Anthropic-specific behavior
 2. Implement AnthropicProvider class
 3. Handle Anthropic API authentication
@@ -13,4 +15,5 @@ Create the Anthropic provider implementation that conforms to the provider inter
 7. Add real API integration tests
 
 ## Update log
+
 - 2025-01-12 17:00: Task created. Building on the OpenAI provider pattern.

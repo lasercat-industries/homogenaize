@@ -27,16 +27,17 @@ describe('OpenAI Schema Conversion', () => {
     }
 
     const provider = new OpenAIProvider(apiKey);
-    
+
     const response = await provider.chat({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'user',
-          content: 'Analyze this text and return a JSON object with id "test-123", relevanceScore 85, and reason "High relevance due to keyword matches": The quick brown fox jumps over the lazy dog.'
-        }
+          content:
+            'Analyze this text and return a JSON object with id "test-123", relevanceScore 85, and reason "High relevance due to keyword matches": The quick brown fox jumps over the lazy dog.',
+        },
       ],
-      schema: annotationResultSchema
+      schema: annotationResultSchema,
     });
 
     // Validate the response matches the schema

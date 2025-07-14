@@ -10,11 +10,11 @@ const SKIP_GEMINI_TESTS = !process.env.GEMINI_API_KEY;
 describe('Real API Integration Tests', () => {
   describe.skipIf(SKIP_OPENAI_TESTS)('OpenAI', () => {
     let client: ReturnType<typeof createOpenAILLM>;
-    
+
     beforeAll(() => {
       client = createOpenAILLM({
         apiKey: process.env.OPENAI_API_KEY || '',
-        model: 'gpt-4o-mini'
+        model: 'gpt-4o-mini',
       });
     });
 
@@ -22,9 +22,9 @@ describe('Real API Integration Tests', () => {
       const response = await client.chat({
         messages: [
           { role: 'system', content: 'You are a helpful assistant. Be concise.' },
-          { role: 'user', content: 'Say hello in exactly 3 words.' }
+          { role: 'user', content: 'Say hello in exactly 3 words.' },
         ],
-        temperature: 0.1
+        temperature: 0.1,
       });
 
       expect(response.content).toBeTruthy();
@@ -36,30 +36,31 @@ describe('Real API Integration Tests', () => {
     it('should handle structured output', async () => {
       const schema = z.object({
         answer: z.number(),
-        explanation: z.string()
+        explanation: z.string(),
       });
 
       const response = await client.chat({
         messages: [
-          { role: 'user', content: 'What is 2+2? Give answer as number and explanation as string.' }
+          {
+            role: 'user',
+            content: 'What is 2+2? Give answer as number and explanation as string.',
+          },
         ],
         schema,
-        temperature: 0
+        temperature: 0,
       });
 
       expect(response.content).toMatchObject({
         answer: 4,
-        explanation: expect.any(String)
+        explanation: expect.any(String),
       });
       console.log('Structured response:', response.content);
     });
 
     it('should handle streaming', async () => {
       const stream = await client.stream({
-        messages: [
-          { role: 'user', content: 'Count from 1 to 5, one number at a time.' }
-        ],
-        temperature: 0.1
+        messages: [{ role: 'user', content: 'Count from 1 to 5, one number at a time.' }],
+        temperature: 0.1,
       });
 
       const chunks: string[] = [];
@@ -70,7 +71,7 @@ describe('Real API Integration Tests', () => {
       const fullResponse = chunks.join('');
       expect(fullResponse).toContain('1');
       expect(fullResponse).toContain('5');
-      
+
       const complete = await stream.complete();
       expect(complete.content).toBe(fullResponse);
       expect(complete.usage.totalTokens).toBeGreaterThan(0);
@@ -83,7 +84,7 @@ describe('Real API Integration Tests', () => {
         description: 'Get the current weather in a given location',
         schema: z.object({
           location: z.string().describe('The city and country, e.g. "Paris, France"'),
-          unit: z.string().optional()
+          unit: z.string().optional(),
         }),
         execute: async (params) => {
           // Simulate weather API
@@ -91,23 +92,21 @@ describe('Real API Integration Tests', () => {
             location: params.location,
             temperature: 22,
             unit: params.unit || 'celsius',
-            condition: 'sunny'
+            condition: 'sunny',
           };
-        }
+        },
       });
 
       const response = await client.chat({
-        messages: [
-          { role: 'user', content: 'What is the weather in London, UK?' }
-        ],
+        messages: [{ role: 'user', content: 'What is the weather in London, UK?' }],
         tools: [weatherTool],
-        toolChoice: 'auto'
+        toolChoice: 'auto',
       });
 
       // Check if the model decided to use the tool
       if (response.toolCalls && response.toolCalls.length > 0) {
         console.log('Tool calls:', response.toolCalls);
-        
+
         // Execute the tool calls
         const toolResults = await client.executeTools(response.toolCalls);
         console.log('Tool execution results:', toolResults);
@@ -125,7 +124,7 @@ describe('Real API Integration Tests', () => {
         name: 'calculate',
         description: 'Perform basic arithmetic calculations',
         schema: z.object({
-          expression: z.string().describe('Mathematical expression to evaluate')
+          expression: z.string().describe('Mathematical expression to evaluate'),
         }),
         execute: async (params) => {
           // Simple eval for demo - in production use a proper math parser
@@ -139,15 +138,13 @@ describe('Real API Integration Tests', () => {
           } catch (error) {
             return { error: 'Failed to evaluate expression' };
           }
-        }
+        },
       });
 
       const response = await client.chat({
-        messages: [
-          { role: 'user', content: 'Calculate 15 * 4 + 10' }
-        ],
+        messages: [{ role: 'user', content: 'Calculate 15 * 4 + 10' }],
         tools: [calculatorTool],
-        toolChoice: 'required' // Force tool usage
+        toolChoice: 'required', // Force tool usage
       });
 
       expect(response.toolCalls).toBeDefined();
@@ -162,15 +159,13 @@ describe('Real API Integration Tests', () => {
 
     it('should handle OpenAI-specific features', async () => {
       const response = await client.chat({
-        messages: [
-          { role: 'user', content: 'Say "Hello World"' }
-        ],
+        messages: [{ role: 'user', content: 'Say "Hello World"' }],
         features: {
           logprobs: true,
           topLogprobs: 2,
-          seed: 12345
+          seed: 12345,
         },
-        temperature: 0
+        temperature: 0,
       });
 
       expect(response.content).toContain('Hello World');
@@ -188,11 +183,11 @@ describe('Real API Integration Tests', () => {
 
   describe.skipIf(SKIP_ANTHROPIC_TESTS)('Anthropic', () => {
     let client: ReturnType<typeof createAnthropicLLM>;
-    
+
     beforeAll(() => {
       client = createAnthropicLLM({
         apiKey: process.env.ANTHROPIC_API_KEY || '',
-        model: 'claude-3-opus-20240229'
+        model: 'claude-3-opus-20240229',
       });
     });
 
@@ -200,9 +195,9 @@ describe('Real API Integration Tests', () => {
       const response = await client.chat({
         messages: [
           { role: 'system', content: 'You are a helpful assistant. Be concise.' },
-          { role: 'user', content: 'Say hello in exactly 3 words.' }
+          { role: 'user', content: 'Say hello in exactly 3 words.' },
         ],
-        temperature: 0.1
+        temperature: 0.1,
       });
 
       expect(response.content).toBeTruthy();
@@ -214,20 +209,23 @@ describe('Real API Integration Tests', () => {
     it('should handle structured output', async () => {
       const schema = z.object({
         answer: z.number(),
-        explanation: z.string()
+        explanation: z.string(),
       });
 
       const response = await client.chat({
         messages: [
-          { role: 'user', content: 'What is 2+2? Give answer as number and explanation as string.' }
+          {
+            role: 'user',
+            content: 'What is 2+2? Give answer as number and explanation as string.',
+          },
         ],
         schema,
-        temperature: 0
+        temperature: 0,
       });
 
       expect(response.content).toMatchObject({
         answer: 4,
-        explanation: expect.any(String)
+        explanation: expect.any(String),
       });
       console.log('Structured response:', response.content);
     });
@@ -235,9 +233,9 @@ describe('Real API Integration Tests', () => {
     it('should handle streaming', async () => {
       const stream = await client.stream({
         messages: [
-          { role: 'user', content: 'Please write a short message that says "Hello from Claude"' }
+          { role: 'user', content: 'Please write a short message that says "Hello from Claude"' },
         ],
-        temperature: 0
+        temperature: 0,
       });
 
       const chunks: string[] = [];
@@ -248,7 +246,7 @@ describe('Real API Integration Tests', () => {
       const fullResponse = chunks.join('');
       expect(fullResponse.toLowerCase()).toContain('hello');
       expect(fullResponse.toLowerCase()).toContain('claude');
-      
+
       const complete = await stream.complete();
       expect(complete.content).toBe(fullResponse);
       expect(complete.usage.totalTokens).toBeGreaterThan(0);
@@ -261,7 +259,7 @@ describe('Real API Integration Tests', () => {
         description: 'Get the current weather in a given location',
         schema: z.object({
           location: z.string().describe('The city and country, e.g. "Paris, France"'),
-          unit: z.string().optional()
+          unit: z.string().optional(),
         }),
         execute: async (params) => {
           // Simulate weather API
@@ -269,23 +267,21 @@ describe('Real API Integration Tests', () => {
             location: params.location,
             temperature: 22,
             unit: params.unit || 'celsius',
-            condition: 'sunny'
+            condition: 'sunny',
           };
-        }
+        },
       });
 
       const response = await client.chat({
-        messages: [
-          { role: 'user', content: 'What is the weather in London, UK?' }
-        ],
+        messages: [{ role: 'user', content: 'What is the weather in London, UK?' }],
         tools: [weatherTool],
-        toolChoice: 'auto'
+        toolChoice: 'auto',
       });
 
       // Check if the model decided to use the tool
       if (response.toolCalls && response.toolCalls.length > 0) {
         console.log('Tool calls:', response.toolCalls);
-        
+
         // Execute the tool calls
         const toolResults = await client.executeTools(response.toolCalls);
         console.log('Tool execution results:', toolResults);
@@ -303,7 +299,7 @@ describe('Real API Integration Tests', () => {
         name: 'calculate',
         description: 'Perform basic arithmetic calculations',
         schema: z.object({
-          expression: z.string().describe('Mathematical expression to evaluate')
+          expression: z.string().describe('Mathematical expression to evaluate'),
         }),
         execute: async (params) => {
           // Simple eval for demo - in production use a proper math parser
@@ -317,15 +313,13 @@ describe('Real API Integration Tests', () => {
           } catch (error) {
             return { error: 'Failed to evaluate expression' };
           }
-        }
+        },
       });
 
       const response = await client.chat({
-        messages: [
-          { role: 'user', content: 'Calculate 15 * 4 + 10' }
-        ],
+        messages: [{ role: 'user', content: 'Calculate 15 * 4 + 10' }],
         tools: [calculatorTool],
-        toolChoice: 'required' // Force tool usage
+        toolChoice: 'required', // Force tool usage
       });
 
       expect(response.toolCalls).toBeDefined();
@@ -340,14 +334,12 @@ describe('Real API Integration Tests', () => {
 
     it('should handle Anthropic-specific features', async () => {
       const response = await client.chat({
-        messages: [
-          { role: 'user', content: 'Say "Hello World"' }
-        ],
+        messages: [{ role: 'user', content: 'Say "Hello World"' }],
         features: {
           thinking: true,
-          cacheControl: true
+          cacheControl: true,
         },
-        temperature: 0
+        temperature: 0,
       });
 
       expect(response.content).toContain('Hello World');
@@ -359,11 +351,11 @@ describe('Real API Integration Tests', () => {
 
   describe.skipIf(SKIP_GEMINI_TESTS)('Gemini', () => {
     let client: ReturnType<typeof createGeminiLLM>;
-    
+
     beforeAll(() => {
       client = createGeminiLLM({
         apiKey: process.env.GEMINI_API_KEY || '',
-        model: 'gemini-1.5-flash-latest'
+        model: 'gemini-1.5-flash-latest',
       });
     });
 
@@ -371,9 +363,9 @@ describe('Real API Integration Tests', () => {
       const response = await client.chat({
         messages: [
           { role: 'system', content: 'You are a helpful assistant. Be concise.' },
-          { role: 'user', content: 'Say hello in exactly 3 words.' }
+          { role: 'user', content: 'Say hello in exactly 3 words.' },
         ],
-        temperature: 0.1
+        temperature: 0.1,
       });
 
       expect(response.content).toBeTruthy();
@@ -385,31 +377,33 @@ describe('Real API Integration Tests', () => {
     it('should handle structured output', async () => {
       const schema = z.object({
         answer: z.number(),
-        explanation: z.string()
+        explanation: z.string(),
       });
 
       const response = await client.chat({
         messages: [
-          { role: 'user', content: 'What is 2+2? Respond in JSON with fields "answer" (number) and "explanation" (string).' }
+          {
+            role: 'user',
+            content:
+              'What is 2+2? Respond in JSON with fields "answer" (number) and "explanation" (string).',
+          },
         ],
         schema,
-        temperature: 0
+        temperature: 0,
       });
 
       expect(response.content).toMatchObject({
         answer: 4,
-        explanation: expect.any(String)
+        explanation: expect.any(String),
       });
       console.log('Structured response:', response.content);
     });
 
     it('should handle streaming', async () => {
       const stream = await client.stream({
-        messages: [
-          { role: 'user', content: 'Count from 1 to 3' }
-        ],
+        messages: [{ role: 'user', content: 'Count from 1 to 3' }],
         temperature: 0,
-        maxTokens: 100
+        maxTokens: 100,
       });
 
       const chunks: string[] = [];
@@ -424,11 +418,11 @@ describe('Real API Integration Tests', () => {
       const complete = await stream.complete();
       console.log('Gemini complete response:', complete.content);
       console.log('Chunks received:', chunks.length);
-      
+
       // Gemini might not support true streaming, so we check the complete response
       expect(complete.content.length).toBeGreaterThan(0);
       expect(complete.usage.totalTokens).toBeGreaterThan(0);
-      
+
       // Either we got chunks or we got the complete response
       const hasContent = chunks.length > 0 || complete.content.length > 0;
       expect(hasContent).toBe(true);
@@ -441,7 +435,7 @@ describe('Real API Integration Tests', () => {
         description: 'Get the current weather in a given location',
         schema: z.object({
           location: z.string().describe('The city and country, e.g. "Paris, France"'),
-          unit: z.string().optional()
+          unit: z.string().optional(),
         }),
         execute: async (params) => {
           // Simulate weather API
@@ -449,23 +443,21 @@ describe('Real API Integration Tests', () => {
             location: params.location,
             temperature: 22,
             unit: params.unit || 'celsius',
-            condition: 'sunny'
+            condition: 'sunny',
           };
-        }
+        },
       });
 
       const response = await client.chat({
-        messages: [
-          { role: 'user', content: 'What is the weather in London, UK?' }
-        ],
+        messages: [{ role: 'user', content: 'What is the weather in London, UK?' }],
         tools: [weatherTool],
-        toolChoice: 'auto'
+        toolChoice: 'auto',
       });
 
       // Check if the model decided to use the tool
       if (response.toolCalls && response.toolCalls.length > 0) {
         console.log('Tool calls:', response.toolCalls);
-        
+
         // Execute the tool calls
         const toolResults = await client.executeTools(response.toolCalls);
         console.log('Tool execution results:', toolResults);
@@ -483,7 +475,7 @@ describe('Real API Integration Tests', () => {
         name: 'calculate',
         description: 'Perform basic arithmetic calculations',
         schema: z.object({
-          expression: z.string().describe('Mathematical expression to evaluate')
+          expression: z.string().describe('Mathematical expression to evaluate'),
         }),
         execute: async (params) => {
           // Simple eval for demo - in production use a proper math parser
@@ -497,15 +489,13 @@ describe('Real API Integration Tests', () => {
           } catch (error) {
             return { error: 'Failed to evaluate expression' };
           }
-        }
+        },
       });
 
       const response = await client.chat({
-        messages: [
-          { role: 'user', content: 'Calculate 15 * 4 + 10' }
-        ],
+        messages: [{ role: 'user', content: 'Calculate 15 * 4 + 10' }],
         tools: [calculatorTool],
-        toolChoice: 'required' // Force tool usage
+        toolChoice: 'required', // Force tool usage
       });
 
       expect(response.toolCalls).toBeDefined();
@@ -520,18 +510,16 @@ describe('Real API Integration Tests', () => {
 
     it('should handle Gemini-specific features', async () => {
       const response = await client.chat({
-        messages: [
-          { role: 'user', content: 'Say "Hello World"' }
-        ],
+        messages: [{ role: 'user', content: 'Say "Hello World"' }],
         features: {
           safetySettings: [
             {
               category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-              threshold: 'BLOCK_ONLY_HIGH'
-            }
-          ]
+              threshold: 'BLOCK_ONLY_HIGH',
+            },
+          ],
         },
-        temperature: 0
+        temperature: 0,
       });
 
       expect(response.content).toContain('Hello World');

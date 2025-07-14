@@ -20,36 +20,38 @@ describe('Gemini Client Integration', () => {
 
   it('should create Gemini client and make chat request', async () => {
     const mockResponse = {
-      candidates: [{
-        content: {
-          parts: [{ text: 'Hello from Gemini!' }],
-          role: 'model'
+      candidates: [
+        {
+          content: {
+            parts: [{ text: 'Hello from Gemini!' }],
+            role: 'model',
+          },
+          finishReason: 'STOP',
+          index: 0,
         },
-        finishReason: 'STOP',
-        index: 0
-      }],
+      ],
       usageMetadata: {
         promptTokenCount: 10,
         candidatesTokenCount: 20,
-        totalTokenCount: 30
-      }
+        totalTokenCount: 30,
+      },
     };
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
-      json: async () => mockResponse
+      json: async () => mockResponse,
     });
 
     const client = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro'
+      model: 'gemini-1.5-pro',
     });
 
     const response = await client.chat({
       messages: [
         { role: 'system', content: 'You are a helpful assistant' },
-        { role: 'user', content: 'Hello' }
-      ]
+        { role: 'user', content: 'Hello' },
+      ],
     });
 
     expect(response.content).toBe('Hello from Gemini!');
@@ -60,11 +62,9 @@ describe('Gemini Client Integration', () => {
     const callBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
     expect(callBody).toMatchObject({
       systemInstruction: {
-        parts: [{ text: 'You are a helpful assistant' }]
+        parts: [{ text: 'You are a helpful assistant' }],
       },
-      contents: [
-        { role: 'user', parts: [{ text: 'Hello' }] }
-      ]
+      contents: [{ role: 'user', parts: [{ text: 'Hello' }] }],
     });
   });
 
@@ -72,7 +72,7 @@ describe('Gemini Client Integration', () => {
     const PersonSchema = z.object({
       name: z.string(),
       age: z.number(),
-      city: z.string()
+      city: z.string(),
     });
 
     // type Person = z.infer<typeof PersonSchema>;
@@ -80,72 +80,85 @@ describe('Gemini Client Integration', () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        candidates: [{
-          content: {
-            parts: [{ text: '{"name":"Alice","age":30,"city":"New York"}' }],
-            role: 'model'
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  functionCall: {
+                    name: 'respond_with_structured_output',
+                    args: { name: 'Alice', age: 30, city: 'New York' },
+                  },
+                },
+              ],
+              role: 'model',
+            },
+            finishReason: 'STOP',
+            index: 0,
           },
-          finishReason: 'STOP',
-          index: 0
-        }],
+        ],
         usageMetadata: {
           promptTokenCount: 50,
           candidatesTokenCount: 20,
-          totalTokenCount: 70
-        }
-      })
+          totalTokenCount: 70,
+        },
+      }),
     });
 
     const client = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro'
+      model: 'gemini-1.5-pro',
     });
 
     const response = await client.chat({
       messages: [{ role: 'user', content: 'Generate a person' }],
-      schema: PersonSchema
+      schema: PersonSchema,
     });
 
     expect(response.content).toEqual({
       name: 'Alice',
       age: 30,
-      city: 'New York'
+      city: 'New York',
     });
 
-    // Verify response format was set for JSON
+    // Verify tools were created internally for structured output
     const callBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
-    expect(callBody.generationConfig.responseMimeType).toBe('application/json');
+    expect(callBody.tools).toBeDefined();
+    expect(callBody.tools[0].functionDeclarations).toHaveLength(1);
+    expect(callBody.tools[0].functionDeclarations[0].name).toBe('respond_with_structured_output');
   });
 
   it('should handle Gemini-specific features', async () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        candidates: [{
-          content: {
-            parts: [{ text: 'Safe response' }],
-            role: 'model'
+        candidates: [
+          {
+            content: {
+              parts: [{ text: 'Safe response' }],
+              role: 'model',
+            },
+            finishReason: 'STOP',
+            index: 0,
+            safetyRatings: [
+              {
+                category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                probability: 'NEGLIGIBLE',
+              },
+            ],
           },
-          finishReason: 'STOP',
-          index: 0,
-          safetyRatings: [
-            {
-              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-              probability: 'NEGLIGIBLE'
-            }
-          ]
-        }],
+        ],
         usageMetadata: {
           promptTokenCount: 100,
           candidatesTokenCount: 50,
-          totalTokenCount: 150
-        }
-      })
+          totalTokenCount: 150,
+        },
+      }),
     });
 
     const client = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro'
+      model: 'gemini-1.5-pro',
     });
 
     const response = await client.chat({
@@ -154,10 +167,10 @@ describe('Gemini Client Integration', () => {
         safetySettings: [
           {
             category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_ONLY_HIGH'
-          }
-        ]
-      } as any
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+        ],
+      } as any,
     });
 
     expect(response.content).toBe('Safe response');
@@ -170,16 +183,16 @@ describe('Gemini Client Integration', () => {
       name: 'get_weather',
       description: 'Get the current weather',
       schema: z.object({
-        location: z.string()
+        location: z.string(),
       }),
       execute: async (params: { location: string }) => {
         return { temperature: 72, location: params.location };
-      }
+      },
     };
 
     const client = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro'
+      model: 'gemini-1.5-pro',
     });
 
     const tool = client.defineTool(weatherTool);
@@ -189,30 +202,34 @@ describe('Gemini Client Integration', () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        candidates: [{
-          content: {
-            parts: [{
-              functionCall: {
-                name: 'get_weather',
-                args: { location: 'San Francisco' }
-              }
-            }],
-            role: 'model'
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  functionCall: {
+                    name: 'get_weather',
+                    args: { location: 'San Francisco' },
+                  },
+                },
+              ],
+              role: 'model',
+            },
+            finishReason: 'STOP',
+            index: 0,
           },
-          finishReason: 'STOP',
-          index: 0
-        }],
+        ],
         usageMetadata: {
           promptTokenCount: 50,
           candidatesTokenCount: 30,
-          totalTokenCount: 80
-        }
-      })
+          totalTokenCount: 80,
+        },
+      }),
     });
 
     const response = await client.chat({
       messages: [{ role: 'user', content: 'What is the weather?' }],
-      tools: [tool]
+      tools: [tool],
     });
 
     expect(response.toolCalls).toHaveLength(1);
@@ -222,7 +239,7 @@ describe('Gemini Client Integration', () => {
     const results = await client.executeTools(response.toolCalls || []);
     expect(results[0]?.result).toEqual({
       temperature: 72,
-      location: 'San Francisco'
+      location: 'San Francisco',
     });
   });
 });

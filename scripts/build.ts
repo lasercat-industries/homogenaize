@@ -12,7 +12,8 @@ const rootDir = join(import.meta.dir, '..');
 const distDir = join(rootDir, 'dist');
 
 // Clean dist directory
-console.log('🧹 Cleaning dist directory...');1
+console.log('🧹 Cleaning dist directory...');
+1;
 if (existsSync(distDir)) {
   rmSync(distDir, { recursive: true, force: true });
 }
@@ -30,14 +31,14 @@ const builds = [
 // Build each target
 for (const config of builds) {
   console.log(`\n📦 Building ${config.name}...`);
-  
+
   const startTime = performance.now();
-  
+
   try {
     // Use Bun.build API
     // Determine target based on entry point
     const target = config.entryPoint.includes('worker.ts') ? 'browser' : 'browser';
-    
+
     const result = await Bun.build({
       entrypoints: [config.entryPoint],
       format: 'esm',
@@ -47,11 +48,11 @@ for (const config of builds) {
       splitting: false,
       external: [],
     });
-    
+
     if (!result.success) {
       throw new Error(result.logs.join('\n'));
     }
-    
+
     // Write the output to the specific file
     if (result.outputs && result.outputs.length > 0) {
       const output = result.outputs[0];
@@ -59,10 +60,10 @@ for (const config of builds) {
         await Bun.write(config.outfile, output);
       }
     }
-    
+
     const buildTime = ((performance.now() - startTime) / 1000).toFixed(2);
     console.log(`✅ Built in ${buildTime}s`);
-    
+
     // Get file size
     if (existsSync(config.outfile)) {
       const stats = await Bun.file(config.outfile).stat();
@@ -87,14 +88,14 @@ try {
     stdout: 'pipe',
     stderr: 'pipe',
   });
-  
-  const success = await proc.exited === 0;
-  
+
+  const success = (await proc.exited) === 0;
+
   if (!success) {
     const stderr = await new Response(proc.stderr).text();
     console.error('TypeScript errors:', stderr);
   }
-  
+
   const tscTime = ((performance.now() - tscStart) / 1000).toFixed(2);
   console.log(`✅ Generated declarations in ${tscTime}s`);
 } catch (error) {
@@ -111,7 +112,7 @@ async function copyDeclarations(from: string, to: string) {
   if (existsSync(from)) {
     const content = await Bun.file(from).text();
     await Bun.write(to, content);
-    
+
     // Copy source map too if it exists
     const mapFrom = from + '.map';
     const mapTo = to + '.map';
@@ -125,22 +126,19 @@ async function copyDeclarations(from: string, to: string) {
 // Copy main declarations if they exist
 const srcDist = join(distDir, 'src');
 if (existsSync(srcDist)) {
-  await copyDeclarations(
-    join(srcDist, 'index.d.ts'),
-    join(distDir, 'index.d.ts')
-  );
-  
+  await copyDeclarations(join(srcDist, 'index.d.ts'), join(distDir, 'index.d.ts'));
+
   // Preserve specific subdirectory declarations
   const declarationsToPreserve = [
     { from: 'browser/index.d.ts', to: 'browser/index.d.ts' },
     { from: 'server/index.d.ts', to: 'server/index.d.ts' },
     { from: 'types/index.d.ts', to: 'types/index.d.ts' },
   ];
-  
+
   for (const { from, to } of declarationsToPreserve) {
     const fromPath = join(srcDist, from);
     const toPath = join(distDir, to);
-    
+
     if (existsSync(fromPath)) {
       const toDir = join(distDir, to.split('/')[0]!);
       if (!existsSync(toDir)) {
@@ -149,7 +147,7 @@ if (existsSync(srcDist)) {
       await copyDeclarations(fromPath, toPath);
     }
   }
-  
+
   // Clean up src directory
   rmSync(srcDist, { recursive: true, force: true });
 }
@@ -161,10 +159,7 @@ const distPackageJson = {
   sideEffects: false,
 };
 
-await Bun.write(
-  join(distDir, 'package.json'),
-  JSON.stringify(distPackageJson, null, 2)
-);
+await Bun.write(join(distDir, 'package.json'), JSON.stringify(distPackageJson, null, 2));
 
 // Summary
 console.log('\n✨ Build complete!');
@@ -177,7 +172,7 @@ const dtsFiles: string[] = [];
 async function scanDir(dir: string) {
   const fs = await import('node:fs');
   const entries = fs.readdirSync(dir, { withFileTypes: true });
-  
+
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
@@ -214,9 +209,11 @@ type ExportConfig = {
   types?: string;
 };
 
-for (const [exportPath, exportConfig] of Object.entries(pkg.exports as Record<string, ExportConfig | string>)) {
+for (const [exportPath, exportConfig] of Object.entries(
+  pkg.exports as Record<string, ExportConfig | string>,
+)) {
   if (exportPath === './package.json') continue;
-  
+
   const config = exportConfig as ExportConfig;
   if (config.import) {
     const exists = existsSync(join(rootDir, config.import));

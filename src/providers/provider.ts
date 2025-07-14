@@ -76,7 +76,7 @@ export interface ProviderCapabilities {
 export interface Provider {
   readonly name: string;
   readonly capabilities: ProviderCapabilities;
-  
+
   chat<T = string>(request: ChatRequest): Promise<ChatResponse<T>>;
   stream<T = string>(request: ChatRequest): Promise<StreamingResponse<T>>;
   supportsFeature(feature: string): boolean;

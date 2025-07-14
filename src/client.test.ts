@@ -10,9 +10,9 @@ describe('LLM Client', () => {
       const client = createLLM({
         provider: 'openai' as const,
         apiKey: 'test-key',
-        model: 'gpt-4'
+        model: 'gpt-4',
       });
-      
+
       // TypeScript should infer LLMClient<'openai'>
       expect(client.provider).toBe('openai');
       expect(client.model).toBe('gpt-4');
@@ -21,9 +21,9 @@ describe('LLM Client', () => {
     it('should create OpenAI client with specific factory', () => {
       const client = createOpenAILLM({
         apiKey: 'test-key',
-        model: 'gpt-4'
+        model: 'gpt-4',
       });
-      
+
       expect(client.provider).toBe('openai');
       expect(client.model).toBe('gpt-4');
     });
@@ -31,9 +31,9 @@ describe('LLM Client', () => {
     it('should create Anthropic client with specific factory', () => {
       const client = createAnthropicLLM({
         apiKey: 'test-key',
-        model: 'claude-3-5-sonnet-20241022'
+        model: 'claude-3-5-sonnet-20241022',
       });
-      
+
       expect(client.provider).toBe('anthropic');
       expect(client.model).toBe('claude-3-5-sonnet-20241022');
     });
@@ -41,9 +41,9 @@ describe('LLM Client', () => {
     it('should create Gemini client with specific factory', () => {
       const client = createGeminiLLM({
         apiKey: 'test-key',
-        model: 'gemini-pro'
+        model: 'gemini-pro',
       });
-      
+
       expect(client.provider).toBe('gemini');
       expect(client.model).toBe('gemini-pro');
     });
@@ -57,10 +57,10 @@ describe('LLM Client', () => {
         model: 'gpt-4',
         defaultOptions: {
           temperature: 0.7,
-          maxTokens: 1000
-        }
+          maxTokens: 1000,
+        },
       });
-      
+
       expect(client.defaultOptions?.temperature).toBe(0.7);
       expect(client.defaultOptions?.maxTokens).toBe(1000);
     });
@@ -70,21 +70,21 @@ describe('LLM Client', () => {
     it('should enforce provider-specific features at compile time', () => {
       createOpenAILLM({
         apiKey: 'test-key',
-        model: 'gpt-4'
+        model: 'gpt-4',
       });
-      
+
       // This test validates that TypeScript compilation succeeds
       // with correct features and fails with incorrect ones
       const validRequest = {
         messages: [{ role: 'user' as const, content: 'Hello' }],
         features: {
           logprobs: true,
-          topLogprobs: 5
-        }
+          topLogprobs: 5,
+        },
       };
-      
+
       expect(validRequest.features.logprobs).toBe(true);
-      
+
       // The following would cause TypeScript errors:
       // validRequest.features.thinking = true; // Error: thinking doesn't exist on OpenAI features
     });
@@ -100,7 +100,7 @@ describe('LLM Client', () => {
         public defaultOptions?: {
           temperature?: number;
           maxTokens?: number;
-        }
+        },
       ) {}
 
       async chat<T = string>(_options: any): Promise<ProviderChatResponse<P, T>> {
@@ -109,17 +109,22 @@ describe('LLM Client', () => {
           usage: {
             inputTokens: 10,
             outputTokens: 5,
-            totalTokens: 15
+            totalTokens: 15,
           },
           model: this.model,
-          provider: this.provider
+          provider: this.provider,
         } as ProviderChatResponse<P, T>;
       }
 
-      async stream<T = string>(_options: any): Promise<{ complete(): Promise<ProviderChatResponse<P, T>>; [Symbol.asyncIterator](): AsyncIterator<T, any, any>; }> {
+      async stream<T = string>(
+        _options: any,
+      ): Promise<{
+        complete(): Promise<ProviderChatResponse<P, T>>;
+        [Symbol.asyncIterator](): AsyncIterator<T, any, any>;
+      }> {
         const chunks = ['Mock', ' ', 'stream'];
         let index = 0;
-        
+
         return {
           async *[Symbol.asyncIterator](): AsyncIterator<T, any, any> {
             while (index < chunks.length) {
@@ -132,12 +137,12 @@ describe('LLM Client', () => {
               usage: {
                 inputTokens: 10,
                 outputTokens: 5,
-                totalTokens: 15
+                totalTokens: 15,
               },
               model: 'mock-model',
-              provider: 'mock' as any
+              provider: 'mock' as any,
             } as ProviderChatResponse<P, T>;
-          }
+          },
         };
       }
 
@@ -146,14 +151,14 @@ describe('LLM Client', () => {
           name: config.name,
           description: config.description,
           parameters: config.schema,
-          execute: config.execute
+          execute: config.execute,
         };
       }
 
       async executeTools(toolCalls: any[]) {
-        return toolCalls.map(call => ({
+        return toolCalls.map((call) => ({
           toolCallId: call.id,
-          result: { mock: 'result' }
+          result: { mock: 'result' },
         }));
       }
     }
@@ -161,9 +166,9 @@ describe('LLM Client', () => {
     it('should implement chat method', async () => {
       const client = new MockLLMClient('openai', 'test-key', 'gpt-4');
       const response = await client.chat({
-        messages: [{ role: 'user', content: 'Hello' }]
+        messages: [{ role: 'user', content: 'Hello' }],
       });
-      
+
       expect(response.content).toBe('Mock response');
       expect(response.usage.totalTokens).toBe(15);
     });
@@ -171,16 +176,16 @@ describe('LLM Client', () => {
     it('should implement streaming', async () => {
       const client = new MockLLMClient('anthropic', 'test-key', 'claude-3');
       const stream = await client.stream({
-        messages: [{ role: 'user', content: 'Hello' }]
+        messages: [{ role: 'user', content: 'Hello' }],
       });
-      
+
       const chunks: string[] = [];
       for await (const chunk of stream) {
         if (chunk !== undefined) {
           chunks.push(chunk);
         }
       }
-      
+
       expect(chunks).toEqual(['Mock', ' ', 'stream']);
     });
 
@@ -190,9 +195,9 @@ describe('LLM Client', () => {
         name: 'get_weather',
         description: 'Get weather',
         schema: z.object({ location: z.string() }),
-        execute: async (params: any) => ({ temp: 20, location: params.location })
+        execute: async (params: any) => ({ temp: 20, location: params.location }),
       });
-      
+
       expect(tool.name).toBe('get_weather');
       expect(tool.description).toBe('Get weather');
     });

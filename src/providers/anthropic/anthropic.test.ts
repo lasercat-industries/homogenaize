@@ -11,7 +11,7 @@ global.fetch = vi.fn() as any;
 
 describe('Anthropic Provider', () => {
   let provider: AnthropicProvider;
-  
+
   beforeEach(() => {
     provider = new AnthropicProvider('test-api-key');
     vi.clearAllMocks();
@@ -34,7 +34,7 @@ describe('Anthropic Provider', () => {
         tools: true,
         structuredOutput: true,
         vision: true,
-        maxTokens: 200000
+        maxTokens: 200000,
       });
     });
 
@@ -55,19 +55,17 @@ describe('Anthropic Provider', () => {
         content: [{ type: 'text', text: 'Hello!' }],
         usage: {
           input_tokens: 10,
-          output_tokens: 5
-        }
+          output_tokens: 5,
+        },
       };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse
+        json: async () => mockResponse,
       });
 
       const request: ChatRequest = {
-        messages: [
-          { role: 'user', content: 'Hello' }
-        ]
+        messages: [{ role: 'user', content: 'Hello' }],
       };
 
       const response = await provider.chat(request);
@@ -76,7 +74,7 @@ describe('Anthropic Provider', () => {
       expect(response.usage).toEqual({
         inputTokens: 10,
         outputTokens: 5,
-        totalTokens: 15
+        totalTokens: 15,
       });
       expect(response.model).toBe('claude-3-opus-20240229');
 
@@ -88,9 +86,9 @@ describe('Anthropic Provider', () => {
           headers: expect.objectContaining({
             'x-api-key': 'test-api-key',
             'anthropic-version': '2023-06-01',
-            'Content-Type': 'application/json'
-          })
-        })
+            'Content-Type': 'application/json',
+          }),
+        }),
       );
     });
 
@@ -101,19 +99,19 @@ describe('Anthropic Provider', () => {
         role: 'assistant',
         model: 'claude-3-opus-20240229',
         content: [{ type: 'text', text: 'I am a helpful assistant.' }],
-        usage: { input_tokens: 20, output_tokens: 10 }
+        usage: { input_tokens: 20, output_tokens: 10 },
       };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse
+        json: async () => mockResponse,
       });
 
       const request: ChatRequest = {
         messages: [
           { role: 'system', content: 'You are a helpful assistant.' },
-          { role: 'user', content: 'Who are you?' }
-        ]
+          { role: 'user', content: 'Who are you?' },
+        ],
       };
 
       await provider.chat(request);
@@ -128,7 +126,7 @@ describe('Anthropic Provider', () => {
       const schema = z.object({
         name: z.string(),
         age: z.number(),
-        city: z.string()
+        city: z.string(),
       });
 
       (global.fetch as any).mockResolvedValueOnce({
@@ -138,27 +136,34 @@ describe('Anthropic Provider', () => {
           type: 'message',
           role: 'assistant',
           model: 'claude-3-opus-20240229',
-          content: [{ 
-            type: 'text', 
-            text: '{"name":"John","age":30,"city":"NYC"}' 
-          }],
-          usage: { input_tokens: 50, output_tokens: 20 }
-        })
+          content: [
+            {
+              type: 'tool_use',
+              id: 'tool_123',
+              name: 'respond_with_structured_output',
+              input: { name: 'John', age: 30, city: 'NYC' },
+            },
+          ],
+          usage: { input_tokens: 50, output_tokens: 20 },
+        }),
       });
 
       const request: ChatRequest = {
         messages: [{ role: 'user', content: 'Generate a person' }],
-        schema
+        schema,
       };
 
       const response = await provider.chat(request);
 
       // Provider returns parsed content when schema is provided
-      expect(response.content).toEqual({ name: "John", age: 30, city: "NYC" });
-      
-      // Check that system prompt was added for JSON
+      expect(response.content).toEqual({ name: 'John', age: 30, city: 'NYC' });
+
+      // Check that tools were created for structured output
       const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);
-      expect(callArgs.system).toContain('JSON');
+      expect(callArgs.tools).toBeDefined();
+      expect(callArgs.tools).toHaveLength(1);
+      expect(callArgs.tools[0].name).toBe('respond_with_structured_output');
+      expect(callArgs.tool_choice).toEqual({ type: 'any' });
     });
 
     it('should handle tool calls', async () => {
@@ -172,26 +177,28 @@ describe('Anthropic Provider', () => {
             type: 'tool_use',
             id: 'tool_123',
             name: 'get_weather',
-            input: { location: 'San Francisco' }
-          }
+            input: { location: 'San Francisco' },
+          },
         ],
-        usage: { input_tokens: 50, output_tokens: 30 }
+        usage: { input_tokens: 50, output_tokens: 30 },
       };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse
+        json: async () => mockResponse,
       });
 
-      const tools = [{
-        name: 'get_weather',
-        description: 'Get weather for a location',
-        parameters: z.object({ location: z.string() })
-      }];
+      const tools = [
+        {
+          name: 'get_weather',
+          description: 'Get weather for a location',
+          parameters: z.object({ location: z.string() }),
+        },
+      ];
 
       const request: ChatRequest = {
         messages: [{ role: 'user', content: 'What is the weather?' }],
-        tools
+        tools,
       };
 
       const response = await provider.chat(request);
@@ -200,7 +207,7 @@ describe('Anthropic Provider', () => {
       expect(response.toolCalls![0]).toEqual({
         id: 'tool_123',
         name: 'get_weather',
-        arguments: { location: 'San Francisco' }
+        arguments: { location: 'San Francisco' },
       });
 
       // Check API call includes tools
@@ -216,20 +223,20 @@ describe('Anthropic Provider', () => {
         role: 'assistant',
         model: 'claude-3-opus-20240229',
         content: [{ type: 'text', text: 'Response' }],
-        usage: { input_tokens: 100, output_tokens: 50 }
+        usage: { input_tokens: 100, output_tokens: 50 },
       };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse
+        json: async () => mockResponse,
       });
 
       const request = {
         messages: [{ role: 'user', content: 'Hello' }],
         features: {
           thinking: true,
-          cacheControl: true
-        }
+          cacheControl: true,
+        },
       };
 
       await provider.chat(request as any);
@@ -247,22 +254,22 @@ describe('Anthropic Provider', () => {
         model: 'claude-3-opus-20240229',
         content: [
           { type: 'thinking', text: 'Let me think about this...' },
-          { type: 'text', text: 'The answer is 42.' }
+          { type: 'text', text: 'The answer is 42.' },
         ],
-        usage: { input_tokens: 100, output_tokens: 50, thinking_tokens: 25 }
+        usage: { input_tokens: 100, output_tokens: 50, thinking_tokens: 25 },
       };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse
+        json: async () => mockResponse,
       });
 
       const request = {
         messages: [{ role: 'user', content: 'What is the meaning of life?' }],
         features: {
           thinking: true,
-          maxThinkingTokens: 1000
-        }
+          maxThinkingTokens: 1000,
+        },
       };
 
       const response = await provider.chat(request as any);
@@ -284,17 +291,17 @@ describe('Anthropic Provider', () => {
         json: async () => ({
           error: {
             type: 'invalid_request_error',
-            message: 'Invalid request'
-          }
-        })
+            message: 'Invalid request',
+          },
+        }),
       });
 
       const request: ChatRequest = {
-        messages: [{ role: 'user', content: 'Hello' }]
+        messages: [{ role: 'user', content: 'Hello' }],
       };
 
       await expect(provider.chat(request)).rejects.toThrow(
-        'Anthropic API error (400): Invalid request'
+        'Anthropic API error (400): Invalid request',
       );
     });
   });
@@ -308,12 +315,12 @@ describe('Anthropic Provider', () => {
         'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" world"}}\n\n',
         'event: content_block_stop\ndata: {"type":"content_block_stop","index":0}\n\n',
         'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":5}}\n\n',
-        'event: message_stop\ndata: {"type":"message_stop"}\n\n'
+        'event: message_stop\ndata: {"type":"message_stop"}\n\n',
       ];
 
       let chunkIndex = 0;
       const encoder = new TextEncoder();
-      
+
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
         body: {
@@ -322,17 +329,17 @@ describe('Anthropic Provider', () => {
               if (chunkIndex < chunks.length) {
                 return {
                   done: false,
-                  value: encoder.encode(chunks[chunkIndex++])
+                  value: encoder.encode(chunks[chunkIndex++]),
                 };
               }
               return { done: true };
-            }
-          })
-        }
+            },
+          }),
+        },
       });
 
       const request: ChatRequest = {
-        messages: [{ role: 'user', content: 'Hello' }]
+        messages: [{ role: 'user', content: 'Hello' }],
       };
 
       const stream = await provider.stream(request);

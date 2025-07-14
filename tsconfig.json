@@ -46,7 +46,7 @@
     "baseUrl": ".",
     "rootDir": ".",
     "paths": {
-      "@/*": ["./src/*"],
+      "@/*": ["./src/*"]
     },
 
     // DX improvements
@@ -59,13 +59,6 @@
 
     "types": ["node", "bun"]
   },
-  "include": [
-    "src",
-    "scripts/**/*.ts",
-    "tests",
-    "vite.config.ts",
-    "vitest.config.ts",
-    "**/*.d.ts"
-  ],
+  "include": ["src", "scripts/**/*.ts", "tests", "vite.config.ts", "vitest.config.ts", "**/*.d.ts"],
   "exclude": ["node_modules", "coverage", "**/dist/**", "**/build/**"]
 }

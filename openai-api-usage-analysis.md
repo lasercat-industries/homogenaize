@@ -5,12 +5,14 @@ This document provides a comprehensive analysis of OpenAI API usage in the Laser
 ## Overview
 
 Lasermonkey uses OpenAI APIs through two main approaches:
+
 1. **LLM.js Wrapper** - Primary interface for AI interactions
 2. **Direct OpenAI SDK** - Limited to build-time model information generation
 
 ## Type System Overview
 
 The project uses a comprehensive type system built on:
+
 - **@themaximalist/llm.js** types for core LLM interactions
 - **Zod schemas** for runtime validation with `z.strictObject()`
 - **Custom interfaces** for streaming, tools, and domain-specific needs
@@ -21,10 +23,10 @@ The project uses a comprehensive type system built on:
 
 ```typescript
 import LLM, {
-  type Input,              // string | Message[]
-  type Options,            // Configuration options for LLM calls
-  type LLMServices,        // Union of all LLM service types
-  type ModelUsageType,     // Model usage information
+  type Input, // string | Message[]
+  type Options, // Configuration options for LLM calls
+  type LLMServices, // Union of all LLM service types
+  type ModelUsageType, // Model usage information
 } from '@themaximalist/llm.js';
 
 // Message types
@@ -33,7 +35,7 @@ type Message = {
   content: MessageContent;
 };
 
-type MessageRole = "user" | "assistant" | "system" | "thinking" | "tool_call";
+type MessageRole = 'user' | 'assistant' | 'system' | 'thinking' | 'tool_call';
 type MessageContent = string | Tool | any;
 
 // Configuration options
@@ -65,14 +67,16 @@ export const annotationCandidateSchema = z.object({
   selector: z.string({ message: 'Selector must be a string' }),
 });
 
-export const annotationResultSchema = z.object({
-  id: z.string({ message: 'Annotation ID must be a string' }),
-  relevanceScore: z
-    .number({ message: 'Relevance score must be a number' })
-    .min(0, { message: 'Relevance score must be at least 0' })
-    .max(100, { message: 'Relevance score must not exceed 100' }),
-  reason: z.string({ message: 'Reason must be a string' }),
-}).catchall(z.any().optional());
+export const annotationResultSchema = z
+  .object({
+    id: z.string({ message: 'Annotation ID must be a string' }),
+    relevanceScore: z
+      .number({ message: 'Relevance score must be a number' })
+      .min(0, { message: 'Relevance score must be at least 0' })
+      .max(100, { message: 'Relevance score must not exceed 100' }),
+    reason: z.string({ message: 'Reason must be a string' }),
+  })
+  .catchall(z.any().optional());
 
 export const analysisResultsSchema = z.object({
   annotations: z.array(annotationResultSchema),
@@ -160,7 +164,12 @@ const defaultOptions: DefaultOptions = {
 };
 
 // Runtime configuration from Chrome storage
-const settings = await chrome.storage.local.get(['service', 'model', 'apiKey', 'maximumOutputTokens']);
+const settings = await chrome.storage.local.get([
+  'service',
+  'model',
+  'apiKey',
+  'maximumOutputTokens',
+]);
 const aiOptions: Options = {
   service: settings.service ?? defaultOptions.service,
   model: settings.model ?? defaultOptions.model,
@@ -226,18 +235,18 @@ await response.complete();
 // src/background/agents/page-analysis.ts
 async function analyzePageContent(htmlChunks: string[], batchSize: number) {
   const results = [];
-  
+
   for (let i = 0; i < htmlChunks.length; i += batchSize) {
     const batch = htmlChunks.slice(i, i + batchSize);
     const combinedHtml = batch.join('\n\n');
-    
+
     try {
       const response = await AI.prompt(
         [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Analyze: ${combinedHtml}` },
         ],
-        { json: true }
+        { json: true },
       );
       results.push(...response);
     } catch (error) {
@@ -245,7 +254,7 @@ async function analyzePageContent(htmlChunks: string[], batchSize: number) {
       // Continue processing other batches
     }
   }
-  
+
   return results;
 }
 ```
@@ -261,8 +270,8 @@ import OpenAI from 'openai';
 async function fetchOpenAIModels(apiKey: string) {
   const openai = new OpenAI({ apiKey });
   const models = await openai.models.list();
-  
-  return models.data.map(model => ({
+
+  return models.data.map((model) => ({
     id: model.id,
     name: model.id,
     provider: 'openai',
@@ -321,7 +330,9 @@ export type ToolReturnType<N extends ToolName> = Awaited<ReturnType<ToolRegistry
 ## 4. Key Patterns and Considerations
 
 ### Message Format
+
 All messages follow OpenAI's chat format:
+
 ```typescript
 type Message = {
   role: 'system' | 'user' | 'assistant';
@@ -336,6 +347,7 @@ type Message = {
 3. **Standard**: Returns complete response as string
 
 ### Error Handling
+
 ```typescript
 try {
   const response = await AI.prompt(messages, options);
@@ -347,6 +359,7 @@ try {
 ```
 
 ### Configuration Storage
+
 ```typescript
 // Settings stored in Chrome storage
 {
@@ -430,7 +443,7 @@ export const ToolErrorCode = {
   EXECUTION_FAILED: 'EXECUTION_FAILED',
 } as const;
 
-export type ToolErrorCode = typeof ToolErrorCode[keyof typeof ToolErrorCode];
+export type ToolErrorCode = (typeof ToolErrorCode)[keyof typeof ToolErrorCode];
 ```
 
 ## 7. Prompt System Types
@@ -451,7 +464,7 @@ export type PromptContextMap = {
 // Prompt retrieval with type safety
 export function getPrompt<K extends keyof PromptContextMap>(
   key: K,
-  context?: PromptContextMap[K]
+  context?: PromptContextMap[K],
 ): string {
   // Implementation
 }
@@ -462,6 +475,7 @@ export function getPrompt<K extends keyof PromptContextMap>(
 Based on this comprehensive type analysis, a unified LLM library should implement:
 
 ### 1. **Core Type System**
+
 ```typescript
 // Base message types
 export interface BaseMessage {
@@ -509,6 +523,7 @@ export interface UnifiedStreamingResponse<T = string> {
 ```
 
 ### 2. **Tool/Function Types**
+
 ```typescript
 export interface UnifiedTool {
   name: string;
@@ -531,6 +546,7 @@ export interface UnifiedToolResult {
 ```
 
 ### 3. **Error Types**
+
 ```typescript
 export class UnifiedLLMError extends Error {
   constructor(
@@ -554,6 +570,7 @@ export const ErrorCodes = {
 ```
 
 ### 4. **Model Capability Types**
+
 ```typescript
 export interface UnifiedModelCapability {
   id: string;

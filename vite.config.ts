@@ -7,21 +7,21 @@ export default defineConfig({
       entry: path.resolve(__dirname, 'src/index.ts'),
       name: 'Homogenaize',
       fileName: 'homogenaize',
-      formats: ['es', 'cjs', 'umd']
+      formats: ['es', 'cjs', 'umd'],
     },
     rollupOptions: {
       external: ['zod'],
       output: {
         globals: {
-          zod: 'Zod'
-        }
-      }
+          zod: 'Zod',
+        },
+      },
     },
-    target: 'esnext'
+    target: 'esnext',
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src')
-    }
-  }
+      '@': path.resolve(__dirname, 'src'),
+    },
+  },
 });

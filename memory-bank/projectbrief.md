@@ -1,20 +1,23 @@
 # Project Brief: Homogenaize Library
 
 ## Overview
+
 A TypeScript-native library that provides a unified, type-safe interface for interacting with major LLM providers (OpenAI, Anthropic, Google Gemini). The key differentiator is first-class support for structured outputs and forced tool calls, addressing critical limitations in existing LLM libraries.
 
 ## Core Requirements
 
 ### Technology Stack
+
 - **Language**: TypeScript (native)
 - **Runtime**: Bun
 - **Build Tool**: Vite
 - **Schema Validation**: Zod v4.x (strict requirement)
-- **Target Environments**: 
+- **Target Environments**:
   - Browser (all modern browsers)
   - Backend (Node.js/Bun compatible)
 
 ### Development Standards
+
 - Test-Driven Development (TDD) - tests must be written before implementation
 - Full TypeScript type safety
 - Runtime schema validation using Zod v4
@@ -23,12 +26,14 @@ A TypeScript-native library that provides a unified, type-safe interface for int
 - Tree-shakeable exports for optimal bundle sizes
 
 ## Architecture Principles
+
 - **Isomorphic Design**: Code should run identically in browser and server environments
 - **Type Safety**: Leverage TypeScript's type system with Zod runtime validation
 - **Performance**: Minimal overhead, efficient bundling
 - **Developer Experience**: Clear APIs, excellent documentation, helpful error messages
 
 ## Build Configuration
+
 - Vite for development server and bundling
 - Bun for package management and test running
 - Separate builds for:
@@ -37,12 +42,14 @@ A TypeScript-native library that provides a unified, type-safe interface for int
   - Browser UMD (if needed)
 
 ## Testing Strategy
+
 - Unit tests using Bun's built-in test runner
 - Integration tests for cross-environment compatibility
 - Type testing to ensure API contracts
 - Performance benchmarks
 
 ## Project Structure
+
 ```
 homogenaize/
 ├── src/
@@ -61,6 +68,7 @@ homogenaize/
 ```
 
 ## Development Workflow
+
 1. Bun for dependency management
 2. Vite for development with HMR
 3. TypeScript strict mode enabled
@@ -69,6 +77,7 @@ homogenaize/
 6. Semantic versioning
 
 ## API Design Considerations
+
 - Intuitive, chainable APIs where appropriate
 - Consistent error handling patterns
 - Progressive disclosure of complexity
@@ -84,13 +93,16 @@ homogenaize/
 6. **Provider Transparency**: Access provider-specific features when needed
 
 ## Target Audience
+
 TypeScript developers building LLM-powered applications who need:
+
 - Reliable structured outputs from LLMs
 - The ability to force tool usage
 - Type-safe responses without manual validation
 - Easy switching between LLM providers
 
 ## API Design Philosophy
+
 - **Builder Pattern**: Fluent API for configuration
 - **Schema-First**: Define expected output structure upfront
 - **Async/Await**: Modern promise-based interface
@@ -106,6 +118,7 @@ TypeScript developers building LLM-powered applications who need:
 6. **Streaming Support**: Handle partial responses with validation
 
 ## Success Criteria
+
 - Seamless provider switching with identical APIs
 - 100% type safety for structured outputs
 - Reliable tool usage enforcement across providers
@@ -113,4 +126,5 @@ TypeScript developers building LLM-powered applications who need:
 - Excellent developer experience with clear documentation
 
 ---
-*This document will be updated as requirements are clarified and the project evolves.*
+
+_This document will be updated as requirements are clarified and the project evolves._

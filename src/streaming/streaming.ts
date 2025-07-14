@@ -16,18 +16,18 @@ export interface StreamingOptions<T> {
 
 export class StreamingResponseHandler<T> {
   private buffer: string = '';
-  
+
   constructor(private schema: z.ZodSchema<T>) {}
-  
+
   async processChunk(chunk: string): Promise<StreamingResult<T>> {
     this.buffer += chunk;
-    
+
     // Try to parse as complete JSON first
     try {
       const parsed = JSON.parse(this.buffer);
       // We have complete JSON, now validate it
       const validationResult = this.schema.safeParse(parsed);
-      
+
       if (validationResult.success) {
         return {
           isComplete: true,
@@ -39,7 +39,7 @@ export class StreamingResponseHandler<T> {
           isComplete: true,
           data: parsed,
           validationStatus: 'invalid',
-          errors: validationResult.error.issues.map(err => ({
+          errors: validationResult.error.issues.map((err) => ({
             path: err.path.join('.'),
             message: err.message,
           })),
@@ -48,7 +48,7 @@ export class StreamingResponseHandler<T> {
     } catch (parseError: any) {
       // JSON is incomplete, try partial parsing
       const partialData = this.parsePartialJSON(this.buffer);
-      
+
       if (Object.keys(partialData).length > 0) {
         return {
           isComplete: false,
@@ -56,35 +56,35 @@ export class StreamingResponseHandler<T> {
           validationStatus: 'partial',
         };
       }
-      
+
       return {
         isComplete: false,
         validationStatus: 'partial',
       };
     }
   }
-  
+
   private parsePartialJSON(str: string): any {
     const result: any = {};
-    
+
     // Extract key-value pairs, including incomplete ones
     // Match pattern: "key": "value" OR "key": "incomplete
     const keyValueRegex = /"([^"]+)":\s*(?:"([^"]*)"?|(\d+))/g;
     let match;
-    
+
     while ((match = keyValueRegex.exec(str)) !== null) {
       const [, key, stringValue, numberValue] = match;
-      
+
       if (key && stringValue !== undefined) {
         result[key] = stringValue;
       } else if (key && numberValue !== undefined) {
         result[key] = parseInt(numberValue, 10);
       }
     }
-    
+
     return result;
   }
-  
+
   reset(): void {
     this.buffer = '';
   }
@@ -93,7 +93,7 @@ export class StreamingResponseHandler<T> {
 // Helper function to create mock streams for testing
 export function createMockStream(chunks: string[]): ReadableStream<Uint8Array> {
   let index = 0;
-  
+
   return new ReadableStream({
     async pull(controller) {
       if (index < chunks.length) {

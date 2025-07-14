@@ -11,7 +11,7 @@ global.fetch = vi.fn() as any;
 
 describe('OpenAI Provider', () => {
   let provider: OpenAIProvider;
-  
+
   beforeEach(() => {
     provider = new OpenAIProvider('test-api-key');
     vi.clearAllMocks();
@@ -34,7 +34,7 @@ describe('OpenAI Provider', () => {
         tools: true,
         structuredOutput: true,
         vision: true,
-        maxTokens: 128000
+        maxTokens: 128000,
       });
     });
 
@@ -57,32 +57,34 @@ describe('OpenAI Provider', () => {
         usage: {
           prompt_tokens: 10,
           completion_tokens: 20,
-          total_tokens: 30
+          total_tokens: 30,
         },
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: 'Hello! How can I help you?'
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: 'Hello! How can I help you?',
+            },
+            finish_reason: 'stop',
           },
-          finish_reason: 'stop'
-        }]
+        ],
       };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse
+        json: async () => mockResponse,
       });
 
       const response = await provider.chat({
-        messages: [{ role: 'user', content: 'Hello' }]
+        messages: [{ role: 'user', content: 'Hello' }],
       });
 
       expect(response.content).toBe('Hello! How can I help you?');
       expect(response.usage).toEqual({
         inputTokens: 10,
         outputTokens: 20,
-        totalTokens: 30
+        totalTokens: 30,
       });
       expect(response.model).toBe('gpt-4');
       expect(response.finishReason).toBe('stop');
@@ -94,17 +96,17 @@ describe('OpenAI Provider', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Authorization': 'Bearer test-api-key',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           }),
-          body: expect.stringContaining('"messages"')
-        })
+          body: expect.stringContaining('"messages"'),
+        }),
       );
     });
 
     it('should handle structured output with JSON schema', async () => {
       const schema = z.object({
         answer: z.string(),
-        confidence: z.number().min(0).max(1)
+        confidence: z.number().min(0).max(1),
       });
 
       const mockResponse = {
@@ -115,39 +117,48 @@ describe('OpenAI Provider', () => {
         usage: {
           prompt_tokens: 10,
           completion_tokens: 20,
-          total_tokens: 30
+          total_tokens: 30,
         },
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: '{"answer": "Paris", "confidence": 0.95}'
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: null,
+              tool_calls: [
+                {
+                  id: 'call_123',
+                  type: 'function',
+                  function: {
+                    name: 'respond_with_structured_output',
+                    arguments: '{"answer": "Paris", "confidence": 0.95}',
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
           },
-          finish_reason: 'stop'
-        }]
+        ],
       };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse
+        json: async () => mockResponse,
       });
 
       const response = await provider.chat({
         messages: [{ role: 'user', content: 'What is the capital of France?' }],
-        schema
+        schema,
       });
 
-      expect(response.content).toEqual({ answer: "Paris", confidence: 0.95 });
-      
-      // Verify response_format was set
+      expect(response.content).toEqual({ answer: 'Paris', confidence: 0.95 });
+
+      // Verify tools were created for structured output
       const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);
-      expect(callArgs.response_format).toEqual({
-        type: 'json_schema',
-        json_schema: expect.objectContaining({
-          name: 'response',
-          strict: true
-        })
-      });
+      expect(callArgs.tools).toBeDefined();
+      expect(callArgs.tools).toHaveLength(1);
+      expect(callArgs.tools[0].function.name).toBe('respond_with_structured_output');
+      expect(callArgs.tool_choice).toBe('required');
     });
 
     it('should handle tool calls', async () => {
@@ -159,41 +170,45 @@ describe('OpenAI Provider', () => {
         usage: {
           prompt_tokens: 10,
           completion_tokens: 20,
-          total_tokens: 30
+          total_tokens: 30,
         },
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: null,
-            tool_calls: [{
-              id: 'call_123',
-              type: 'function',
-              function: {
-                name: 'get_weather',
-                arguments: '{"location": "Paris"}'
-              }
-            }]
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: null,
+              tool_calls: [
+                {
+                  id: 'call_123',
+                  type: 'function',
+                  function: {
+                    name: 'get_weather',
+                    arguments: '{"location": "Paris"}',
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
           },
-          finish_reason: 'tool_calls'
-        }]
+        ],
       };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse
+        json: async () => mockResponse,
       });
 
       const weatherTool = {
         name: 'get_weather',
         description: 'Get weather for a location',
-        parameters: z.object({ location: z.string() })
+        parameters: z.object({ location: z.string() }),
       };
 
       const response = await provider.chat({
         messages: [{ role: 'user', content: 'What is the weather in Paris?' }],
         tools: [weatherTool],
-        toolChoice: 'required'
+        toolChoice: 'required',
       });
 
       expect(response.content).toBe('');
@@ -202,7 +217,7 @@ describe('OpenAI Provider', () => {
       expect(response.toolCalls![0]).toEqual({
         id: 'call_123',
         name: 'get_weather',
-        arguments: { location: 'Paris' }
+        arguments: { location: 'Paris' },
       });
 
       // Verify tool_choice was set
@@ -220,41 +235,43 @@ describe('OpenAI Provider', () => {
         usage: {
           prompt_tokens: 10,
           completion_tokens: 20,
-          total_tokens: 30
+          total_tokens: 30,
         },
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: 'Response'
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: 'Response',
+            },
+            finish_reason: 'stop',
+            logprobs: {
+              content: [
+                {
+                  token: 'Response',
+                  logprob: -0.5,
+                  top_logprobs: [
+                    { token: 'Response', logprob: -0.5 },
+                    { token: 'Reply', logprob: -1.2 },
+                  ],
+                },
+              ],
+            },
           },
-          finish_reason: 'stop',
-          logprobs: {
-            content: [
-              {
-                token: 'Response',
-                logprob: -0.5,
-                top_logprobs: [
-                  { token: 'Response', logprob: -0.5 },
-                  { token: 'Reply', logprob: -1.2 }
-                ]
-              }
-            ]
-          }
-        }]
+        ],
       };
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => mockResponse
+        json: async () => mockResponse,
       });
 
       const response = await provider.chat({
         messages: [{ role: 'user', content: 'Hello' }],
         features: {
           logprobs: true,
-          topLogprobs: 2
-        }
+          topLogprobs: 2,
+        },
       });
 
       expect(response.systemFingerprint).toBe('fp_12345');
@@ -277,14 +294,16 @@ describe('OpenAI Provider', () => {
           error: {
             message: 'Rate limit exceeded',
             type: 'rate_limit_error',
-            code: 'rate_limit_exceeded'
-          }
-        })
+            code: 'rate_limit_exceeded',
+          },
+        }),
       });
 
-      await expect(provider.chat({
-        messages: [{ role: 'user', content: 'Hello' }]
-      })).rejects.toThrow('OpenAI API error (429): Rate limit exceeded');
+      await expect(
+        provider.chat({
+          messages: [{ role: 'user', content: 'Hello' }],
+        }),
+      ).rejects.toThrow('OpenAI API error (429): Rate limit exceeded');
     });
   });
 
@@ -294,24 +313,24 @@ describe('OpenAI Provider', () => {
         'data: {"id":"1","object":"chat.completion.chunk","created":1234567890,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}\n\n',
         'data: {"id":"1","object":"chat.completion.chunk","created":1234567890,"model":"gpt-4","choices":[{"index":0,"delta":{"content":" world"},"finish_reason":null}]}\n\n',
         'data: {"id":"1","object":"chat.completion.chunk","created":1234567890,"model":"gpt-4","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}\n\n',
-        'data: [DONE]\n\n'
+        'data: [DONE]\n\n',
       ];
 
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         start(controller) {
-          chunks.forEach(chunk => controller.enqueue(encoder.encode(chunk)));
+          chunks.forEach((chunk) => controller.enqueue(encoder.encode(chunk)));
           controller.close();
-        }
+        },
       });
 
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        body: stream
+        body: stream,
       });
 
       const response = await provider.stream({
-        messages: [{ role: 'user', content: 'Hello' }]
+        messages: [{ role: 'user', content: 'Hello' }],
       });
 
       const collectedChunks: string[] = [];
