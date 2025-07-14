@@ -5,9 +5,16 @@
   "author": "Ryland Goldstein",
   "license": "MIT",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
   "files": [
     "dist",
     "README.md",
@@ -35,7 +42,7 @@
   },
   "homepage": "https://github.com/rylandgoldstein/homogenaize#readme",
   "scripts": {
-    "build": "bun build ./index.ts --outdir ./dist --format esm --sourcemap && tsc --emitDeclarationOnly --declaration --outDir dist",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",

@@ -2,8 +2,10 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
       "noEmit": false,
-      "rootDir": "./src",
+      "rootDir": ".",
       "outDir": "./dist",
+      "module": "esnext",
+      "moduleResolution": "bundler",
   
       // Output options
       "declaration": true,
@@ -15,7 +17,7 @@
       "incremental": true,
       "tsBuildInfoFile": "node_modules/.cache/tsconfig.build.tsbuildinfo"
     },
-    "include": ["src/**/*"],
+    "include": ["index.ts", "src/**/*"],
     "exclude": [
       "node_modules",
       "**/*.test.ts",
