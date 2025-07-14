@@ -490,7 +490,7 @@ const response = await llm.chat({
 - [x] Multi-tool support
 
 ### Phase 4: Advanced Features (Week 7-8)
-- [x] Provider-specific features (partial: OpenAI logprobs ✓, Gemini safety ✓, Anthropic thinking ✗)
+- [x] Provider-specific features
 - [ ] Retry and error handling
 - [ ] Caching layer
 - [ ] Usage tracking and limits
