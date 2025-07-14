@@ -42,13 +42,21 @@
   },
   "homepage": "https://github.com/rylandgoldstein/homogenaize#readme",
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prebuild": "bun run clean && bunx tsc -p tsconfig.build.json --noEmit",
+    "build": "bun run scripts/build.ts",
+    "postbuild": "bun run build:validate",
+    "build:analyze": "bun run build && bunx source-map-explorer dist/*.js",
+    "build:check": "bun run build && bunx publint && bunx attw --pack",
+    "build:size": "bun run build && bunx size-limit",
+    "build:validate": "node -e 'import(\"./dist/index.js\").then(() => console.log(\"✅ ESM import works\"))'",
+    "clean": "bun run scripts/clean.ts",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "format": "echo 'Format script not configured yet'",
     "prepublishOnly": "bun run build && bun run test && bun run typecheck"
   },
   "devDependencies": {
