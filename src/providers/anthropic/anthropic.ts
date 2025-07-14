@@ -96,7 +96,12 @@ interface MessageDeltaEvent {
 
 // Helper to convert Zod schema to Anthropic-compatible JSON Schema
 function zodToAnthropicSchema(schema: z.ZodSchema): any {
-  const zodType = schema._def;
+  // Handle both Zod v3 and v4 structure
+  const zodType = schema._def || (schema as any).def;
+  
+  if (!zodType) {
+    throw new Error('Invalid Zod schema: missing _def property');
+  }
   
   function processZodType(def: any): any {
     switch (def.type) {

@@ -115,7 +115,12 @@ interface OpenAIStreamChunk {
 
 // Helper to convert Zod schema to OpenAI-compatible JSON Schema
 function zodToOpenAISchema(schema: z.ZodSchema): any {
-  const zodType = schema._def;
+  // Handle both Zod v3 and v4 structure
+  const zodType = schema._def || (schema as any).def;
+  
+  if (!zodType) {
+    throw new Error('Invalid Zod schema: missing _def property');
+  }
   
   function processZodType(def: any): any {
     switch (def.type) {
@@ -126,9 +131,10 @@ function zodToOpenAISchema(schema: z.ZodSchema): any {
       case 'boolean':
         return { type: 'boolean' };
       case 'array':
+        const itemDef = def.valueType?._def || def.valueType?.def || def.valueType || def.element?._def || def.element?.def || def.element;
         return {
           type: 'array',
-          items: processZodType(def.valueType._def)
+          items: itemDef ? processZodType(itemDef) : { type: 'any' }
         };
       case 'object':
         const properties: any = {};
@@ -137,7 +143,9 @@ function zodToOpenAISchema(schema: z.ZodSchema): any {
         // Access shape directly from def
         const shape = def.shape || {};
         for (const [key, value] of Object.entries(shape)) {
-          const fieldSchema = processZodType((value as any)._def);
+          // Handle both Zod v3 and v4 - in v4, each field has its own _def
+          const fieldDef = (value as any)._def || (value as any).def || value;
+          const fieldSchema = processZodType(fieldDef);
           // Remove the __isOptional marker and use it to determine required fields
           // const isOptional = fieldSchema.__isOptional;
           delete fieldSchema.__isOptional;
@@ -157,7 +165,8 @@ function zodToOpenAISchema(schema: z.ZodSchema): any {
       case 'optional':
         // For OpenAI, we need to handle optional fields differently
         // Return the inner type but mark that it's optional
-        const innerType = processZodType(def.innerType._def);
+        const innerDef = def.innerType?._def || def.innerType?.def || def.innerType;
+        const innerType = innerDef ? processZodType(innerDef) : { type: 'any' };
         return { ...innerType, __isOptional: true };
       case 'enum':
         return {
