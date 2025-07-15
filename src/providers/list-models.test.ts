@@ -77,7 +77,7 @@ describe('List Models Functionality', () => {
   describe('Anthropic Provider', () => {
     it('should list available models', async () => {
       const mockResponse = {
-        models: [
+        data: [
           {
             id: 'claude-3-opus-20240229',
             display_name: 'Claude 3 Opus',

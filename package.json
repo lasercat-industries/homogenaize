@@ -61,6 +61,8 @@
     "test:coverage": "vitest --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "list-models": "bun run scripts/list-models.ts",
+    "list-chat-models": "bun run scripts/list-chat-models.ts",
     "prepublishOnly": "bun run build && bun run test && bun run typecheck"
   },
   "devDependencies": {

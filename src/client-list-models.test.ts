@@ -41,7 +41,7 @@ describe('Client List Models', () => {
 
   it('should list models through Anthropic client', async () => {
     const mockResponse = {
-      models: [
+      data: [
         {
           id: 'claude-3-opus-20240229',
           display_name: 'Claude 3 Opus',

@@ -600,14 +600,15 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     }
 
     const data = (await response.json()) as {
-      models: Array<{
+      data: Array<{
         id: string;
         display_name: string;
         created_at: string;
       }>;
     };
 
-    return data.models.map((model) => ({
+    console.log(data);
+    return data.data.map((model) => ({
       id: model.id,
       name: model.display_name || model.id,
       created: new Date(model.created_at).getTime() / 1000,
