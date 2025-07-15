@@ -10,6 +10,9 @@ A TypeScript-native library that provides a unified interface for multiple LLM p
 - 🔄 **Streaming Support** - Async iterators for real-time responses
 - 🛠️ **Tool Calling** - Define and execute tools with automatic validation
 - 🎯 **Provider Features** - Access provider-specific capabilities while maintaining type safety
+- 🔁 **Retry Logic** - Built-in exponential backoff with configurable retry strategies
+- 📋 **Model Discovery** - List available models for each provider
+- 🧠 **Thinking Tokens** - Support for Anthropic's thinking tokens feature
 
 ## Installation
 
@@ -152,6 +155,74 @@ if (response.toolCalls) {
 }
 ```
 
+## List Available Models
+
+Discover available models for each provider:
+
+```typescript
+// List models for a specific provider
+const models = await client.listModels();
+
+// Example response
+[
+  { id: 'gpt-4', name: 'gpt-4', created: 1687882411 },
+  { id: 'gpt-3.5-turbo', name: 'gpt-3.5-turbo', created: 1677610602 },
+  // ... more models
+];
+
+// Use the scripts to list all models across providers
+// Run: bun run list-models
+// Output: JSON with all models from all configured providers
+
+// Or list only chat models
+// Run: bun run list-chat-models
+// Output: Filtered list of chat-capable models
+```
+
+## Retry Configuration
+
+Configure automatic retries with exponential backoff:
+
+```typescript
+import { createLLM } from 'homogenaize';
+
+const client = createLLM({
+  provider: 'openai',
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: 'gpt-4o-mini',
+  retry: {
+    maxRetries: 3, // Maximum number of retry attempts (default: 3)
+    initialDelay: 1000, // Initial delay in ms (default: 1000)
+    maxDelay: 60000, // Maximum delay in ms (default: 60000)
+    backoffMultiplier: 2, // Exponential backoff multiplier (default: 2)
+    jitter: true, // Add randomness to delays (default: true)
+    onRetry: (attempt, error, delay) => {
+      console.log(`Retry attempt ${attempt} after ${delay}ms due to:`, error.message);
+    },
+  },
+});
+
+// The client will automatically retry on:
+// - Rate limit errors (429)
+// - Server errors (5xx)
+// - Network errors (ECONNRESET, ETIMEDOUT, etc.)
+// - Provider-specific transient errors
+
+// You can also customize which errors trigger retries
+const customClient = createLLM({
+  provider: 'anthropic',
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+  model: 'claude-3-sonnet-20240229',
+  retry: {
+    maxRetries: 5,
+    retryableErrors: (error) => {
+      // Custom logic to determine if an error should be retried
+      return error.message.includes('temporary') || error.status === 503;
+    },
+  },
+});
+```
+
 ## Provider-Specific Features
 
 Access provider-specific features while maintaining type safety:
@@ -194,6 +265,70 @@ const geminiResponse = await gemini.chat({
   },
 });
 ```
+
+## Thinking Tokens (Anthropic)
+
+Anthropic's thinking tokens feature allows Claude to show its reasoning process before generating a response. This is particularly useful for complex problem-solving tasks.
+
+```typescript
+import { createAnthropicLLM } from 'homogenaize';
+
+const anthropic = createAnthropicLLM({
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+  model: 'claude-3-opus-20240229',
+});
+
+// Enable thinking tokens
+const response = await anthropic.chat({
+  messages: [
+    {
+      role: 'user',
+      content:
+        'Solve this step by step: If a train travels at 60 mph for 2.5 hours, how far does it go?',
+    },
+  ],
+  features: {
+    thinking: true,
+    maxThinkingTokens: 1000, // Optional: limit thinking tokens
+  },
+});
+
+// Access the thinking process
+if (response.thinking) {
+  console.log("Claude's thought process:", response.thinking);
+}
+console.log('Final answer:', response.content);
+
+// Example output:
+// Claude's thought process: "I need to calculate distance using the formula distance = speed × time. Speed is 60 mph, time is 2.5 hours..."
+// Final answer: "The train travels 150 miles."
+```
+
+### Thinking Tokens in Streaming
+
+When streaming, thinking tokens are handled separately and won't be yielded as part of the regular content stream:
+
+```typescript
+const stream = await anthropic.stream({
+  messages: [{ role: 'user', content: 'Explain quantum entanglement' }],
+  features: {
+    thinking: true,
+  },
+});
+
+// Regular content stream (no thinking tokens here)
+for await (const chunk of stream) {
+  process.stdout.write(chunk);
+}
+
+// Get thinking tokens from the complete response
+const complete = await stream.complete();
+if (complete.thinking) {
+  console.log('\nThought process:', complete.thinking);
+}
+```
+
+Note: Thinking tokens are only available with Anthropic's Claude models and require specific model versions that support this feature.
 
 ## API Reference
 
