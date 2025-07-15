@@ -30,7 +30,6 @@ describe('Real API Integration Tests', () => {
       expect(response.content).toBeTruthy();
       expect(response.usage.totalTokens).toBeGreaterThan(0);
       expect(response.model).toContain('gpt');
-      console.log('OpenAI response:', response.content);
     });
 
     it('should handle structured output', async () => {
@@ -54,7 +53,6 @@ describe('Real API Integration Tests', () => {
         answer: 4,
         explanation: expect.any(String),
       });
-      console.log('Structured response:', response.content);
     });
 
     it('should handle streaming', async () => {
@@ -105,11 +103,8 @@ describe('Real API Integration Tests', () => {
 
       // Check if the model decided to use the tool
       if (response.toolCalls && response.toolCalls.length > 0) {
-        console.log('Tool calls:', response.toolCalls);
-
         // Execute the tool calls
         const toolResults = await client.executeTools(response.toolCalls);
-        console.log('Tool execution results:', toolResults);
         expect(toolResults).toHaveLength(response.toolCalls.length);
         if (toolResults[0]) {
           expect(toolResults[0].result).toHaveProperty('temperature');
@@ -152,7 +147,6 @@ describe('Real API Integration Tests', () => {
       expect(response.finishReason).toBe('tool_calls');
 
       const toolResults = await client.executeTools(response.toolCalls!);
-      console.log('Forced tool usage results:', toolResults);
       expect(toolResults[0]?.result).toHaveProperty('result');
       expect(toolResults[0]?.result?.result).toBe(70);
     });
@@ -170,13 +164,9 @@ describe('Real API Integration Tests', () => {
 
       expect(response.content).toContain('Hello World');
       if (response.logprobs) {
-        console.log('Logprobs:', response.logprobs.slice(0, 3));
         expect(response.logprobs).toBeInstanceOf(Array);
         expect(response.logprobs[0]).toHaveProperty('token');
         expect(response.logprobs[0]).toHaveProperty('logprob');
-      }
-      if (response.systemFingerprint) {
-        console.log('System fingerprint:', response.systemFingerprint);
       }
     });
   });
@@ -203,7 +193,6 @@ describe('Real API Integration Tests', () => {
       expect(response.content).toBeTruthy();
       expect(response.usage.totalTokens).toBeGreaterThan(0);
       expect(response.model).toContain('claude');
-      console.log('Anthropic response:', response.content);
     });
 
     it('should handle structured output', async () => {
@@ -227,7 +216,6 @@ describe('Real API Integration Tests', () => {
         answer: 4,
         explanation: expect.any(String),
       });
-      console.log('Structured response:', response.content);
     });
 
     it('should handle streaming', async () => {
@@ -280,11 +268,8 @@ describe('Real API Integration Tests', () => {
 
       // Check if the model decided to use the tool
       if (response.toolCalls && response.toolCalls.length > 0) {
-        console.log('Tool calls:', response.toolCalls);
-
         // Execute the tool calls
         const toolResults = await client.executeTools(response.toolCalls);
-        console.log('Tool execution results:', toolResults);
         expect(toolResults).toHaveLength(response.toolCalls.length);
         if (toolResults[0]) {
           expect(toolResults[0].result).toHaveProperty('temperature');
@@ -327,7 +312,6 @@ describe('Real API Integration Tests', () => {
       expect(response.finishReason).toBe('tool_use');
 
       const toolResults = await client.executeTools(response.toolCalls!);
-      console.log('Forced tool usage results:', toolResults);
       expect(toolResults[0]?.result).toHaveProperty('result');
       expect(toolResults[0]?.result?.result).toBe(70);
     });
@@ -343,9 +327,6 @@ describe('Real API Integration Tests', () => {
       });
 
       expect(response.content).toContain('Hello World');
-      if ('id' in response && response.id) {
-        console.log('Message ID:', response.id);
-      }
     });
   });
 
@@ -371,7 +352,6 @@ describe('Real API Integration Tests', () => {
       expect(response.content).toBeTruthy();
       expect(response.usage.totalTokens).toBeGreaterThan(0);
       expect(response.model).toContain('gemini');
-      console.log('Gemini response:', response.content);
     });
 
     it('should handle structured output', async () => {
@@ -396,7 +376,6 @@ describe('Real API Integration Tests', () => {
         answer: 4,
         explanation: expect.any(String),
       });
-      console.log('Structured response:', response.content);
     });
 
     it('should handle streaming', async () => {
@@ -416,8 +395,6 @@ describe('Real API Integration Tests', () => {
       }
 
       const complete = await stream.complete();
-      console.log('Gemini complete response:', complete.content);
-      console.log('Chunks received:', chunks.length);
 
       // Gemini might not support true streaming, so we check the complete response
       expect(complete.content.length).toBeGreaterThan(0);
@@ -456,11 +433,8 @@ describe('Real API Integration Tests', () => {
 
       // Check if the model decided to use the tool
       if (response.toolCalls && response.toolCalls.length > 0) {
-        console.log('Tool calls:', response.toolCalls);
-
         // Execute the tool calls
         const toolResults = await client.executeTools(response.toolCalls);
-        console.log('Tool execution results:', toolResults);
         expect(toolResults).toHaveLength(response.toolCalls.length);
         if (toolResults[0]) {
           expect(toolResults[0].result).toHaveProperty('temperature');
@@ -503,7 +477,6 @@ describe('Real API Integration Tests', () => {
       expect(response.finishReason).toContain('STOP');
 
       const toolResults = await client.executeTools(response.toolCalls!);
-      console.log('Forced tool usage results:', toolResults);
       expect(toolResults[0]?.result).toHaveProperty('result');
       expect(toolResults[0]?.result?.result).toBe(70);
     });
@@ -523,9 +496,6 @@ describe('Real API Integration Tests', () => {
       });
 
       expect(response.content).toContain('Hello World');
-      if (response.safetyRatings) {
-        console.log('Safety ratings:', response.safetyRatings);
-      }
     });
   });
 });

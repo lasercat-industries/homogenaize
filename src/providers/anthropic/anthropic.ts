@@ -190,7 +190,6 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
   ): Promise<ProviderChatResponse<'anthropic', T>> {
     const makeRequest = async () => {
       const anthropicRequest = this.transformRequest(request);
-
       const response = await fetch(`${this.baseURL}/messages`, {
         method: 'POST',
         headers: {
@@ -429,8 +428,8 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
           input_schema: jsonSchema,
         },
       ];
-      // Force the model to use this tool
-      anthropicRequest.tool_choice = { type: 'any' };
+      // Force the model to use this specific tool
+      anthropicRequest.tool_choice = { type: 'tool', name: 'respond_with_structured_output' };
     }
 
     // Handle Anthropic-specific features
@@ -452,10 +451,14 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       }));
     }
 
+    if (request.toolChoice === 'required' && request.tools?.length !== 1) {
+      throw new Error('Only 1 tool can be provided when using toolChoice: required');
+    }
+
     // Handle tool choice
     if (request.toolChoice) {
       if (request.toolChoice === 'required') {
-        anthropicRequest.tool_choice = { type: 'any' };
+        anthropicRequest.tool_choice = { type: 'tool', name: request.tools?.[0]?.name };
       } else if (request.toolChoice === 'none') {
         // Don't include tools if none
         delete anthropicRequest.tools;

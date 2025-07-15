@@ -93,7 +93,10 @@ describe('Structured Output via Tool Calling', () => {
       // Verify that tools were created internally
       expect(capturedRequest.tools).toBeDefined();
       expect(capturedRequest.tools).toHaveLength(1);
-      expect(capturedRequest.tool_choice).toEqual({ type: 'any' });
+      expect(capturedRequest.tool_choice).toEqual({
+        type: 'tool',
+        name: 'respond_with_structured_output',
+      });
     });
   });
 

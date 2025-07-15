@@ -163,7 +163,10 @@ describe('Anthropic Provider', () => {
       expect(callArgs.tools).toBeDefined();
       expect(callArgs.tools).toHaveLength(1);
       expect(callArgs.tools[0].name).toBe('respond_with_structured_output');
-      expect(callArgs.tool_choice).toEqual({ type: 'any' });
+      expect(callArgs.tool_choice).toEqual({
+        type: 'tool',
+        name: 'respond_with_structured_output',
+      });
     });
 
     it('should handle tool calls', async () => {
