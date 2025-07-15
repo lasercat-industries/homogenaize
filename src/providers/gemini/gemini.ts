@@ -231,16 +231,14 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
       const geminiRequest = this.transformRequest(request);
       const model = request.model || 'gemini-1.5-pro-latest';
 
-      const response = await fetch(
-        `${this.baseURL}/models/${model}:generateContent?key=${this.apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(geminiRequest),
+      const response = await fetch(`${this.baseURL}/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.apiKey,
         },
-      );
+        body: JSON.stringify(geminiRequest),
+      });
 
       if (!response) {
         throw new LLMError(
@@ -281,16 +279,14 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     const geminiRequest = this.transformRequest(request);
     const model = request.model || 'gemini-1.5-pro-latest';
 
-    const response = await fetch(
-      `${this.baseURL}/models/${model}:streamGenerateContent?alt=sse&key=${this.apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(geminiRequest),
+    const response = await fetch(`${this.baseURL}/models/${model}:streamGenerateContent?alt=sse`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': this.apiKey,
       },
-    );
+      body: JSON.stringify(geminiRequest),
+    });
 
     if (!response.ok) {
       const error = (await response

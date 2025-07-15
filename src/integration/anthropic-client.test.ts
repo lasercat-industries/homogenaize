@@ -204,7 +204,6 @@ describe('Anthropic Client Integration', () => {
 
     // Execute the tool
     const results = await client.executeTools(response.toolCalls!);
-    console.log('Tool execution results:', results);
     expect(results).toHaveLength(1);
     expect(results[0]?.result).toEqual({
       temperature: 72,
