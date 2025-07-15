@@ -290,6 +290,7 @@ describe('OpenAI Provider', () => {
         ok: false,
         status: 429,
         statusText: 'Too Many Requests',
+        headers: new Headers(),
         json: async () => ({
           error: {
             message: 'Rate limit exceeded',

@@ -39,6 +39,7 @@ describe('Gemini Client Integration', () => {
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => mockResponse,
     });
 
@@ -79,6 +80,7 @@ describe('Gemini Client Integration', () => {
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => ({
         candidates: [
           {
@@ -131,6 +133,7 @@ describe('Gemini Client Integration', () => {
   it('should handle Gemini-specific features', async () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => ({
         candidates: [
           {
@@ -201,6 +204,7 @@ describe('Gemini Client Integration', () => {
     // Mock a response with tool calls
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => ({
         candidates: [
           {

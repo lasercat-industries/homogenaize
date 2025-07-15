@@ -6,6 +6,7 @@ import type {
   TypedProvider,
 } from './providers/types';
 import type { Tool, ToolCall } from './providers/provider';
+import type { RetryConfig } from './retry/types';
 import { OpenAIProvider } from './providers/openai';
 import { AnthropicProvider } from './providers/anthropic';
 import { GeminiProvider } from './providers/gemini';
@@ -22,6 +23,7 @@ export interface LLMConfig<P extends ProviderName> {
     frequencyPenalty?: number;
     presencePenalty?: number;
   };
+  retry?: RetryConfig;
 }
 
 // Tool definition configuration
@@ -50,6 +52,7 @@ export interface LLMClient<P extends ProviderName> {
   readonly apiKey: string;
   readonly model: string;
   readonly defaultOptions?: LLMConfig<P>['defaultOptions'];
+  readonly retry?: RetryConfig;
 
   // Core methods
   chat<T = string>(
@@ -77,6 +80,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
     public readonly apiKey: string,
     public readonly model: string,
     public readonly defaultOptions?: LLMConfig<P>['defaultOptions'],
+    public readonly retry?: RetryConfig,
     private providerImpl?: TypedProvider<P>,
   ) {}
 
@@ -172,13 +176,25 @@ export function createLLM<P extends ProviderName>(config: LLMConfig<P>): LLMClie
   // Create provider implementation based on provider name
   switch (config.provider) {
     case 'openai':
-      providerImpl = new OpenAIProvider(config.apiKey) as unknown as TypedProvider<P>;
+      providerImpl = new OpenAIProvider(
+        config.apiKey,
+        undefined,
+        config.retry,
+      ) as unknown as TypedProvider<P>;
       break;
     case 'anthropic':
-      providerImpl = new AnthropicProvider(config.apiKey) as unknown as TypedProvider<P>;
+      providerImpl = new AnthropicProvider(
+        config.apiKey,
+        undefined,
+        config.retry,
+      ) as unknown as TypedProvider<P>;
       break;
     case 'gemini':
-      providerImpl = new GeminiProvider(config.apiKey) as unknown as TypedProvider<P>;
+      providerImpl = new GeminiProvider(
+        config.apiKey,
+        undefined,
+        config.retry,
+      ) as unknown as TypedProvider<P>;
       break;
   }
 
@@ -187,6 +203,7 @@ export function createLLM<P extends ProviderName>(config: LLMConfig<P>): LLMClie
     config.apiKey,
     config.model,
     config.defaultOptions,
+    config.retry,
     providerImpl,
   );
 }

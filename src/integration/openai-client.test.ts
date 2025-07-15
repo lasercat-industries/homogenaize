@@ -42,6 +42,7 @@ describe('OpenAI Client Integration', () => {
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => mockResponse,
     });
 
@@ -104,6 +105,7 @@ describe('OpenAI Client Integration', () => {
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => mockResponse,
     });
 
@@ -167,6 +169,7 @@ describe('OpenAI Client Integration', () => {
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => mockResponse,
     });
 

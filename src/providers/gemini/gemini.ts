@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, ToolCall, Message } from '../provider';
 import type { TypedProvider, ProviderChatRequest, ProviderChatResponse } from '../types';
+import { LLMError } from '../../retry/errors';
+import { retry } from '../../retry';
+import type { RetryConfig } from '../../retry/types';
 
 // Gemini-specific types
 interface GeminiContent {
@@ -211,44 +214,58 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
 
   private apiKey: string;
   private baseURL = 'https://generativelanguage.googleapis.com/v1beta';
+  private retryConfig?: RetryConfig;
 
-  constructor(apiKey: string, baseURL?: string) {
+  constructor(apiKey: string, baseURL?: string, retryConfig?: RetryConfig) {
     this.apiKey = apiKey;
     if (baseURL) {
       this.baseURL = baseURL.replace(/\/$/, ''); // Remove trailing slash
     }
+    this.retryConfig = retryConfig;
   }
 
   async chat<T = string>(
     request: ProviderChatRequest<'gemini'>,
   ): Promise<ProviderChatResponse<'gemini', T>> {
-    const geminiRequest = this.transformRequest(request);
-    const model = request.model || 'gemini-1.5-pro-latest';
+    const makeRequest = async () => {
+      const geminiRequest = this.transformRequest(request);
+      const model = request.model || 'gemini-1.5-pro-latest';
 
-    const response = await fetch(
-      `${this.baseURL}/models/${model}:generateContent?key=${this.apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `${this.baseURL}/models/${model}:generateContent?key=${this.apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(geminiRequest),
         },
-        body: JSON.stringify(geminiRequest),
-      },
-    );
-
-    if (!response.ok) {
-      const error = (await response
-        .json()
-        .catch(() => ({ error: { message: response.statusText } }))) as {
-        error?: { message?: string };
-      };
-      throw new Error(
-        `Gemini API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
       );
+
+      if (!response.ok) {
+        const error = (await response
+          .json()
+          .catch(() => ({ error: { message: response.statusText } }))) as {
+          error?: { message?: string };
+        };
+        const retryAfter = response.headers.get('Retry-After');
+        const errorMessage = `Gemini API error (${response.status}): ${error.error?.message || 'Unknown error'}`;
+        const llmError = new LLMError(errorMessage, response.status, 'gemini', request.model);
+        if (retryAfter) {
+          llmError.retryAfter = parseInt(retryAfter, 10);
+        }
+        throw llmError;
+      }
+
+      const data = (await response.json()) as GeminiResponse;
+      return this.transformResponse<T>(data, model, request.schema);
+    };
+
+    if (this.retryConfig) {
+      return retry(makeRequest, this.retryConfig);
     }
 
-    const data = (await response.json()) as GeminiResponse;
-    return this.transformResponse<T>(data, model, request.schema);
+    return makeRequest();
   }
 
   async stream<T = string>(request: ProviderChatRequest<'gemini'>): Promise<StreamingResponse<T>> {

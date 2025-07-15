@@ -35,6 +35,7 @@ describe('Anthropic Client Integration', () => {
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => mockResponse,
     });
 
@@ -74,6 +75,7 @@ describe('Anthropic Client Integration', () => {
 
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => ({
         id: 'msg_123',
         type: 'message',
@@ -119,6 +121,7 @@ describe('Anthropic Client Integration', () => {
   it('should handle Anthropic-specific features', async () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => ({
         id: 'msg_123',
         type: 'message',
@@ -171,6 +174,7 @@ describe('Anthropic Client Integration', () => {
     // Mock a response with tool calls
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       json: async () => ({
         id: 'msg_123',
         type: 'message',

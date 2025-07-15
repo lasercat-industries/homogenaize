@@ -288,6 +288,7 @@ describe('Anthropic Provider', () => {
       (global.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 400,
+        headers: new Headers(),
         json: async () => ({
           error: {
             type: 'invalid_request_error',

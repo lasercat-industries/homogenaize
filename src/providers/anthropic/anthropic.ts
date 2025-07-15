@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, ToolCall, Message } from '../provider';
 import type { TypedProvider, ProviderChatRequest, ProviderChatResponse } from '../types';
+import type { RetryConfig } from '../../retry/types';
+import { retry } from '../../retry';
+import { LLMError } from '../../retry/errors';
 
 // Anthropic-specific types
 interface AnthropicMessage {
@@ -172,42 +175,57 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
   private apiKey: string;
   private baseURL = 'https://api.anthropic.com/v1';
   private apiVersion = '2023-06-01';
+  private retryConfig?: RetryConfig;
 
-  constructor(apiKey: string, baseURL?: string) {
+  constructor(apiKey: string, baseURL?: string, retryConfig?: RetryConfig) {
     this.apiKey = apiKey;
     if (baseURL) {
       this.baseURL = baseURL.replace(/\/$/, ''); // Remove trailing slash
     }
+    this.retryConfig = retryConfig;
   }
 
   async chat<T = string>(
     request: ProviderChatRequest<'anthropic'>,
   ): Promise<ProviderChatResponse<'anthropic', T>> {
-    const anthropicRequest = this.transformRequest(request);
+    const makeRequest = async () => {
+      const anthropicRequest = this.transformRequest(request);
 
-    const response = await fetch(`${this.baseURL}/messages`, {
-      method: 'POST',
-      headers: {
-        'x-api-key': this.apiKey,
-        'anthropic-version': this.apiVersion,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(anthropicRequest),
-    });
+      const response = await fetch(`${this.baseURL}/messages`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': this.apiKey,
+          'anthropic-version': this.apiVersion,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(anthropicRequest),
+      });
 
-    if (!response.ok) {
-      const error = (await response
-        .json()
-        .catch(() => ({ error: { message: response.statusText } }))) as {
-        error?: { message?: string };
-      };
-      throw new Error(
-        `Anthropic API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
-      );
+      if (!response.ok) {
+        const error = (await response
+          .json()
+          .catch(() => ({ error: { message: response.statusText } }))) as {
+          error?: { message?: string };
+        };
+
+        const retryAfter = response.headers.get('Retry-After');
+        const errorMessage = `Anthropic API error (${response.status}): ${error.error?.message || 'Unknown error'}`;
+        const llmError = new LLMError(errorMessage, response.status, 'anthropic', request.model);
+        if (retryAfter) {
+          llmError.retryAfter = parseInt(retryAfter, 10);
+        }
+        throw llmError;
+      }
+
+      const data = (await response.json()) as AnthropicResponse;
+      return this.transformResponse<T>(data, request.schema);
+    };
+
+    if (this.retryConfig) {
+      return retry(makeRequest, this.retryConfig);
     }
 
-    const data = (await response.json()) as AnthropicResponse;
-    return this.transformResponse<T>(data, request.schema);
+    return makeRequest();
   }
 
   async stream<T = string>(

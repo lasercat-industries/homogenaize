@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, Message } from '../provider';
 import type { TypedProvider, ProviderChatRequest, ProviderChatResponse } from '../types';
+import type { RetryConfig } from '../../retry/types';
+import { retry } from '../../retry';
+import { LLMError } from '../../retry/errors';
 
 // OpenAI-specific types
 interface OpenAIMessage {
@@ -197,67 +200,102 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
   private apiKey: string;
   private baseURL = 'https://api.openai.com/v1';
+  private retryConfig?: RetryConfig;
 
-  constructor(apiKey: string, baseURL?: string) {
+  constructor(apiKey: string, baseURL?: string, retryConfig?: RetryConfig) {
     this.apiKey = apiKey;
     if (baseURL) {
       this.baseURL = baseURL.replace(/\/$/, ''); // Remove trailing slash
     }
+    this.retryConfig = retryConfig;
   }
 
   async chat<T = string>(
     request: ProviderChatRequest<'openai'>,
   ): Promise<ProviderChatResponse<'openai', T>> {
-    const openAIRequest = this.transformRequest(request);
+    const makeRequest = async () => {
+      const openAIRequest = this.transformRequest(request);
 
-    const response = await fetch(`${this.baseURL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(openAIRequest),
-    });
+      const response = await fetch(`${this.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(openAIRequest),
+      });
 
-    if (!response.ok) {
-      const error = (await response
-        .json()
-        .catch(() => ({ error: { message: response.statusText } }))) as {
-        error?: { message?: string };
-      };
-      throw new Error(
-        `OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
-      );
+      if (!response.ok) {
+        const error = (await response
+          .json()
+          .catch(() => ({ error: { message: response.statusText } }))) as {
+          error?: { message?: string };
+        };
+
+        // Extract retry-after header if present
+        const retryAfter = response.headers.get('Retry-After');
+        const errorMessage = `OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`;
+        const llmError = new LLMError(errorMessage, response.status, 'openai', request.model);
+        if (retryAfter) {
+          llmError.retryAfter = parseInt(retryAfter, 10);
+        }
+        throw llmError;
+      }
+
+      const data = (await response.json()) as OpenAIResponse;
+      return this.transformResponse<T>(data, request.schema);
+    };
+
+    // Use retry wrapper if config is provided
+    if (this.retryConfig) {
+      return retry(makeRequest, this.retryConfig);
     }
 
-    const data = (await response.json()) as OpenAIResponse;
-    return this.transformResponse<T>(data, request.schema);
+    return makeRequest();
   }
 
   async stream<T = string>(request: ProviderChatRequest<'openai'>): Promise<StreamingResponse<T>> {
-    const openAIRequest = this.transformRequest(request);
-    openAIRequest.stream = true;
-    openAIRequest.stream_options = { include_usage: true };
+    const makeRequest = async (): Promise<Response> => {
+      const openAIRequest = this.transformRequest(request);
+      openAIRequest.stream = true;
+      openAIRequest.stream_options = { include_usage: true };
 
-    const response = await fetch(`${this.baseURL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(openAIRequest),
-    });
+      const response = await fetch(`${this.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(openAIRequest),
+      });
 
-    if (!response.ok) {
-      const error = (await response
-        .json()
-        .catch(() => ({ error: { message: response.statusText } }))) as {
-        error?: { message?: string };
-      };
-      throw new Error(
-        `OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
-      );
-    }
+      if (!response.ok) {
+        const error = (await response
+          .json()
+          .catch(() => ({ error: { message: response.statusText } }))) as {
+          error?: { message?: string };
+        };
+
+        const retryAfter = response.headers.get('Retry-After');
+        const llmError = new LLMError(
+          error.error?.message || 'Unknown error',
+          response.status,
+          'openai',
+          request.model,
+        );
+        if (retryAfter) {
+          llmError.retryAfter = parseInt(retryAfter, 10);
+        }
+        throw llmError;
+      }
+
+      return response;
+    };
+
+    // Get response with retry support
+    const response = this.retryConfig
+      ? await retry(makeRequest, this.retryConfig)
+      : await makeRequest();
 
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();

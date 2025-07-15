@@ -23,3 +23,4 @@ id,name,status,dependson,spec
 969DF37C-EAC7-4C47-8DA3-8B44EC03B80D,Implement Anthropic thinking tokens feature,done,,20250713-1432-implement-anthropic-thinking.md
 EF819A2F-6FB8-436B-B701-C3A204F412AE,Fix Zod v4 schema conversion error,done,,20250714-1520-fix-zod-v4-schema-error.md
 EBB5A504-4938-4B1F-8379-2F76FC65B5CB,Refactor structured output to use forced tool calling,done,,20250714-1545-refactor-structured-output-tool-calling.md
+45b72986-9732-485f-98f2-23c9a8fb602d,Implement retry support and error handling,inprogress,,20250715-1200-implement-retry-error-handling.md

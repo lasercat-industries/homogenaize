@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { createOpenAILLM, createAnthropicLLM, createGeminiLLM } from '../client';
 
@@ -258,10 +258,10 @@ describe('Structured Output Reliability Tests', () => {
 
       const parsed = NestedSchema.parse(response.content);
       expect(parsed.users).toHaveLength(2);
-      expect(parsed.users[0].roles.length).toBeGreaterThan(0);
-      expect(parsed.users[0].permissions).toHaveProperty('read');
-      expect(parsed.users[0].permissions).toHaveProperty('write');
-      expect(parsed.users[0].permissions).toHaveProperty('delete');
+      expect(parsed.users[0]?.roles.length).toBeGreaterThan(0);
+      expect(parsed.users[0]?.permissions).toHaveProperty('read');
+      expect(parsed.users[0]?.permissions).toHaveProperty('write');
+      expect(parsed.users[0]?.permissions).toHaveProperty('delete');
     });
 
     it.skipIf(SKIP_OPENAI)('should handle numeric constraints', async () => {

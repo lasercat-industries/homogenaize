@@ -296,6 +296,7 @@ describe('Gemini Provider', () => {
       (global.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 400,
+        headers: new Headers(),
         json: async () => ({
           error: {
             code: 400,
