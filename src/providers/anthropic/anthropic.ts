@@ -201,6 +201,15 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         body: JSON.stringify(anthropicRequest),
       });
 
+      if (!response) {
+        throw new LLMError(
+          'Network error: No response received',
+          undefined,
+          'anthropic',
+          request.model,
+        );
+      }
+
       if (!response.ok) {
         const error = (await response
           .json()

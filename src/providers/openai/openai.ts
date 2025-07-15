@@ -225,6 +225,15 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         body: JSON.stringify(openAIRequest),
       });
 
+      if (!response) {
+        throw new LLMError(
+          'Network error: No response received',
+          undefined,
+          'openai',
+          request.model,
+        );
+      }
+
       if (!response.ok) {
         const error = (await response
           .json()

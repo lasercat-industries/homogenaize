@@ -1,14 +1,23 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createOpenAILLM, createAnthropicLLM, createGeminiLLM } from './client';
 import type { RetryConfig } from './retry/types';
 
 describe('Client with Retry Configuration', () => {
   let mockFetch: any;
+  let originalFetch: typeof fetch;
 
   beforeEach(() => {
+    // Save original fetch
+    originalFetch = global.fetch;
     // Mock global fetch
     mockFetch = vi.fn();
     global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    // Restore original fetch
+    global.fetch = originalFetch;
+    vi.clearAllMocks();
   });
 
   it('should accept retry configuration in client options', () => {

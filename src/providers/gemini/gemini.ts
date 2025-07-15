@@ -242,6 +242,15 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         },
       );
 
+      if (!response) {
+        throw new LLMError(
+          'Network error: No response received',
+          undefined,
+          'gemini',
+          request.model,
+        );
+      }
+
       if (!response.ok) {
         const error = (await response
           .json()
