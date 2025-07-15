@@ -161,6 +161,13 @@ describe('LLM Client', () => {
           result: { mock: 'result' },
         }));
       }
+
+      async listModels() {
+        return [
+          { id: 'mock-model-1', name: 'Mock Model 1' },
+          { id: 'mock-model-2', name: 'Mock Model 2' },
+        ];
+      }
     }
 
     it('should implement chat method', async () => {

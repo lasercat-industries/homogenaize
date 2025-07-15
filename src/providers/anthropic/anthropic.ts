@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, ToolCall, Message } from '../provider';
-import type { TypedProvider, ProviderChatRequest, ProviderChatResponse } from '../types';
+import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInfo } from '../types';
 import type { RetryConfig } from '../../retry/types';
 import { retry } from '../../retry';
 import { LLMError } from '../../retry/errors';
@@ -575,5 +575,42 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     }
 
     return result;
+  }
+
+  async listModels(): Promise<ModelInfo[]> {
+    const response = await fetch(`${this.baseURL}/models`, {
+      method: 'GET',
+      headers: {
+        'x-api-key': this.apiKey,
+        'anthropic-version': this.apiVersion,
+      },
+    });
+
+    if (!response.ok) {
+      const error = (await response
+        .json()
+        .catch(() => ({ error: { message: response.statusText } }))) as {
+        error?: { message?: string };
+      };
+      throw new LLMError(
+        `Anthropic API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
+        response.status,
+        'anthropic',
+      );
+    }
+
+    const data = (await response.json()) as {
+      models: Array<{
+        id: string;
+        display_name: string;
+        created_at: string;
+      }>;
+    };
+
+    return data.models.map((model) => ({
+      id: model.id,
+      name: model.display_name || model.id,
+      created: new Date(model.created_at).getTime() / 1000,
+    }));
   }
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, Message } from '../provider';
-import type { TypedProvider, ProviderChatRequest, ProviderChatResponse } from '../types';
+import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInfo } from '../types';
 import type { RetryConfig } from '../../retry/types';
 import { retry } from '../../retry';
 import { LLMError } from '../../retry/errors';
@@ -600,5 +600,37 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     }
 
     return result;
+  }
+
+  async listModels(): Promise<ModelInfo[]> {
+    const response = await fetch(`${this.baseURL}/models`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = (await response
+        .json()
+        .catch(() => ({ error: { message: response.statusText } }))) as {
+        error?: { message?: string };
+      };
+      throw new LLMError(
+        `OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
+        response.status,
+        'openai',
+      );
+    }
+
+    const data = (await response.json()) as {
+      data: Array<{ id: string; created: number; owned_by: string }>;
+    };
+
+    return data.data.map((model) => ({
+      id: model.id,
+      name: model.id,
+      created: model.created,
+    }));
   }
 }

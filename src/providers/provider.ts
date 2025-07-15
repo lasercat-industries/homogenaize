@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ModelInfo } from './types';
 
 // Base message types
 export type MessageRole = 'user' | 'assistant' | 'system';
@@ -80,4 +81,5 @@ export interface Provider {
   chat<T = string>(request: ChatRequest): Promise<ChatResponse<T>>;
   stream<T = string>(request: ChatRequest): Promise<StreamingResponse<T>>;
   supportsFeature(feature: string): boolean;
+  listModels(): Promise<ModelInfo[]>;
 }

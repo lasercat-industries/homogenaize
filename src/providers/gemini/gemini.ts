@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, ToolCall, Message } from '../provider';
-import type { TypedProvider, ProviderChatRequest, ProviderChatResponse } from '../types';
+import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInfo } from '../types';
 import { LLMError } from '../../retry/errors';
 import { retry } from '../../retry';
 import type { RetryConfig } from '../../retry/types';
@@ -588,5 +588,42 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     }
 
     return result;
+  }
+
+  async listModels(): Promise<ModelInfo[]> {
+    const response = await fetch(`${this.baseURL}/models`, {
+      method: 'GET',
+      headers: {
+        'x-goog-api-key': this.apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      const error = (await response
+        .json()
+        .catch(() => ({ error: { message: response.statusText } }))) as {
+        error?: { message?: string };
+      };
+      throw new LLMError(
+        `Gemini API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
+        response.status,
+        'gemini',
+      );
+    }
+
+    const data = (await response.json()) as {
+      models: Array<{
+        name: string;
+        displayName: string;
+        description?: string;
+        supportedGenerationMethods?: string[];
+      }>;
+    };
+
+    return data.models.map((model) => ({
+      id: model.name.replace('models/', ''),
+      name: model.displayName,
+      description: model.description,
+    }));
   }
 }

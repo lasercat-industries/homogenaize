@@ -3,6 +3,24 @@ import type { ChatRequest, ChatResponse, Provider } from './provider';
 // Provider names as const
 export type ProviderName = 'openai' | 'anthropic' | 'gemini';
 
+// Model information
+export interface ModelInfo {
+  id: string;
+  name: string;
+  description?: string;
+  created?: number;
+  capabilities?: {
+    chat?: boolean;
+    completions?: boolean;
+    embeddings?: boolean;
+    fineTuning?: boolean;
+    vision?: boolean;
+    functionCalling?: boolean;
+  };
+  contextWindow?: number;
+  maxOutputTokens?: number;
+}
+
 // Provider-specific features
 export interface ProviderFeatures {
   openai: {

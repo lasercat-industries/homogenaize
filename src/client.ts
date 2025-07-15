@@ -4,6 +4,7 @@ import type {
   ProviderChatRequest,
   ProviderChatResponse,
   TypedProvider,
+  ModelInfo,
 } from './providers/types';
 import type { Tool, ToolCall } from './providers/provider';
 import type { RetryConfig } from './retry/types';
@@ -69,6 +70,9 @@ export interface LLMClient<P extends ProviderName> {
   // Tool methods
   defineTool<T extends z.ZodSchema>(config: ToolConfig<T>): ExecutableTool<T>;
   executeTools(toolCalls: ToolCall[]): Promise<ToolResult[]>;
+
+  // Model methods
+  listModels(): Promise<ModelInfo[]>;
 }
 
 // Implementation class
@@ -166,6 +170,13 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
     }
 
     return results;
+  }
+
+  async listModels(): Promise<ModelInfo[]> {
+    if (!this.providerImpl) {
+      throw new Error('Provider not initialized');
+    }
+    return this.providerImpl.listModels();
   }
 }
 

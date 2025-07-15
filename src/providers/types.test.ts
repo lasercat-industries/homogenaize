@@ -170,6 +170,12 @@ describe('Provider Types', () => {
         supportsFeature(feature: string) {
           return feature in this.capabilities;
         },
+        async listModels() {
+          return [
+            { id: 'gpt-4', name: 'GPT-4' },
+            { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
+          ];
+        },
       };
 
       expect(openAIProvider.name).toBe('openai');
