@@ -330,6 +330,58 @@ if (complete.thinking) {
 
 Note: Thinking tokens are only available with Anthropic's Claude models and require specific model versions that support this feature.
 
+## Building Abstractions
+
+The library exports option types for all client methods, making it easy to build abstractions:
+
+```typescript
+import { ChatOptions, StreamOptions, LLMClient } from 'homogenaize';
+
+// Create reusable chat functions with proper typing
+async function chatWithRetry<T>(
+  client: LLMClient<'openai'>,
+  options: ChatOptions<'openai', T>,
+  maxRetries = 3,
+): Promise<T> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await client.chat(options);
+      return response.content;
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  throw new Error('Max retries reached');
+}
+
+// Build middleware functions
+function withLogging<P extends ProviderName>(options: ChatOptions<P>): ChatOptions<P> {
+  console.log('Chat request:', options);
+  return options;
+}
+
+// Type-safe wrappers for specific use cases
+class ConversationManager<P extends ProviderName> {
+  constructor(private client: LLMClient<P>) {}
+
+  async ask(options: Omit<ChatOptions<P>, 'messages'> & { message: string }) {
+    const chatOptions: ChatOptions<P> = {
+      ...options,
+      messages: [{ role: 'user', content: options.message }],
+    };
+    return this.client.chat(chatOptions);
+  }
+}
+```
+
+### Available Option Types
+
+- `ChatOptions<P, T>` - Options for the chat method
+- `StreamOptions<P, T>` - Options for the stream method (same as ChatOptions)
+- `DefineToolOptions<T>` - Options for defining tools
+- `ExecuteToolsOptions` - Array of tool calls to execute
+
 ## API Reference
 
 ### Creating Clients

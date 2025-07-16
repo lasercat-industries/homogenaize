@@ -26,3 +26,4 @@ EBB5A504-4938-4B1F-8379-2F76FC65B5CB,Refactor structured output to use forced to
 45b72986-9732-485f-98f2-23c9a8fb602d,Implement retry support and error handling,done,,20250715-1200-implement-retry-error-handling.md
 8c794c24-9f1d-4894-9a6d-d789884195ad,Implement list models functionality,done,,20250715-1530-implement-list-models.md
 661AFC79-BEC2-4737-BAB3-A9C5D3AE6F5E,Generate TypeScript types from model lists,done,,20250716-1045-generate-model-types.md
+AC850E13-C6FF-46FC-B382-B7BB5A25E647,Export client option types for better DX,done,,20250716-1115-export-client-option-types.md
