@@ -1,6 +1,6 @@
 /**
  * Auto-generated model types
- * Generated on: 2025-07-16T18:37:12.271Z
+ * Generated on: 2025-07-16T19:08:14.092Z
  *
  * DO NOT EDIT MANUALLY
  * Run 'bun run generate-model-types' to update

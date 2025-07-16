@@ -1,5 +1,22 @@
 import { z } from 'zod';
-import type { ModelInfo } from './types';
+
+// Model information
+export interface ModelInfo {
+  id: string;
+  name: string;
+  description?: string;
+  created?: number;
+  capabilities?: {
+    chat?: boolean;
+    completions?: boolean;
+    embeddings?: boolean;
+    fineTuning?: boolean;
+    vision?: boolean;
+    functionCalling?: boolean;
+  };
+  contextWindow?: number;
+  maxOutputTokens?: number;
+}
 
 // Base message types
 export type MessageRole = 'user' | 'assistant' | 'system';

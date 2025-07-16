@@ -3,7 +3,6 @@ import { z } from 'zod';
 import type { LLMClient } from './client';
 import { createLLM, createOpenAILLM, createAnthropicLLM, createGeminiLLM } from './client';
 import type { ProviderChatResponse, ProviderModels } from './providers/types';
-import type { AnthropicModel } from './generated/model-types';
 
 describe('LLM Client', () => {
   describe('Factory functions', () => {
@@ -182,11 +181,7 @@ describe('LLM Client', () => {
     });
 
     it('should implement streaming', async () => {
-      const client = new MockLLMClient(
-        'anthropic',
-        'test-key',
-        'claude-3-opus-20240229' as AnthropicModel,
-      );
+      const client = new MockLLMClient('anthropic', 'test-key', 'claude-3-opus-20240229');
       const stream = await client.stream({
         messages: [{ role: 'user', content: 'Hello' }],
       });
@@ -202,11 +197,7 @@ describe('LLM Client', () => {
     });
 
     it('should support tool definition', () => {
-      const client = new MockLLMClient(
-        'gemini',
-        'test-key',
-        'gemini-1.5-pro' as ProviderModels['gemini'],
-      );
+      const client = new MockLLMClient('gemini', 'test-key', 'gemini-1.5-pro');
       const tool = client.defineTool({
         name: 'get_weather',
         description: 'Get weather',

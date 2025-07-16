@@ -1,5 +1,20 @@
 import { z } from 'zod';
-import type { ModelInfo } from './types';
+export interface ModelInfo {
+    id: string;
+    name: string;
+    description?: string;
+    created?: number;
+    capabilities?: {
+        chat?: boolean;
+        completions?: boolean;
+        embeddings?: boolean;
+        fineTuning?: boolean;
+        vision?: boolean;
+        functionCalling?: boolean;
+    };
+    contextWindow?: number;
+    maxOutputTokens?: number;
+}
 export type MessageRole = 'user' | 'assistant' | 'system';
 export type TextContent = string;
 export interface MultiModalContent {

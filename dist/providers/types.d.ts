@@ -1,27 +1,12 @@
-import type { ChatRequest, ChatResponse, Provider } from './provider';
+import type { ChatRequest, ChatResponse, Provider, ModelInfo } from './provider';
 import type { OpenaiModel, AnthropicModel, GeminiModel } from '../generated/model-types';
+export type { ModelInfo };
 export type ProviderName = 'openai' | 'anthropic' | 'gemini';
 export type ProviderModels = {
     openai: OpenaiModel;
     anthropic: AnthropicModel;
     gemini: GeminiModel;
 };
-export interface ModelInfo {
-    id: string;
-    name: string;
-    description?: string;
-    created?: number;
-    capabilities?: {
-        chat?: boolean;
-        completions?: boolean;
-        embeddings?: boolean;
-        fineTuning?: boolean;
-        vision?: boolean;
-        functionCalling?: boolean;
-    };
-    contextWindow?: number;
-    maxOutputTokens?: number;
-}
 export interface ProviderFeatures {
     openai: {
         logprobs?: boolean;

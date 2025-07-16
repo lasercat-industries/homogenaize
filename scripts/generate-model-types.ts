@@ -75,7 +75,7 @@ function generateTypeDefinitions(results: ProviderModels[]): string {
     .join('\n');
 
   // Also generate a union type of all models
-  const allProvidersType = `export type AllProviderModels = ${results
+  const allProvidersType = `\nexport type AllProviderModels = ${results
     .map((r) => `${capitalizeFirst(r.provider)}Model`)
     .join(' | ')};\n`;
 
@@ -106,17 +106,17 @@ async function main() {
   const results = await Promise.all([
     listModelsForProvider(
       'openai',
-      (apiKey) => createOpenAILLM({ apiKey, model: 'gpt-4' }),
+      (apiKey) => createOpenAILLM({ apiKey, model: 'gpt-4' as any }),
       'OPENAI_API_KEY',
     ),
     listModelsForProvider(
       'anthropic',
-      (apiKey) => createAnthropicLLM({ apiKey, model: 'claude-3-opus-20240229' }),
+      (apiKey) => createAnthropicLLM({ apiKey, model: 'claude-3-opus-20240229' as any }),
       'ANTHROPIC_API_KEY',
     ),
     listModelsForProvider(
       'gemini',
-      (apiKey) => createGeminiLLM({ apiKey, model: 'gemini-1.5-pro' }),
+      (apiKey) => createGeminiLLM({ apiKey, model: 'gemini-1.5-pro' as any }),
       'GEMINI_API_KEY',
     ),
   ]);
