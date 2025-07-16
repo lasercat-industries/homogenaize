@@ -9,6 +9,10 @@ export {
   type ToolConfig,
   type ExecutableTool,
   type ToolResult,
+  type ChatOptions,
+  type StreamOptions,
+  type DefineToolOptions,
+  type ExecuteToolsOptions,
 } from './client';
 
 // Provider exports
