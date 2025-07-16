@@ -1,5 +1,11 @@
 import type { ChatRequest, ChatResponse, Provider } from './provider';
+import type { OpenaiModel, AnthropicModel, GeminiModel } from '../generated/model-types';
 export type ProviderName = 'openai' | 'anthropic' | 'gemini';
+export type ProviderModels = {
+    openai: OpenaiModel;
+    anthropic: AnthropicModel;
+    gemini: GeminiModel;
+};
 export interface ModelInfo {
     id: string;
     name: string;

@@ -195,13 +195,13 @@ describe('Client with Retry Configuration', () => {
 
     const anthropicClient = createAnthropicLLM({
       apiKey: 'test-key',
-      model: 'claude-3',
+      model: 'claude-3-opus-20240229',
       retry: retryConfig,
     });
 
     const geminiClient = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-pro',
+      model: 'gemini-1.5-pro',
       retry: retryConfig,
     });
 

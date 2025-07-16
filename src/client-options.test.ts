@@ -56,7 +56,7 @@ describe('Client Option Types', () => {
     ];
 
     expect(toolCalls).toHaveLength(1);
-    expect(toolCalls[0].name).toBe('test-tool');
+    expect(toolCalls[0]?.name).toBe('test-tool');
   });
 
   it('should work with generic ChatOptions without provider', () => {

@@ -27,3 +27,4 @@ EBB5A504-4938-4B1F-8379-2F76FC65B5CB,Refactor structured output to use forced to
 8c794c24-9f1d-4894-9a6d-d789884195ad,Implement list models functionality,done,,20250715-1530-implement-list-models.md
 661AFC79-BEC2-4737-BAB3-A9C5D3AE6F5E,Generate TypeScript types from model lists,done,,20250716-1045-generate-model-types.md
 AC850E13-C6FF-46FC-B382-B7BB5A25E647,Export client option types for better DX,done,,20250716-1115-export-client-option-types.md
+7F13C5F5-F12A-4C86-A6DC-6FE9543948BA,Update providers to use typed model names,done,,20250716-1130-typed-model-providers.md

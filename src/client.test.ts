@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import type { LLMClient } from './client';
 import { createLLM, createOpenAILLM, createAnthropicLLM, createGeminiLLM } from './client';
-import type { ProviderChatResponse } from './providers/types';
+import type { ProviderChatResponse, ProviderModels } from './providers/types';
+import type { AnthropicModel } from './generated/model-types';
 
 describe('LLM Client', () => {
   describe('Factory functions', () => {
@@ -41,11 +42,11 @@ describe('LLM Client', () => {
     it('should create Gemini client with specific factory', () => {
       const client = createGeminiLLM({
         apiKey: 'test-key',
-        model: 'gemini-pro',
+        model: 'gemini-1.5-pro',
       });
 
       expect(client.provider).toBe('gemini');
-      expect(client.model).toBe('gemini-pro');
+      expect(client.model).toBe('gemini-1.5-pro');
     });
   });
 
@@ -96,7 +97,7 @@ describe('LLM Client', () => {
       constructor(
         public provider: P,
         public apiKey: string,
-        public model: string,
+        public model: ProviderModels[P],
         public defaultOptions?: {
           temperature?: number;
           maxTokens?: number;
@@ -181,7 +182,11 @@ describe('LLM Client', () => {
     });
 
     it('should implement streaming', async () => {
-      const client = new MockLLMClient('anthropic', 'test-key', 'claude-3');
+      const client = new MockLLMClient(
+        'anthropic',
+        'test-key',
+        'claude-3-opus-20240229' as AnthropicModel,
+      );
       const stream = await client.stream({
         messages: [{ role: 'user', content: 'Hello' }],
       });
@@ -197,7 +202,11 @@ describe('LLM Client', () => {
     });
 
     it('should support tool definition', () => {
-      const client = new MockLLMClient('gemini', 'test-key', 'gemini-pro');
+      const client = new MockLLMClient(
+        'gemini',
+        'test-key',
+        'gemini-1.5-pro' as ProviderModels['gemini'],
+      );
       const tool = client.defineTool({
         name: 'get_weather',
         description: 'Get weather',

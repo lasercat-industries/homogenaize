@@ -1,4 +1,4 @@
-export { createLLM, createOpenAILLM, createAnthropicLLM, createGeminiLLM, type LLMClient, type LLMConfig, type ToolConfig, type ExecutableTool, type ToolResult, } from './client';
+export { createLLM, createOpenAILLM, createAnthropicLLM, createGeminiLLM, type LLMClient, type LLMConfig, type ToolConfig, type ExecutableTool, type ToolResult, type ChatOptions, type StreamOptions, type DefineToolOptions, type ExecuteToolsOptions, } from './client';
 export type { Provider, Message, MessageRole, TextContent, MultiModalContent, Tool, ToolCall, ChatRequest, ChatResponse, StreamingResponse, Usage, ProviderCapabilities, } from './providers/provider';
 export type { ProviderName, ProviderFeatures, ProviderResponses, ProviderChatRequest, ProviderChatResponse, TypedProvider, } from './providers/types';
 export { isOpenAIResponse, isAnthropicResponse, isGeminiResponse } from './providers/types';

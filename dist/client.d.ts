@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import type { ProviderName, ProviderChatRequest, ProviderChatResponse, TypedProvider, ModelInfo } from './providers/types';
+import type { ProviderName, ProviderChatRequest, ProviderChatResponse, TypedProvider, ModelInfo, ProviderModels } from './providers/types';
 import type { Tool, ToolCall } from './providers/provider';
 import type { RetryConfig } from './retry/types';
 export interface LLMConfig<P extends ProviderName> {
     provider: P;
     apiKey: string;
-    model: string;
+    model: ProviderModels[P];
     defaultOptions?: {
         temperature?: number;
         maxTokens?: number;
@@ -29,34 +29,36 @@ export interface ToolResult {
     result: any;
     error?: string;
 }
+export type ChatOptions<P extends ProviderName = ProviderName, T = string> = Omit<ProviderChatRequest<P>, 'model'> & {
+    schema?: z.ZodSchema<T>;
+};
+export type StreamOptions<P extends ProviderName = ProviderName, T = string> = ChatOptions<P, T>;
+export type DefineToolOptions<T extends z.ZodSchema = z.ZodSchema> = ToolConfig<T>;
+export type ExecuteToolsOptions = ToolCall[];
 export interface LLMClient<P extends ProviderName> {
     readonly provider: P;
     readonly apiKey: string;
-    readonly model: string;
+    readonly model: ProviderModels[P];
     readonly defaultOptions?: LLMConfig<P>['defaultOptions'];
     readonly retry?: RetryConfig;
-    chat<T = string>(options: Omit<ProviderChatRequest<P>, 'model'> & {
-        schema?: z.ZodSchema<T>;
-    }): Promise<ProviderChatResponse<P, T>>;
-    stream<T = string>(options: Omit<ProviderChatRequest<P>, 'model'> & {
-        schema?: z.ZodSchema<T>;
-    }): Promise<{
+    chat<T = string>(options: ChatOptions<P, T>): Promise<ProviderChatResponse<P, T>>;
+    stream<T = string>(options: StreamOptions<P, T>): Promise<{
         [Symbol.asyncIterator](): AsyncIterator<T>;
         complete(): Promise<ProviderChatResponse<P, T>>;
     }>;
-    defineTool<T extends z.ZodSchema>(config: ToolConfig<T>): ExecutableTool<T>;
-    executeTools(toolCalls: ToolCall[]): Promise<ToolResult[]>;
+    defineTool<T extends z.ZodSchema>(config: DefineToolOptions<T>): ExecutableTool<T>;
+    executeTools(toolCalls: ExecuteToolsOptions): Promise<ToolResult[]>;
     listModels(): Promise<ModelInfo[]>;
 }
 export declare class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
     readonly provider: P;
     readonly apiKey: string;
-    readonly model: string;
+    readonly model: ProviderModels[P];
     readonly defaultOptions?: LLMConfig<P>['defaultOptions'];
     readonly retry?: RetryConfig | undefined;
     private providerImpl?;
     private tools;
-    constructor(provider: P, apiKey: string, model: string, defaultOptions?: LLMConfig<P>['defaultOptions'], retry?: RetryConfig | undefined, providerImpl?: TypedProvider<P> | undefined);
+    constructor(provider: P, apiKey: string, model: ProviderModels[P], defaultOptions?: LLMConfig<P>['defaultOptions'], retry?: RetryConfig | undefined, providerImpl?: TypedProvider<P> | undefined);
     chat<T = string>(options: Omit<ProviderChatRequest<P>, 'model'> & {
         schema?: z.ZodSchema<T>;
     }): Promise<ProviderChatResponse<P, T>>;

@@ -6,6 +6,7 @@ A TypeScript-native library that provides a unified interface for multiple LLM p
 
 - 🔥 **Unified API** - Single interface for OpenAI, Anthropic, and Gemini
 - 🛡️ **Type Safety** - Full TypeScript support with provider-specific features
+- 🎨 **Typed Model Names** - Autocomplete and compile-time validation for model names
 - ✅ **Runtime Validation** - Zod schemas for structured outputs
 - 🔄 **Streaming Support** - Async iterators for real-time responses
 - 🛠️ **Tool Calling** - Define and execute tools with automatic validation
@@ -33,23 +34,23 @@ import { createLLM, createOpenAILLM, createAnthropicLLM, createGeminiLLM } from 
 const client = createLLM({
   provider: 'openai', // or 'anthropic' or 'gemini'
   apiKey: process.env.OPENAI_API_KEY!,
-  model: 'gpt-4o-mini',
+  model: 'gpt-4o-mini', // ✨ Typed! Autocompletes valid models
 });
 
 // Option 2: Provider-specific clients (for better type hints)
 const openai = createOpenAILLM({
   apiKey: process.env.OPENAI_API_KEY!,
-  model: 'gpt-4o-mini',
+  model: 'gpt-4o-mini', // ✨ Only OpenAI models allowed
 });
 
 const anthropic = createAnthropicLLM({
   apiKey: process.env.ANTHROPIC_API_KEY!,
-  model: 'claude-3-sonnet-20240229',
+  model: 'claude-3-sonnet-20240229', // ✨ Only Anthropic models allowed
 });
 
 const gemini = createGeminiLLM({
   apiKey: process.env.GEMINI_API_KEY!,
-  model: 'gemini-1.5-pro',
+  model: 'gemini-1.5-pro', // ✨ Only Gemini models allowed
 });
 
 // Use the same interface for all providers

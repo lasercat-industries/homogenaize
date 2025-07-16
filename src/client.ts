@@ -5,6 +5,7 @@ import type {
   ProviderChatResponse,
   TypedProvider,
   ModelInfo,
+  ProviderModels,
 } from './providers/types';
 import type { Tool, ToolCall } from './providers/provider';
 import type { RetryConfig } from './retry/types';
@@ -16,7 +17,7 @@ import { GeminiProvider } from './providers/gemini';
 export interface LLMConfig<P extends ProviderName> {
   provider: P;
   apiKey: string;
-  model: string;
+  model: ProviderModels[P];
   defaultOptions?: {
     temperature?: number;
     maxTokens?: number;
@@ -65,7 +66,7 @@ export type ExecuteToolsOptions = ToolCall[];
 export interface LLMClient<P extends ProviderName> {
   readonly provider: P;
   readonly apiKey: string;
-  readonly model: string;
+  readonly model: ProviderModels[P];
   readonly defaultOptions?: LLMConfig<P>['defaultOptions'];
   readonly retry?: RetryConfig;
 
@@ -94,7 +95,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
   constructor(
     public readonly provider: P,
     public readonly apiKey: string,
-    public readonly model: string,
+    public readonly model: ProviderModels[P],
     public readonly defaultOptions?: LLMConfig<P>['defaultOptions'],
     public readonly retry?: RetryConfig,
     private providerImpl?: TypedProvider<P>,
