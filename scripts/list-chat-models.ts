@@ -30,7 +30,6 @@ async function listChatModels() {
 
   // Anthropic
   if (process.env.ANTHROPIC_API_KEY) {
-    console.log(process.env.ANTHROPIC_API_KEY);
     try {
       const client = createAnthropicLLM({
         apiKey: process.env.ANTHROPIC_API_KEY,

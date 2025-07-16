@@ -607,7 +607,6 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       }>;
     };
 
-    console.log(data);
     return data.data.map((model) => ({
       id: model.id,
       name: model.display_name || model.id,
