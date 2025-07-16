@@ -42,3 +42,13 @@ export { isOpenAIResponse, isAnthropicResponse, isGeminiResponse } from './provi
 
 // Re-export zod for convenience
 export { z } from 'zod';
+
+// Model type exports
+export type {
+  OpenaiModel,
+  AnthropicModel,
+  GeminiModel,
+  AllProviderModels,
+} from './generated/model-types';
+
+export { OPENAI_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS } from './generated/model-types';

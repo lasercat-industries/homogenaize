@@ -46,7 +46,7 @@
   },
   "homepage": "https://github.com/rylandgoldstein/homogenaize#readme",
   "scripts": {
-    "prebuild": "bun run clean && bunx tsc -p tsconfig.build.json --noEmit",
+    "prebuild": "bun run clean && bun run generate-model-types && bunx tsc -p tsconfig.build.json --noEmit",
     "build": "bun run scripts/build.ts",
     "postbuild": "bun run build:validate",
     "build:analyze": "bun run build && bunx source-map-explorer dist/*.js",
@@ -63,6 +63,7 @@
     "lint": "eslint .",
     "list-models": "bun run scripts/list-models.ts",
     "list-chat-models": "bun run scripts/list-chat-models.ts",
+    "generate-model-types": "bun run scripts/generate-model-types.ts",
     "prepublishOnly": "bun run build && bun run test && bun run typecheck"
   },
   "devDependencies": {
