@@ -14,20 +14,26 @@ export type ProviderModels = {
   gemini: GeminiModel;
 };
 
-// Provider-specific features
-export interface ProviderFeatures {
-  openai: {
+// Provider-specific request types
+export interface OpenAIChatRequest extends ChatRequest {
+  features?: {
     logprobs?: boolean;
     topLogprobs?: number;
     seed?: number;
     responseFormat?: { type: 'json_object' | 'json_schema'; json_schema?: unknown };
   };
-  anthropic: {
+}
+
+export interface AnthropicChatRequest extends ChatRequest {
+  features?: {
     thinking?: boolean;
     cacheControl?: boolean;
     maxThinkingTokens?: number;
   };
-  gemini: {
+}
+
+export interface GeminiChatRequest extends ChatRequest {
+  features?: {
     safetySettings?: Array<{
       category: string;
       threshold: string;
@@ -41,48 +47,57 @@ export interface ProviderFeatures {
   };
 }
 
-// Provider-specific responses
-export interface ProviderResponses {
-  openai: {
-    logprobs?: Array<{
-      token: string;
-      logprob: number;
-      topLogprobs?: Array<{ token: string; logprob: number }>;
-    }>;
-    systemFingerprint?: string;
-  };
-  anthropic: {
-    thinking?: string;
-    cacheInfo?: {
-      cacheCreationInputTokens?: number;
-      cacheReadInputTokens?: number;
-    };
-    stopReason?: string;
-  };
-  gemini: {
-    safetyRatings?: Array<{
-      category: string;
-      probability: string;
-    }>;
-    citationMetadata?: {
-      citations: Array<{
-        startIndex?: number;
-        endIndex?: number;
-        uri?: string;
-        license?: string;
-      }>;
-    };
-  };
-}
-
-// Extended request type with provider features
-export interface ProviderChatRequest<P extends ProviderName> extends ChatRequest {
-  features?: ProviderFeatures[P];
-}
+// Union type for all provider requests
+export type ProviderChatRequest<P extends ProviderName> = P extends 'openai'
+  ? OpenAIChatRequest
+  : P extends 'anthropic'
+    ? AnthropicChatRequest
+    : P extends 'gemini'
+      ? GeminiChatRequest
+      : never;
 
 // Extended response type with provider-specific fields
-export type ProviderChatResponse<P extends ProviderName, T = string> = ChatResponse<T> &
-  ProviderResponses[P];
+export interface OpenAIChatResponse<T = string> extends ChatResponse<T> {
+  logprobs?: Array<{
+    token: string;
+    logprob: number;
+    topLogprobs?: Array<{ token: string; logprob: number }>;
+  }>;
+  systemFingerprint?: string;
+}
+
+export interface AnthropicChatResponse<T = string> extends ChatResponse<T> {
+  thinking?: string;
+  cacheInfo?: {
+    cacheCreationInputTokens?: number;
+    cacheReadInputTokens?: number;
+  };
+  stopReason?: string;
+}
+
+export interface GeminiChatResponse<T = string> extends ChatResponse<T> {
+  safetyRatings?: Array<{
+    category: string;
+    probability: string;
+  }>;
+  citationMetadata?: {
+    citations: Array<{
+      startIndex?: number;
+      endIndex?: number;
+      uri?: string;
+      license?: string;
+    }>;
+  };
+}
+
+// Union type for all provider responses
+export type ProviderChatResponse<P extends ProviderName, T = string> = P extends 'openai'
+  ? OpenAIChatResponse<T>
+  : P extends 'anthropic'
+    ? AnthropicChatResponse<T>
+    : P extends 'gemini'
+      ? GeminiChatResponse<T>
+      : never;
 
 // Provider with specific type
 export interface TypedProvider<P extends ProviderName> extends Provider {
@@ -100,20 +115,20 @@ export interface TypedProvider<P extends ProviderName> extends Provider {
 export function isOpenAIResponse<T>(
   _response: ChatResponse<T>,
   provider: ProviderName,
-): _response is ProviderChatResponse<'openai', T> {
+): _response is OpenAIChatResponse<T> {
   return provider === 'openai';
 }
 
 export function isAnthropicResponse<T>(
   _response: ChatResponse<T>,
   provider: ProviderName,
-): _response is ProviderChatResponse<'anthropic', T> {
+): _response is AnthropicChatResponse<T> {
   return provider === 'anthropic';
 }
 
 export function isGeminiResponse<T>(
   _response: ChatResponse<T>,
   provider: ProviderName,
-): _response is ProviderChatResponse<'gemini', T> {
+): _response is GeminiChatResponse<T> {
   return provider === 'gemini';
 }

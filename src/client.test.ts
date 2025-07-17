@@ -112,7 +112,6 @@ describe('LLM Client', () => {
             totalTokens: 15,
           },
           model: this.model,
-          provider: this.provider,
         } as ProviderChatResponse<P, T>;
       }
 
@@ -140,7 +139,6 @@ describe('LLM Client', () => {
                 totalTokens: 15,
               },
               model: 'mock-model',
-              provider: 'mock' as any,
             } as ProviderChatResponse<P, T>;
           },
         };

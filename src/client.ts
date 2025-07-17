@@ -6,7 +6,11 @@ import type {
   TypedProvider,
   ModelInfo,
   ProviderModels,
+  OpenAIChatRequest,
+  AnthropicChatRequest,
+  GeminiChatRequest,
 } from './providers/types';
+import type { Message } from './providers/provider';
 import type { Tool, ToolCall } from './providers/provider';
 import type { RetryConfig } from './retry/types';
 import { OpenAIProvider } from './providers/openai';
@@ -48,12 +52,26 @@ export interface ToolResult {
   error?: string;
 }
 
-// Option types for client methods
-export type ChatOptions<P extends ProviderName = ProviderName, T = string> = Omit<
-  ProviderChatRequest<P>,
-  'model'
-> & {
+// Base chat options without provider-specific features
+export interface BaseChatOptions<T = string> {
+  messages: Message[];
+  temperature?: number;
+  maxTokens?: number;
+  stream?: boolean;
   schema?: z.ZodSchema<T>;
+  tools?: Tool[];
+  toolChoice?: 'auto' | 'required' | 'none' | { name: string };
+}
+
+// Provider-specific chat options
+export type ChatOptions<P extends ProviderName = ProviderName, T = string> = BaseChatOptions<T> & {
+  features?: P extends 'openai'
+    ? OpenAIChatRequest['features']
+    : P extends 'anthropic'
+      ? AnthropicChatRequest['features']
+      : P extends 'gemini'
+        ? GeminiChatRequest['features']
+        : never;
 };
 
 export type StreamOptions<P extends ProviderName = ProviderName, T = string> = ChatOptions<P, T>;
@@ -101,17 +119,20 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
     private providerImpl?: TypedProvider<P>,
   ) {}
 
-  async chat<T = string>(
-    options: Omit<ProviderChatRequest<P>, 'model'> & { schema?: z.ZodSchema<T> },
-  ): Promise<ProviderChatResponse<P, T>> {
+  async chat<T = string>(options: ChatOptions<P, T>): Promise<ProviderChatResponse<P, T>> {
     if (!this.providerImpl) {
       throw new Error(`Provider ${this.provider} not implemented yet`);
     }
 
     const request: ProviderChatRequest<P> = {
-      ...options,
+      messages: options.messages,
       temperature: options.temperature ?? this.defaultOptions?.temperature,
       maxTokens: options.maxTokens ?? this.defaultOptions?.maxTokens,
+      stream: options.stream,
+      schema: options.schema,
+      tools: options.tools,
+      toolChoice: options.toolChoice,
+      features: options.features,
       model: this.model,
     } as ProviderChatRequest<P>;
 
@@ -121,7 +142,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
   }
 
   async stream<T = string>(
-    options: Omit<ProviderChatRequest<P>, 'model'> & { schema?: z.ZodSchema<T> },
+    options: StreamOptions<P, T>,
   ): Promise<{
     [Symbol.asyncIterator](): AsyncIterator<T>;
     complete(): Promise<ProviderChatResponse<P, T>>;
@@ -131,9 +152,14 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
     }
 
     const request: ProviderChatRequest<P> = {
-      ...options,
+      messages: options.messages,
       temperature: options.temperature ?? this.defaultOptions?.temperature,
       maxTokens: options.maxTokens ?? this.defaultOptions?.maxTokens,
+      stream: true,
+      schema: options.schema,
+      tools: options.tools,
+      toolChoice: options.toolChoice,
+      features: options.features,
       model: this.model,
     } as ProviderChatRequest<P>;
 

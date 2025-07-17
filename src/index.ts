@@ -9,6 +9,7 @@ export {
   type ToolConfig,
   type ExecutableTool,
   type ToolResult,
+  type BaseChatOptions,
   type ChatOptions,
   type StreamOptions,
   type DefineToolOptions,
@@ -34,10 +35,14 @@ export type {
 // Provider type exports
 export type {
   ProviderName,
-  ProviderFeatures,
-  ProviderResponses,
   ProviderChatRequest,
   ProviderChatResponse,
+  OpenAIChatRequest,
+  AnthropicChatRequest,
+  GeminiChatRequest,
+  OpenAIChatResponse,
+  AnthropicChatResponse,
+  GeminiChatResponse,
   TypedProvider,
 } from './providers/types';
 
