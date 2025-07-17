@@ -18,7 +18,7 @@ const testFiles = '**/*.{test,spec}.{js,jsx,ts,tsx}';
 const commonPlugins = {
   promise,
   unicorn,
-  import: importPlugin,
+  'import': importPlugin,
   'eslint-comments': eslintComments,
   regexp,
   'unused-imports': unusedImports,

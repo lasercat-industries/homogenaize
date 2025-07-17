@@ -5,6 +5,17 @@ import type { RetryConfig } from '../../retry/types';
 import { retry } from '../../retry';
 import { LLMError } from '../../retry/errors';
 
+type JSONSchemaType = {
+  type: string;
+  properties?: Record<string, JSONSchemaType>;
+  items?: JSONSchemaType;
+  required?: string[];
+  enum?: unknown[];
+  const?: unknown;
+  additionalProperties?: boolean;
+  [key: string]: unknown;
+};
+
 // OpenAI-specific types
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -24,7 +35,7 @@ interface OpenAITool {
   function: {
     name: string;
     description: string;
-    parameters: any;
+    parameters: JSONSchemaType;
     strict?: boolean;
   };
 }
@@ -46,7 +57,7 @@ interface OpenAIRequest {
   seed?: number;
   response_format?: {
     type: 'text' | 'json_object' | 'json_schema';
-    json_schema?: any;
+    json_schema?: JSONSchemaType;
   };
   tools?: OpenAITool[];
   tool_choice?: 'none' | 'auto' | 'required' | { type: 'function'; function: { name: string } };
@@ -109,15 +120,15 @@ interface OpenAIStreamChunk {
 }
 
 // Helper to convert Zod schema to OpenAI-compatible JSON Schema
-function zodToOpenAISchema(schema: z.ZodSchema): any {
+function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
   // Handle both Zod v3 and v4 structure
-  const zodType = schema._def || (schema as any).def;
+  const zodType = schema._def || (schema as z.ZodTypeAny & { def?: unknown }).def;
 
   if (!zodType) {
     throw new Error('Invalid Zod schema: missing _def property');
   }
 
-  function processZodType(def: any): any {
+  function processZodType(def: any): JSONSchemaType {
     switch (def.type) {
       case 'string':
         return { type: 'string' };
@@ -125,7 +136,7 @@ function zodToOpenAISchema(schema: z.ZodSchema): any {
         return { type: 'number' };
       case 'boolean':
         return { type: 'boolean' };
-      case 'array':
+      case 'array': {
         const itemDef =
           def.valueType?._def ||
           def.valueType?.def ||
@@ -135,17 +146,21 @@ function zodToOpenAISchema(schema: z.ZodSchema): any {
           def.element;
         return {
           type: 'array',
-          items: itemDef ? processZodType(itemDef) : { type: 'any' },
+          items: itemDef ? processZodType(itemDef) : { type: 'string' },
         };
-      case 'object':
-        const properties: any = {};
+      }
+      case 'object': {
+        const properties: Record<string, JSONSchemaType> = {};
         const required: string[] = [];
 
         // Access shape directly from def
         const shape = def.shape || {};
         for (const [key, value] of Object.entries(shape)) {
           // Handle both Zod v3 and v4 - in v4, each field has its own _def
-          const fieldDef = (value as any)._def || (value as any).def || value;
+          const fieldDef =
+            (value as z.ZodTypeAny)._def ||
+            (value as z.ZodTypeAny & { def?: unknown }).def ||
+            value;
           const fieldSchema = processZodType(fieldDef);
           // Remove the __isOptional marker and use it to determine required fields
           // const isOptional = fieldSchema.__isOptional;
@@ -163,12 +178,14 @@ function zodToOpenAISchema(schema: z.ZodSchema): any {
           required: required.length > 0 ? required : undefined,
           additionalProperties: false,
         };
-      case 'optional':
+      }
+      case 'optional': {
         // For OpenAI, we need to handle optional fields differently
         // Return the inner type but mark that it's optional
         const innerDef = def.innerType?._def || def.innerType?.def || def.innerType;
-        const innerType = innerDef ? processZodType(innerDef) : { type: 'any' };
+        const innerType = innerDef ? processZodType(innerDef) : { type: 'string' };
         return { ...innerType, __isOptional: true };
+      }
       case 'enum':
         return {
           type: 'string',
@@ -310,11 +327,15 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     const decoder = new TextDecoder();
     let buffer = '';
     let content = '';
-    let usage: any;
+    let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } = {};
     let model = '';
-    let finishReason: any;
+    let finishReason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | undefined;
     let toolCallArguments = '';
-    let currentToolCall: any = null;
+    let currentToolCall: {
+      id: string;
+      type: 'function';
+      function: { name: string; arguments: string };
+    } | null = null;
 
     const streamResponse = {
       async *[Symbol.asyncIterator](): AsyncIterator<T> {
@@ -349,7 +370,14 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
                 if (chunk.choices[0]?.delta?.tool_calls) {
                   for (const toolCallDelta of chunk.choices[0].delta.tool_calls) {
                     if (toolCallDelta.id) {
-                      currentToolCall = toolCallDelta;
+                      currentToolCall = {
+                        id: toolCallDelta.id!,
+                        type: 'function' as const,
+                        function: {
+                          name: toolCallDelta.function?.name || '',
+                          arguments: '',
+                        },
+                      };
                       toolCallArguments = '';
                     }
                     if (toolCallDelta.function?.arguments) {
@@ -369,7 +397,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
                 if (chunk.choices[0]?.finish_reason) {
                   finishReason = chunk.choices[0].finish_reason;
                 }
-              } catch (e) {
+              } catch {
                 // Ignore parsing errors
               }
             }
@@ -379,7 +407,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
       async complete(): Promise<ProviderChatResponse<'openai', T>> {
         // Drain any remaining content
-        for await (const _ of streamResponse) {
+        for await (const _chunk of streamResponse) {
           // Just consume
         }
 
@@ -410,17 +438,11 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
         return {
           content: parsedContent,
-          usage: usage
-            ? {
-                inputTokens: usage.prompt_tokens,
-                outputTokens: usage.completion_tokens,
-                totalTokens: usage.total_tokens,
-              }
-            : {
-                inputTokens: 0,
-                outputTokens: 0,
-                totalTokens: 0,
-              },
+          usage: {
+            inputTokens: usage.prompt_tokens || 0,
+            outputTokens: usage.completion_tokens || 0,
+            totalTokens: usage.total_tokens || 0,
+          },
           model,
           finishReason,
         };
@@ -431,7 +453,10 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
   }
 
   supportsFeature(feature: string): boolean {
-    return feature in this.capabilities && (this.capabilities as any)[feature] === true;
+    return (
+      feature in this.capabilities &&
+      (this.capabilities as unknown as Record<string, boolean>)[feature] === true
+    );
   }
 
   private transformRequest(request: ProviderChatRequest<'openai'>): OpenAIRequest {
@@ -454,7 +479,10 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         openAIRequest.seed = request.features.seed;
       }
       if (request.features.responseFormat !== undefined) {
-        openAIRequest.response_format = request.features.responseFormat;
+        openAIRequest.response_format = request.features.responseFormat as {
+          type: 'text' | 'json_object' | 'json_schema';
+          json_schema?: JSONSchemaType;
+        };
       }
     }
 
@@ -492,17 +520,29 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     // Handle tool choice
     if (request.toolChoice) {
-      if (request.toolChoice === 'required') {
-        openAIRequest.tool_choice = 'required';
-      } else if (request.toolChoice === 'none') {
-        openAIRequest.tool_choice = 'none';
-      } else if (request.toolChoice === 'auto') {
-        openAIRequest.tool_choice = 'auto';
-      } else if (typeof request.toolChoice === 'object' && 'name' in request.toolChoice) {
-        openAIRequest.tool_choice = {
-          type: 'function',
-          function: { name: request.toolChoice.name },
-        };
+      switch (request.toolChoice) {
+        case 'required': {
+          openAIRequest.tool_choice = 'required';
+
+          break;
+        }
+        case 'none': {
+          openAIRequest.tool_choice = 'none';
+
+          break;
+        }
+        case 'auto': {
+          openAIRequest.tool_choice = 'auto';
+
+          break;
+        }
+        default:
+          if (typeof request.toolChoice === 'object' && 'name' in request.toolChoice) {
+            openAIRequest.tool_choice = {
+              type: 'function',
+              function: { name: request.toolChoice.name },
+            };
+          }
       }
     }
 
@@ -512,7 +552,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
   private transformMessage(message: Message): OpenAIMessage {
     if (typeof message.content === 'string') {
       return {
-        role: message.role as any,
+        role: message.role as 'system' | 'user' | 'assistant',
         content: message.content,
       };
     }
@@ -552,7 +592,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         try {
           const parsed = JSON.parse(toolCall.function.arguments);
           content = schema.parse(parsed) as T;
-        } catch (error) {
+        } catch {
           content = (message.content || '') as T;
         }
       } else {

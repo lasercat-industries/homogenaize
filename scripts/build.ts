@@ -13,7 +13,6 @@ const distDir = join(rootDir, 'dist');
 
 // Clean dist directory
 console.log('🧹 Cleaning dist directory...');
-1;
 if (existsSync(distDir)) {
   rmSync(distDir, { recursive: true, force: true });
 }

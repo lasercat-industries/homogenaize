@@ -3,6 +3,7 @@
 import { createOpenAILLM, createAnthropicLLM, createGeminiLLM } from '../src/client';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
+import type { ModelInfo } from '../src/providers/provider';
 
 interface ProviderModels {
   provider: string;
@@ -16,7 +17,7 @@ interface ProviderModels {
 
 async function listModelsForProvider(
   provider: string,
-  createClient: (apiKey: string) => { listModels: () => Promise<any[]> },
+  createClient: (apiKey: string) => { listModels: () => Promise<ModelInfo[]> },
   apiKeyEnvVar: string,
 ): Promise<ProviderModels> {
   const apiKey = process.env[apiKeyEnvVar];
@@ -106,17 +107,17 @@ async function main() {
   const results = await Promise.all([
     listModelsForProvider(
       'openai',
-      (apiKey) => createOpenAILLM({ apiKey, model: 'gpt-4' as any }),
+      (apiKey) => createOpenAILLM({ apiKey, model: 'gpt-4' }),
       'OPENAI_API_KEY',
     ),
     listModelsForProvider(
       'anthropic',
-      (apiKey) => createAnthropicLLM({ apiKey, model: 'claude-3-opus-20240229' as any }),
+      (apiKey) => createAnthropicLLM({ apiKey, model: 'claude-3-opus-20240229' }),
       'ANTHROPIC_API_KEY',
     ),
     listModelsForProvider(
       'gemini',
-      (apiKey) => createGeminiLLM({ apiKey, model: 'gemini-1.5-pro' as any }),
+      (apiKey) => createGeminiLLM({ apiKey, model: 'gemini-1.5-pro' }),
       'GEMINI_API_KEY',
     ),
   ]);
@@ -147,7 +148,7 @@ async function main() {
         : result.models.map((m) => m.id);
       return acc;
     },
-    {} as Record<string, any>,
+    {} as Record<string, { error: string } | string[]>,
   );
 
   const jsonPath = join(process.cwd(), 'src', 'generated', 'models.json');

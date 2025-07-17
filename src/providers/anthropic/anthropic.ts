@@ -5,6 +5,16 @@ import type { RetryConfig } from '../../retry/types';
 import { retry } from '../../retry';
 import { LLMError } from '../../retry/errors';
 
+type JSONSchemaType = {
+  type: string;
+  properties?: Record<string, JSONSchemaType>;
+  items?: JSONSchemaType;
+  required?: string[];
+  enum?: unknown[];
+  const?: unknown;
+  [key: string]: unknown;
+};
+
 // Anthropic-specific types
 interface AnthropicMessage {
   role: 'user' | 'assistant';
@@ -13,14 +23,14 @@ interface AnthropicMessage {
 
 type AnthropicContent =
   | { type: 'text'; text: string }
-  | { type: 'tool_use'; id: string; name: string; input: any }
+  | { type: 'tool_use'; id: string; name: string; input: unknown }
   | { type: 'tool_result'; tool_use_id: string; content: string }
   | { type: 'thinking'; text: string };
 
 interface AnthropicTool {
   name: string;
   description: string;
-  input_schema: any;
+  input_schema: JSONSchemaType;
 }
 
 interface AnthropicRequest {
@@ -89,15 +99,15 @@ interface MessageDeltaEvent {
 }
 
 // Helper to convert Zod schema to Anthropic-compatible JSON Schema
-function zodToAnthropicSchema(schema: z.ZodSchema): any {
+function zodToAnthropicSchema(schema: z.ZodSchema): JSONSchemaType {
   // Handle both Zod v3 and v4 structure
-  const zodType = schema._def || (schema as any).def;
+  const zodType = schema._def || (schema as z.ZodTypeAny & { def?: unknown }).def;
 
   if (!zodType) {
     throw new Error('Invalid Zod schema: missing _def property');
   }
 
-  function processZodType(def: any): any {
+  function processZodType(def: any): JSONSchemaType {
     switch (def.type) {
       case 'string':
         return { type: 'string' };
@@ -105,7 +115,7 @@ function zodToAnthropicSchema(schema: z.ZodSchema): any {
         return { type: 'number' };
       case 'boolean':
         return { type: 'boolean' };
-      case 'array':
+      case 'array': {
         const itemDef =
           def.valueType?._def ||
           def.valueType?.def ||
@@ -117,8 +127,9 @@ function zodToAnthropicSchema(schema: z.ZodSchema): any {
           type: 'array',
           items: itemDef ? processZodType(itemDef) : { type: 'any' },
         };
-      case 'object':
-        const properties: any = {};
+      }
+      case 'object': {
+        const properties: Record<string, JSONSchemaType> = {};
         const required: string[] = [];
 
         // Access shape directly from def
@@ -140,18 +151,21 @@ function zodToAnthropicSchema(schema: z.ZodSchema): any {
           properties,
           required: required.length > 0 ? required : undefined,
         };
-      case 'optional':
-        const innerDef = def.innerType?._def || def.innerType?.def || def.innerType;
+      }
+      case 'optional': {
+        const innerDef =
+          (def as any).innerType?._def || (def as any).innerType?.def || (def as any).innerType;
         return innerDef ? processZodType(innerDef) : { type: 'any' };
+      }
       case 'enum':
         return {
           type: 'string',
-          enum: def.values,
+          enum: (def as any).values || [],
         };
       case 'literal':
         return {
           type: typeof def.value,
-          const: def.value,
+          const: (def as any).value,
         };
       default:
         // Fallback for unsupported types
@@ -269,8 +283,8 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     let content = '';
     let usage = { input_tokens: 0, output_tokens: 0 };
     let model = '';
-    let finishReason: any;
-    let currentToolUse: any = null;
+    let anthropicFinishReason: string | undefined;
+    let currentToolUse: { id: string; name: string; input?: unknown } | null = null;
     let toolUseInput = '';
     // let messageId = ''; // Not needed since id is not part of response type
 
@@ -298,14 +312,15 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
                 const event = JSON.parse(data);
 
                 switch (event.type) {
-                  case 'message_start':
+                  case 'message_start': {
                     const msgStart = event as MessageStartEvent;
                     // messageId = msgStart.message.id;
                     model = msgStart.message.model;
                     usage.input_tokens = msgStart.message.usage.input_tokens;
                     break;
+                  }
 
-                  case 'content_block_delta':
+                  case 'content_block_delta': {
                     const delta = event as ContentBlockDeltaEvent;
                     if (delta.delta.type === 'text_delta') {
                       const text = delta.delta.text;
@@ -314,29 +329,30 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
                       if (!request.schema) {
                         yield text as T;
                       }
+                    } else if (event.delta?.type === 'input_json_delta' && currentToolUse) {
+                      toolUseInput += event.delta.partial_json;
                     }
                     break;
+                  }
 
-                  case 'message_delta':
+                  case 'message_delta': {
                     const msgDelta = event as MessageDeltaEvent;
                     usage.output_tokens = msgDelta.usage.output_tokens;
-                    finishReason = msgDelta.delta.stop_reason;
+                    anthropicFinishReason = msgDelta.delta.stop_reason;
                     break;
+                  }
 
-                  case 'content_block_start':
+                  case 'content_block_start': {
                     if (event.content_block?.type === 'tool_use') {
                       currentToolUse = event.content_block;
                       toolUseInput = '';
                     }
                     break;
+                  }
 
-                  case 'content_block_delta':
-                    if (event.delta?.type === 'input_json_delta' && currentToolUse) {
-                      toolUseInput += event.delta.partial_json;
-                    }
-                    break;
+                  // Duplicate case removed - handled in first content_block_delta case
                 }
-              } catch (e) {
+              } catch {
                 // Ignore parsing errors
               }
             }
@@ -346,7 +362,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
       async complete(): Promise<ProviderChatResponse<'anthropic', T>> {
         // Drain any remaining content
-        for await (const _ of streamResponse) {
+        for await (const _chunk of streamResponse) {
           // Just consume
         }
 
@@ -375,6 +391,18 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
           parsedContent = content as T;
         }
 
+        // Map Anthropic finish reasons to standard ones
+        let finishReason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | undefined;
+        if (anthropicFinishReason) {
+          if (anthropicFinishReason === 'end_turn' || anthropicFinishReason === 'stop_sequence') {
+            finishReason = 'stop';
+          } else if (anthropicFinishReason === 'max_tokens') {
+            finishReason = 'length';
+          } else if (anthropicFinishReason === 'tool_use') {
+            finishReason = 'tool_calls';
+          }
+        }
+
         return {
           content: parsedContent,
           usage: {
@@ -393,7 +421,10 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
   }
 
   supportsFeature(feature: string): boolean {
-    return feature in this.capabilities && (this.capabilities as any)[feature] === true;
+    return (
+      feature in this.capabilities &&
+      (this.capabilities as unknown as Record<string, boolean>)[feature] === true
+    );
   }
 
   private transformRequest(request: ProviderChatRequest<'anthropic'>): AnthropicRequest {
@@ -457,18 +488,30 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
     // Handle tool choice
     if (request.toolChoice) {
-      if (request.toolChoice === 'required') {
-        anthropicRequest.tool_choice = { type: 'tool', name: request.tools?.[0]?.name };
-      } else if (request.toolChoice === 'none') {
-        // Don't include tools if none
-        delete anthropicRequest.tools;
-      } else if (request.toolChoice === 'auto') {
-        anthropicRequest.tool_choice = { type: 'auto' };
-      } else if (typeof request.toolChoice === 'object' && 'name' in request.toolChoice) {
-        anthropicRequest.tool_choice = {
-          type: 'tool',
-          name: request.toolChoice.name,
-        };
+      switch (request.toolChoice) {
+        case 'required': {
+          anthropicRequest.tool_choice = { type: 'tool', name: request.tools?.[0]?.name };
+
+          break;
+        }
+        case 'none': {
+          // Don't include tools if none
+          delete anthropicRequest.tools;
+
+          break;
+        }
+        case 'auto': {
+          anthropicRequest.tool_choice = { type: 'auto' };
+
+          break;
+        }
+        default:
+          if (typeof request.toolChoice === 'object' && 'name' in request.toolChoice) {
+            anthropicRequest.tool_choice = {
+              type: 'tool',
+              name: request.toolChoice.name,
+            };
+          }
       }
     }
 
@@ -508,16 +551,27 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
     // Process content blocks
     for (const block of response.content) {
-      if (block.type === 'text') {
-        content += block.text;
-      } else if (block.type === 'thinking') {
-        thinking += block.text;
-      } else if (block.type === 'tool_use') {
-        toolCalls.push({
-          id: block.id,
-          name: block.name,
-          arguments: block.input,
-        });
+      switch (block.type) {
+        case 'text': {
+          content += block.text;
+
+          break;
+        }
+        case 'thinking': {
+          thinking += block.text;
+
+          break;
+        }
+        case 'tool_use': {
+          toolCalls.push({
+            id: block.id,
+            name: block.name,
+            arguments: block.input,
+          });
+
+          break;
+        }
+        // No default
       }
     }
 

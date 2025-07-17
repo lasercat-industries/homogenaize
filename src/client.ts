@@ -10,8 +10,7 @@ import type {
   AnthropicChatRequest,
   GeminiChatRequest,
 } from './providers/types';
-import type { Message } from './providers/provider';
-import type { Tool, ToolCall } from './providers/provider';
+import type { Message, Tool, ToolCall } from './providers/provider';
 import type { RetryConfig } from './retry/types';
 import { OpenAIProvider } from './providers/openai';
 import { AnthropicProvider } from './providers/anthropic';
