@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import type {
   ProviderName,
-  ProviderChatRequest,
   ProviderChatResponse,
   TypedProvider,
   ModelInfo,
   ProviderModels,
+  ProviderRequestMap,
   OpenAIChatRequest,
   AnthropicChatRequest,
   GeminiChatRequest,
@@ -63,15 +63,16 @@ export interface BaseChatOptions<T = string> {
   toolChoice?: 'auto' | 'required' | 'none' | { name: string };
 }
 
+// Mapped type for provider features - eliminates deep conditional recursion
+export interface ProviderFeatureMap {
+  openai: OpenAIChatRequest['features'];
+  anthropic: AnthropicChatRequest['features'];
+  gemini: GeminiChatRequest['features'];
+}
+
 // Provider-specific chat options
 export type ChatOptions<P extends ProviderName = ProviderName, T = string> = BaseChatOptions<T> & {
-  features?: P extends 'openai'
-    ? OpenAIChatRequest['features']
-    : P extends 'anthropic'
-      ? AnthropicChatRequest['features']
-      : P extends 'gemini'
-        ? GeminiChatRequest['features']
-        : never;
+  features?: ProviderFeatureMap[P];
 };
 
 export type StreamOptions<P extends ProviderName = ProviderName, T = string> = ChatOptions<P, T>;
@@ -124,7 +125,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       throw new Error(`Provider ${this.provider} not implemented yet`);
     }
 
-    const request: ProviderChatRequest<P> = {
+    const request: ProviderRequestMap[P] = {
       messages: options.messages,
       temperature: options.temperature ?? this.defaultOptions?.temperature,
       maxTokens: options.maxTokens ?? this.defaultOptions?.maxTokens,
@@ -134,7 +135,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       toolChoice: options.toolChoice,
       features: options.features,
       model: this.model,
-    } as ProviderChatRequest<P>;
+    } as ProviderRequestMap[P];
 
     const response = await this.providerImpl.chat<T>(request);
 
@@ -151,7 +152,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       throw new Error(`Provider ${this.provider} not implemented yet`);
     }
 
-    const request: ProviderChatRequest<P> = {
+    const request: ProviderRequestMap[P] = {
       messages: options.messages,
       temperature: options.temperature ?? this.defaultOptions?.temperature,
       maxTokens: options.maxTokens ?? this.defaultOptions?.maxTokens,
@@ -161,7 +162,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       toolChoice: options.toolChoice,
       features: options.features,
       model: this.model,
-    } as ProviderChatRequest<P>;
+    } as ProviderRequestMap[P];
 
     return this.providerImpl.stream(request);
   }

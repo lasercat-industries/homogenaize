@@ -47,14 +47,14 @@ export interface GeminiChatRequest extends ChatRequest {
   };
 }
 
-// Union type for all provider requests
-export type ProviderChatRequest<P extends ProviderName> = P extends 'openai'
-  ? OpenAIChatRequest
-  : P extends 'anthropic'
-    ? AnthropicChatRequest
-    : P extends 'gemini'
-      ? GeminiChatRequest
-      : never;
+// Mapped type for provider requests - eliminates deep conditional recursion
+export interface ProviderRequestMap {
+  openai: OpenAIChatRequest;
+  anthropic: AnthropicChatRequest;
+  gemini: GeminiChatRequest;
+}
+
+export type ProviderChatRequest<P extends ProviderName> = ProviderRequestMap[P];
 
 // Extended response type with provider-specific fields
 export interface OpenAIChatResponse<T = string> extends ChatResponse<T> {
@@ -90,24 +90,24 @@ export interface GeminiChatResponse<T = string> extends ChatResponse<T> {
   };
 }
 
-// Union type for all provider responses
-export type ProviderChatResponse<P extends ProviderName, T = string> = P extends 'openai'
-  ? OpenAIChatResponse<T>
-  : P extends 'anthropic'
-    ? AnthropicChatResponse<T>
-    : P extends 'gemini'
-      ? GeminiChatResponse<T>
-      : never;
+// Mapped type for provider responses - eliminates deep conditional recursion
+export interface ProviderResponseMap<T = string> {
+  openai: OpenAIChatResponse<T>;
+  anthropic: AnthropicChatResponse<T>;
+  gemini: GeminiChatResponse<T>;
+}
 
-// Provider with specific type
-export interface TypedProvider<P extends ProviderName> extends Provider {
+export type ProviderChatResponse<P extends ProviderName, T = string> = ProviderResponseMap<T>[P];
+
+// Provider with specific type - uses mapped types for better performance
+export interface TypedProvider<P extends ProviderName> extends Omit<Provider, 'chat' | 'stream'> {
   readonly name: P;
-  chat<T = string>(request: ProviderChatRequest<P>): Promise<ProviderChatResponse<P, T>>;
+  chat<T = string>(request: ProviderRequestMap[P]): Promise<ProviderResponseMap<T>[P]>;
   stream<T = string>(
-    request: ProviderChatRequest<P>,
+    request: ProviderRequestMap[P],
   ): Promise<{
     [Symbol.asyncIterator](): AsyncIterator<T>;
-    complete(): Promise<ProviderChatResponse<P, T>>;
+    complete(): Promise<ProviderResponseMap<T>[P]>;
   }>;
 }
 
