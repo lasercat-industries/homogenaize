@@ -15,5 +15,5 @@ export declare function retry<T>(fn: () => Promise<T>, config?: RetryConfig): Pr
 /**
  * Create a retryable version of a function
  */
-export declare function withRetry<T extends (...args: any[]) => Promise<any>>(fn: T, config?: RetryConfig): T;
+export declare function withRetry<T extends (...args: unknown[]) => Promise<unknown>>(fn: T, config?: RetryConfig): T;
 //# sourceMappingURL=retry.d.ts.map

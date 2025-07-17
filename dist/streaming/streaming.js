@@ -30,13 +30,13 @@ export class StreamingResponseHandler {
                 };
             }
         }
-        catch (parseError) {
+        catch {
             // JSON is incomplete, try partial parsing
             const partialData = this.parsePartialJSON(this.buffer);
             if (Object.keys(partialData).length > 0) {
                 return {
                     isComplete: false,
-                    partialData,
+                    partialData: partialData,
                     validationStatus: 'partial',
                 };
             }

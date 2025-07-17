@@ -15,7 +15,7 @@ export declare class LLMError extends Error {
  */
 export declare class ProviderError extends LLMError {
     attempt?: number;
-    context?: Record<string, any>;
+    context?: Record<string, unknown>;
     constructor(message: string, provider: string, model?: string, attempt?: number);
 }
 /**

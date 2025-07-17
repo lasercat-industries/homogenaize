@@ -1,7 +1,7 @@
 /**
  * Auto-generated model types
- * Generated on: 2025-07-17T19:10:53.800Z
- *
+ * Generated on: 2025-07-17T19:20:12.926Z
+ * 
  * DO NOT EDIT MANUALLY
  * Run 'bun run generate-model-types' to update
  */
@@ -153,6 +153,7 @@ export type GeminiModel =
   | 'aqa'
   | 'imagen-3.0-generate-002';
 
+
 export type AllProviderModels = OpenaiModel | AnthropicModel | GeminiModel;
 
 export const OPENAI_MODELS = [
@@ -238,7 +239,7 @@ export const OPENAI_MODELS = [
   'gpt-3.5-turbo-16k',
   'tts-1',
   'whisper-1',
-  'text-embedding-ada-002',
+  'text-embedding-ada-002'
 ] as const;
 
 export const ANTHROPIC_MODELS = [
@@ -249,7 +250,7 @@ export const ANTHROPIC_MODELS = [
   'claude-3-5-haiku-20241022',
   'claude-3-5-sonnet-20240620',
   'claude-3-haiku-20240307',
-  'claude-3-opus-20240229',
+  'claude-3-opus-20240229'
 ] as const;
 
 export const GEMINI_MODELS = [
@@ -302,5 +303,5 @@ export const GEMINI_MODELS = [
   'gemini-embedding-exp',
   'gemini-embedding-001',
   'aqa',
-  'imagen-3.0-generate-002',
+  'imagen-3.0-generate-002'
 ] as const;
