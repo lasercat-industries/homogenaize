@@ -1,0 +1,45 @@
+# Source files (only distribute built files)
+src/
+*.ts
+!dist/**/*.d.ts
+
+# Development files
+.gitignore
+.prettierrc
+tsconfig.json
+bun.lockb
+*.test.ts
+*.spec.ts
+
+# Documentation and project files
+CLAUDE.md
+memory-bank/
+specs/
+examples/
+docs/
+
+# Build artifacts
+*.map
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml

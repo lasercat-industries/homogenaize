@@ -146,3 +146,6 @@ bun.lockb
 *.swp
 *.swo
 .DS_Store
+
+# Build
+dist
