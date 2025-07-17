@@ -46,8 +46,8 @@
   },
   "homepage": "https://github.com/rylandgoldstein/homogenaize#readme",
   "scripts": {
-    "prebuild": "bun run clean && bun run generate-model-types && bunx tsc -p tsconfig.build.json --noEmit",
-    "build": "bun run scripts/build.ts",
+    "prebuild": "bun run clean && bun run generate-model-types",
+    "build": "bunx tsc -p tsconfig.build.json && bun run scripts/build.ts",
     "postbuild": "bun run build:validate",
     "build:analyze": "bun run build && bunx source-map-explorer dist/*.js",
     "build:check": "bun run build && bunx publint && bunx attw --pack",

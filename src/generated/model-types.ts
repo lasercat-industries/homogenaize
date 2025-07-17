@@ -1,6 +1,6 @@
 /**
  * Auto-generated model types
- * Generated on: 2025-07-17T19:20:12.926Z
+ * Generated on: 2025-07-17T20:40:36.271Z
  * 
  * DO NOT EDIT MANUALLY
  * Run 'bun run generate-model-types' to update
@@ -11,10 +11,10 @@ export type OpenaiModel =
   | 'gpt-4'
   | 'gpt-3.5-turbo'
   | 'o4-mini-deep-research-2025-06-26'
-  | 'o3-pro-2025-06-10'
+  | 'codex-mini-latest'
+  | 'gpt-4o-realtime-preview-2025-06-03'
+  | 'gpt-4o-audio-preview-2025-06-03'
   | 'o4-mini-deep-research'
-  | 'o3-deep-research'
-  | 'o3-deep-research-2025-06-26'
   | 'davinci-002'
   | 'babbage-002'
   | 'gpt-3.5-turbo-instruct'
@@ -71,9 +71,7 @@ export type OpenaiModel =
   | 'o1-pro-2025-03-19'
   | 'o1-pro'
   | 'gpt-4o-mini-tts'
-  | 'o3-2025-04-16'
   | 'o4-mini-2025-04-16'
-  | 'o3'
   | 'o4-mini'
   | 'gpt-4.1-2025-04-14'
   | 'gpt-4.1'
@@ -82,76 +80,16 @@ export type OpenaiModel =
   | 'gpt-4.1-nano-2025-04-14'
   | 'gpt-4.1-nano'
   | 'gpt-image-1'
-  | 'codex-mini-latest'
-  | 'o3-pro'
-  | 'gpt-4o-realtime-preview-2025-06-03'
-  | 'gpt-4o-audio-preview-2025-06-03'
   | 'gpt-3.5-turbo-16k'
   | 'tts-1'
   | 'whisper-1'
   | 'text-embedding-ada-002';
 
-export type AnthropicModel =
-  | 'claude-opus-4-20250514'
-  | 'claude-sonnet-4-20250514'
-  | 'claude-3-7-sonnet-20250219'
-  | 'claude-3-5-sonnet-20241022'
-  | 'claude-3-5-haiku-20241022'
-  | 'claude-3-5-sonnet-20240620'
-  | 'claude-3-haiku-20240307'
-  | 'claude-3-opus-20240229';
+// anthropic: No API key found. Set ANTHROPIC_API_KEY environment variable.
+export type AnthropicModel = string;
 
-export type GeminiModel =
-  | 'embedding-gecko-001'
-  | 'gemini-1.0-pro-vision-latest'
-  | 'gemini-pro-vision'
-  | 'gemini-1.5-pro-latest'
-  | 'gemini-1.5-pro-002'
-  | 'gemini-1.5-pro'
-  | 'gemini-1.5-flash-latest'
-  | 'gemini-1.5-flash'
-  | 'gemini-1.5-flash-002'
-  | 'gemini-1.5-flash-8b'
-  | 'gemini-1.5-flash-8b-001'
-  | 'gemini-1.5-flash-8b-latest'
-  | 'gemini-2.5-pro-preview-03-25'
-  | 'gemini-2.5-flash-preview-05-20'
-  | 'gemini-2.5-flash'
-  | 'gemini-2.5-flash-lite-preview-06-17'
-  | 'gemini-2.5-pro-preview-05-06'
-  | 'gemini-2.5-pro-preview-06-05'
-  | 'gemini-2.5-pro'
-  | 'gemini-2.0-flash-exp'
-  | 'gemini-2.0-flash'
-  | 'gemini-2.0-flash-001'
-  | 'gemini-2.0-flash-exp-image-generation'
-  | 'gemini-2.0-flash-lite-001'
-  | 'gemini-2.0-flash-lite'
-  | 'gemini-2.0-flash-preview-image-generation'
-  | 'gemini-2.0-flash-lite-preview-02-05'
-  | 'gemini-2.0-flash-lite-preview'
-  | 'gemini-2.0-pro-exp'
-  | 'gemini-2.0-pro-exp-02-05'
-  | 'gemini-exp-1206'
-  | 'gemini-2.0-flash-thinking-exp-01-21'
-  | 'gemini-2.0-flash-thinking-exp'
-  | 'gemini-2.0-flash-thinking-exp-1219'
-  | 'gemini-2.5-flash-preview-tts'
-  | 'gemini-2.5-pro-preview-tts'
-  | 'learnlm-2.0-flash-experimental'
-  | 'gemma-3-1b-it'
-  | 'gemma-3-4b-it'
-  | 'gemma-3-12b-it'
-  | 'gemma-3-27b-it'
-  | 'gemma-3n-e4b-it'
-  | 'gemma-3n-e2b-it'
-  | 'embedding-001'
-  | 'text-embedding-004'
-  | 'gemini-embedding-exp-03-07'
-  | 'gemini-embedding-exp'
-  | 'gemini-embedding-001'
-  | 'aqa'
-  | 'imagen-3.0-generate-002';
+// gemini: No API key found. Set GEMINI_API_KEY environment variable.
+export type GeminiModel = string;
 
 
 export type AllProviderModels = OpenaiModel | AnthropicModel | GeminiModel;
@@ -161,10 +99,10 @@ export const OPENAI_MODELS = [
   'gpt-4',
   'gpt-3.5-turbo',
   'o4-mini-deep-research-2025-06-26',
-  'o3-pro-2025-06-10',
+  'codex-mini-latest',
+  'gpt-4o-realtime-preview-2025-06-03',
+  'gpt-4o-audio-preview-2025-06-03',
   'o4-mini-deep-research',
-  'o3-deep-research',
-  'o3-deep-research-2025-06-26',
   'davinci-002',
   'babbage-002',
   'gpt-3.5-turbo-instruct',
@@ -221,9 +159,7 @@ export const OPENAI_MODELS = [
   'o1-pro-2025-03-19',
   'o1-pro',
   'gpt-4o-mini-tts',
-  'o3-2025-04-16',
   'o4-mini-2025-04-16',
-  'o3',
   'o4-mini',
   'gpt-4.1-2025-04-14',
   'gpt-4.1',
@@ -232,76 +168,12 @@ export const OPENAI_MODELS = [
   'gpt-4.1-nano-2025-04-14',
   'gpt-4.1-nano',
   'gpt-image-1',
-  'codex-mini-latest',
-  'o3-pro',
-  'gpt-4o-realtime-preview-2025-06-03',
-  'gpt-4o-audio-preview-2025-06-03',
   'gpt-3.5-turbo-16k',
   'tts-1',
   'whisper-1',
   'text-embedding-ada-002'
 ] as const;
 
-export const ANTHROPIC_MODELS = [
-  'claude-opus-4-20250514',
-  'claude-sonnet-4-20250514',
-  'claude-3-7-sonnet-20250219',
-  'claude-3-5-sonnet-20241022',
-  'claude-3-5-haiku-20241022',
-  'claude-3-5-sonnet-20240620',
-  'claude-3-haiku-20240307',
-  'claude-3-opus-20240229'
-] as const;
+export const ANTHROPIC_MODELS: readonly string[] = [];
 
-export const GEMINI_MODELS = [
-  'embedding-gecko-001',
-  'gemini-1.0-pro-vision-latest',
-  'gemini-pro-vision',
-  'gemini-1.5-pro-latest',
-  'gemini-1.5-pro-002',
-  'gemini-1.5-pro',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-002',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-flash-8b-001',
-  'gemini-1.5-flash-8b-latest',
-  'gemini-2.5-pro-preview-03-25',
-  'gemini-2.5-flash-preview-05-20',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite-preview-06-17',
-  'gemini-2.5-pro-preview-05-06',
-  'gemini-2.5-pro-preview-06-05',
-  'gemini-2.5-pro',
-  'gemini-2.0-flash-exp',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-001',
-  'gemini-2.0-flash-exp-image-generation',
-  'gemini-2.0-flash-lite-001',
-  'gemini-2.0-flash-lite',
-  'gemini-2.0-flash-preview-image-generation',
-  'gemini-2.0-flash-lite-preview-02-05',
-  'gemini-2.0-flash-lite-preview',
-  'gemini-2.0-pro-exp',
-  'gemini-2.0-pro-exp-02-05',
-  'gemini-exp-1206',
-  'gemini-2.0-flash-thinking-exp-01-21',
-  'gemini-2.0-flash-thinking-exp',
-  'gemini-2.0-flash-thinking-exp-1219',
-  'gemini-2.5-flash-preview-tts',
-  'gemini-2.5-pro-preview-tts',
-  'learnlm-2.0-flash-experimental',
-  'gemma-3-1b-it',
-  'gemma-3-4b-it',
-  'gemma-3-12b-it',
-  'gemma-3-27b-it',
-  'gemma-3n-e4b-it',
-  'gemma-3n-e2b-it',
-  'embedding-001',
-  'text-embedding-004',
-  'gemini-embedding-exp-03-07',
-  'gemini-embedding-exp',
-  'gemini-embedding-001',
-  'aqa',
-  'imagen-3.0-generate-002'
-] as const;
+export const GEMINI_MODELS: readonly string[] = [];
