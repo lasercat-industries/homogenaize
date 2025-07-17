@@ -28,7 +28,7 @@ export class LLMError extends Error {
  */
 export class ProviderError extends LLMError {
   public attempt?: number;
-  public context?: Record<string, any>;
+  public context?: Record<string, unknown>;
 
   constructor(message: string, provider: string, model?: string, attempt?: number) {
     super(message, undefined, provider, model);
@@ -101,7 +101,11 @@ export function isRetryableError(
   }
 
   // Check provider-specific error formats
-  const errorAny = error as any;
+  const errorAny = error as Error & {
+    status?: number;
+    code?: string;
+    response?: { status?: number };
+  };
 
   // OpenAI/Anthropic style
   if (errorAny.status && typeof errorAny.status === 'number') {

@@ -89,7 +89,7 @@ export async function retry<T>(fn: () => Promise<T>, config?: RetryConfig): Prom
 /**
  * Create a retryable version of a function
  */
-export function withRetry<T extends (...args: any[]) => Promise<any>>(
+export function withRetry<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   config?: RetryConfig,
 ): T {

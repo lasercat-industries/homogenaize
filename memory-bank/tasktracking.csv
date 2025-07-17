@@ -1,4 +1,4 @@
-id,name,status,dependson,spec
+2c486668-3d81-4e89-9e8f-3cd166ba0313,fix-eslint-issues,done,,20250117-1440-fix-eslint-issues.md
 550e8400-e29b-41d4-a716-446655440001,Implement task tracking CSV system,done,,20250110-1430-implement-task-tracking-csv.md
 550e8400-e29b-41d4-a716-446655440002,Update CLAUDE.md with task tracking rules,done,550e8400-e29b-41d4-a716-446655440001,20250110-1435-update-claude-md-task-tracking.md
 550e8400-e29b-41d4-a716-446655440003,Add date-timestamp to spec file naming convention,done,,20250110-1440-update-spec-naming-convention.md

@@ -45,14 +45,14 @@ export class StreamingResponseHandler<T> {
           })),
         };
       }
-    } catch (parseError: any) {
+    } catch {
       // JSON is incomplete, try partial parsing
       const partialData = this.parsePartialJSON(this.buffer);
 
       if (Object.keys(partialData).length > 0) {
         return {
           isComplete: false,
-          partialData,
+          partialData: partialData as Partial<T>,
           validationStatus: 'partial',
         };
       }
@@ -64,8 +64,8 @@ export class StreamingResponseHandler<T> {
     }
   }
 
-  private parsePartialJSON(str: string): any {
-    const result: any = {};
+  private parsePartialJSON(str: string): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
 
     // Extract key-value pairs, including incomplete ones
     // Match pattern: "key": "value" OR "key": "incomplete

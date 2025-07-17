@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { createOpenAILLM, createAnthropicLLM, createGeminiLLM } from '../src/client';
+import type { ModelInfo } from '../src/providers/provider';
 
 interface ProviderModels {
   provider: string;
@@ -14,7 +15,7 @@ interface ProviderModels {
 
 async function listModelsForProvider(
   provider: string,
-  createClient: (apiKey: string) => { listModels: () => Promise<any[]> },
+  createClient: (apiKey: string) => { listModels: () => Promise<ModelInfo[]> },
   apiKeyEnvVar: string,
 ): Promise<ProviderModels> {
   const apiKey = process.env[apiKeyEnvVar];
@@ -72,7 +73,7 @@ async function main() {
       acc[result.provider] = result.error ? { error: result.error } : result.models;
       return acc;
     },
-    {} as Record<string, any>,
+    {} as Record<string, { error: string } | ModelInfo[]>,
   );
 
   console.log(JSON.stringify(output, null, 2));

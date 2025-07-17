@@ -36,18 +36,18 @@ export interface ToolConfig<T extends z.ZodSchema> {
   name: string;
   description: string;
   schema: T;
-  execute: (params: z.infer<T>) => Promise<any>;
+  execute: (params: z.infer<T>) => Promise<unknown>;
 }
 
 // Tool with execution capability
 export interface ExecutableTool<T extends z.ZodSchema = z.ZodSchema> extends Tool {
-  execute: (params: z.infer<T>) => Promise<any>;
+  execute: (params: z.infer<T>) => Promise<unknown>;
 }
 
 // Tool execution result
 export interface ToolResult {
   toolCallId: string;
-  result: any;
+  result: unknown;
   error?: string;
 }
 

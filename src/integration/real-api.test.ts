@@ -130,7 +130,7 @@ describe('Real API Integration Tests', () => {
             }
             const result = eval(params.expression);
             return { result, expression: params.expression };
-          } catch (error) {
+          } catch {
             return { error: 'Failed to evaluate expression' };
           }
         },
@@ -148,7 +148,7 @@ describe('Real API Integration Tests', () => {
 
       const toolResults = await client.executeTools(response.toolCalls!);
       expect(toolResults[0]?.result).toHaveProperty('result');
-      expect(toolResults[0]?.result?.result).toBe(70);
+      expect((toolResults[0]?.result as { result?: number })?.result).toBe(70);
     });
 
     it('should handle OpenAI-specific features', async () => {
@@ -295,7 +295,7 @@ describe('Real API Integration Tests', () => {
             }
             const result = eval(params.expression);
             return { result, expression: params.expression };
-          } catch (error) {
+          } catch {
             return { error: 'Failed to evaluate expression' };
           }
         },
@@ -313,7 +313,7 @@ describe('Real API Integration Tests', () => {
 
       const toolResults = await client.executeTools(response.toolCalls!);
       expect(toolResults[0]?.result).toHaveProperty('result');
-      expect(toolResults[0]?.result?.result).toBe(70);
+      expect((toolResults[0]?.result as { result?: number })?.result).toBe(70);
     });
 
     it('should handle Anthropic-specific features', async () => {
@@ -390,8 +390,8 @@ describe('Real API Integration Tests', () => {
         for await (const chunk of stream) {
           chunks.push(chunk);
         }
-      } catch (error) {
-        console.error('Streaming error:', error);
+      } catch {
+        console.error('Streaming error occurred');
       }
 
       const complete = await stream.complete();
@@ -460,7 +460,7 @@ describe('Real API Integration Tests', () => {
             }
             const result = eval(params.expression);
             return { result, expression: params.expression };
-          } catch (error) {
+          } catch {
             return { error: 'Failed to evaluate expression' };
           }
         },
@@ -478,7 +478,7 @@ describe('Real API Integration Tests', () => {
 
       const toolResults = await client.executeTools(response.toolCalls!);
       expect(toolResults[0]?.result).toHaveProperty('result');
-      expect(toolResults[0]?.result?.result).toBe(70);
+      expect((toolResults[0]?.result as { result?: number })?.result).toBe(70);
     });
 
     it('should handle Gemini-specific features', async () => {

@@ -49,9 +49,6 @@ export type {
 // Type guard exports
 export { isOpenAIResponse, isAnthropicResponse, isGeminiResponse } from './providers/types';
 
-// Re-export zod for convenience
-export { z } from 'zod';
-
 // Model type exports
 export type {
   OpenaiModel,
