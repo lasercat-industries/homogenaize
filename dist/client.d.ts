@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { ProviderName, ProviderChatRequest, ProviderChatResponse, TypedProvider, ModelInfo, ProviderModels } from './providers/types';
-import type { Tool, ToolCall } from './providers/provider';
+import type { ProviderName, ProviderChatResponse, TypedProvider, ModelInfo, ProviderModels, OpenAIChatRequest, AnthropicChatRequest, GeminiChatRequest } from './providers/types';
+import type { Message, Tool, ToolCall } from './providers/provider';
 import type { RetryConfig } from './retry/types';
 export interface LLMConfig<P extends ProviderName> {
     provider: P;
@@ -29,8 +29,19 @@ export interface ToolResult {
     result: any;
     error?: string;
 }
-export type ChatOptions<P extends ProviderName = ProviderName, T = string> = Omit<ProviderChatRequest<P>, 'model'> & {
+export interface BaseChatOptions<T = string> {
+    messages: Message[];
+    temperature?: number;
+    maxTokens?: number;
+    stream?: boolean;
     schema?: z.ZodSchema<T>;
+    tools?: Tool[];
+    toolChoice?: 'auto' | 'required' | 'none' | {
+        name: string;
+    };
+}
+export type ChatOptions<P extends ProviderName = ProviderName, T = string> = BaseChatOptions<T> & {
+    features?: P extends 'openai' ? OpenAIChatRequest['features'] : P extends 'anthropic' ? AnthropicChatRequest['features'] : P extends 'gemini' ? GeminiChatRequest['features'] : never;
 };
 export type StreamOptions<P extends ProviderName = ProviderName, T = string> = ChatOptions<P, T>;
 export type DefineToolOptions<T extends z.ZodSchema = z.ZodSchema> = ToolConfig<T>;
@@ -59,12 +70,8 @@ export declare class LLMClientImpl<P extends ProviderName> implements LLMClient<
     private providerImpl?;
     private tools;
     constructor(provider: P, apiKey: string, model: ProviderModels[P], defaultOptions?: LLMConfig<P>['defaultOptions'], retry?: RetryConfig | undefined, providerImpl?: TypedProvider<P> | undefined);
-    chat<T = string>(options: Omit<ProviderChatRequest<P>, 'model'> & {
-        schema?: z.ZodSchema<T>;
-    }): Promise<ProviderChatResponse<P, T>>;
-    stream<T = string>(options: Omit<ProviderChatRequest<P>, 'model'> & {
-        schema?: z.ZodSchema<T>;
-    }): Promise<{
+    chat<T = string>(options: ChatOptions<P, T>): Promise<ProviderChatResponse<P, T>>;
+    stream<T = string>(options: StreamOptions<P, T>): Promise<{
         [Symbol.asyncIterator](): AsyncIterator<T>;
         complete(): Promise<ProviderChatResponse<P, T>>;
     }>;

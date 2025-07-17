@@ -10,7 +10,7 @@ function zodToGeminiSchema(schema) {
     }
     function processZodType(def) {
         switch (def.type) {
-            case 'string':
+            case 'string': {
                 const result = { type: 'string' };
                 // Check for format constraints
                 if (def.checks) {
@@ -39,30 +39,39 @@ function zodToGeminiSchema(schema) {
                     }
                 }
                 return result;
-            case 'number':
+            }
+            case 'number': {
                 const numResult = { type: 'number' };
                 // Check for number constraints
                 if (def.checks) {
                     for (const check of def.checks) {
                         const checkDef = check.def || check._def || check;
-                        if (checkDef.kind === 'int') {
-                            numResult.type = 'integer';
-                        }
-                        else if (checkDef.kind === 'min') {
-                            numResult.minimum = checkDef.value;
-                        }
-                        else if (checkDef.kind === 'max') {
-                            numResult.maximum = checkDef.value;
-                        }
-                        else if (checkDef.kind === 'multipleOf') {
-                            numResult.multipleOf = checkDef.value;
+                        switch (checkDef.kind) {
+                            case 'int': {
+                                numResult.type = 'integer';
+                                break;
+                            }
+                            case 'min': {
+                                numResult.minimum = checkDef.value;
+                                break;
+                            }
+                            case 'max': {
+                                numResult.maximum = checkDef.value;
+                                break;
+                            }
+                            case 'multipleOf': {
+                                numResult.multipleOf = checkDef.value;
+                                break;
+                            }
+                            // No default
                         }
                     }
                 }
                 return numResult;
+            }
             case 'boolean':
                 return { type: 'boolean' };
-            case 'array':
+            case 'array': {
                 const itemDef = def.valueType?._def ||
                     def.valueType?.def ||
                     def.valueType ||
@@ -71,26 +80,33 @@ function zodToGeminiSchema(schema) {
                     def.element;
                 const arrayResult = {
                     type: 'array',
-                    items: itemDef ? processZodType(itemDef) : { type: 'any' },
+                    items: itemDef ? processZodType(itemDef) : { type: 'string' },
                 };
                 // Check for array constraints
                 if (def.checks) {
                     for (const check of def.checks) {
                         const checkDef = check.def || check._def || check;
-                        if (checkDef.kind === 'min') {
-                            arrayResult.minItems = checkDef.value;
-                        }
-                        else if (checkDef.kind === 'max') {
-                            arrayResult.maxItems = checkDef.value;
-                        }
-                        else if (checkDef.kind === 'length') {
-                            arrayResult.minItems = checkDef.value;
-                            arrayResult.maxItems = checkDef.value;
+                        switch (checkDef.kind) {
+                            case 'min': {
+                                arrayResult.minItems = checkDef.value;
+                                break;
+                            }
+                            case 'max': {
+                                arrayResult.maxItems = checkDef.value;
+                                break;
+                            }
+                            case 'length': {
+                                arrayResult.minItems = checkDef.value;
+                                arrayResult.maxItems = checkDef.value;
+                                break;
+                            }
+                            // No default
                         }
                     }
                 }
                 return arrayResult;
-            case 'object':
+            }
+            case 'object': {
                 const properties = {};
                 const required = [];
                 // Access shape directly from def
@@ -109,9 +125,11 @@ function zodToGeminiSchema(schema) {
                     properties,
                     required: required.length > 0 ? required : undefined,
                 };
-            case 'optional':
+            }
+            case 'optional': {
                 const innerDef = def.innerType?._def || def.innerType?.def || def.innerType;
-                return innerDef ? processZodType(innerDef) : { type: 'any' };
+                return innerDef ? processZodType(innerDef) : { type: 'string' };
+            }
             case 'enum':
                 return {
                     type: 'string',
@@ -253,7 +271,7 @@ export class GeminiProvider {
             },
             async complete() {
                 // Drain any remaining content
-                for await (const _ of streamResponse) {
+                for await (const _chunk of streamResponse) {
                     // Just consume
                 }
                 let parsedContent;
@@ -350,20 +368,26 @@ export class GeminiProvider {
         }
         // Handle tool choice
         if (request.toolChoice) {
-            if (request.toolChoice === 'required') {
-                geminiRequest.toolConfig = {
-                    functionCallingConfig: { mode: 'ANY' },
-                };
-            }
-            else if (request.toolChoice === 'none') {
-                geminiRequest.toolConfig = {
-                    functionCallingConfig: { mode: 'NONE' },
-                };
-            }
-            else if (request.toolChoice === 'auto') {
-                geminiRequest.toolConfig = {
-                    functionCallingConfig: { mode: 'AUTO' },
-                };
+            switch (request.toolChoice) {
+                case 'required': {
+                    geminiRequest.toolConfig = {
+                        functionCallingConfig: { mode: 'ANY' },
+                    };
+                    break;
+                }
+                case 'none': {
+                    geminiRequest.toolConfig = {
+                        functionCallingConfig: { mode: 'NONE' },
+                    };
+                    break;
+                }
+                case 'auto': {
+                    geminiRequest.toolConfig = {
+                        functionCallingConfig: { mode: 'AUTO' },
+                    };
+                    break;
+                }
+                // No default
             }
         }
         return geminiRequest;

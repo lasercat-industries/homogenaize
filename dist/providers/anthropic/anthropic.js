@@ -16,7 +16,7 @@ function zodToAnthropicSchema(schema) {
                 return { type: 'number' };
             case 'boolean':
                 return { type: 'boolean' };
-            case 'array':
+            case 'array': {
                 const itemDef = def.valueType?._def ||
                     def.valueType?.def ||
                     def.valueType ||
@@ -27,7 +27,8 @@ function zodToAnthropicSchema(schema) {
                     type: 'array',
                     items: itemDef ? processZodType(itemDef) : { type: 'any' },
                 };
-            case 'object':
+            }
+            case 'object': {
                 const properties = {};
                 const required = [];
                 // Access shape directly from def
@@ -47,13 +48,15 @@ function zodToAnthropicSchema(schema) {
                     properties,
                     required: required.length > 0 ? required : undefined,
                 };
-            case 'optional':
+            }
+            case 'optional': {
                 const innerDef = def.innerType?._def || def.innerType?.def || def.innerType;
                 return innerDef ? processZodType(innerDef) : { type: 'any' };
+            }
             case 'enum':
                 return {
                     type: 'string',
-                    enum: def.values,
+                    enum: def.values || [],
                 };
             case 'literal':
                 return {
@@ -144,7 +147,7 @@ export class AnthropicProvider {
         let content = '';
         let usage = { input_tokens: 0, output_tokens: 0 };
         let model = '';
-        let finishReason;
+        let anthropicFinishReason;
         let currentToolUse = null;
         let toolUseInput = '';
         // let messageId = ''; // Not needed since id is not part of response type
@@ -169,13 +172,14 @@ export class AnthropicProvider {
                             try {
                                 const event = JSON.parse(data);
                                 switch (event.type) {
-                                    case 'message_start':
+                                    case 'message_start': {
                                         const msgStart = event;
                                         // messageId = msgStart.message.id;
                                         model = msgStart.message.model;
                                         usage.input_tokens = msgStart.message.usage.input_tokens;
                                         break;
-                                    case 'content_block_delta':
+                                    }
+                                    case 'content_block_delta': {
                                         const delta = event;
                                         if (delta.delta.type === 'text_delta') {
                                             const text = delta.delta.text;
@@ -185,26 +189,28 @@ export class AnthropicProvider {
                                                 yield text;
                                             }
                                         }
+                                        else if (event.delta?.type === 'input_json_delta' && currentToolUse) {
+                                            toolUseInput += event.delta.partial_json;
+                                        }
                                         break;
-                                    case 'message_delta':
+                                    }
+                                    case 'message_delta': {
                                         const msgDelta = event;
                                         usage.output_tokens = msgDelta.usage.output_tokens;
-                                        finishReason = msgDelta.delta.stop_reason;
+                                        anthropicFinishReason = msgDelta.delta.stop_reason;
                                         break;
-                                    case 'content_block_start':
+                                    }
+                                    case 'content_block_start': {
                                         if (event.content_block?.type === 'tool_use') {
                                             currentToolUse = event.content_block;
                                             toolUseInput = '';
                                         }
                                         break;
-                                    case 'content_block_delta':
-                                        if (event.delta?.type === 'input_json_delta' && currentToolUse) {
-                                            toolUseInput += event.delta.partial_json;
-                                        }
-                                        break;
+                                    }
+                                    // Duplicate case removed - handled in first content_block_delta case
                                 }
                             }
-                            catch (e) {
+                            catch {
                                 // Ignore parsing errors
                             }
                         }
@@ -213,7 +219,7 @@ export class AnthropicProvider {
             },
             async complete() {
                 // Drain any remaining content
-                for await (const _ of streamResponse) {
+                for await (const _chunk of streamResponse) {
                     // Just consume
                 }
                 let parsedContent;
@@ -241,6 +247,19 @@ export class AnthropicProvider {
                 else {
                     parsedContent = content;
                 }
+                // Map Anthropic finish reasons to standard ones
+                let finishReason;
+                if (anthropicFinishReason) {
+                    if (anthropicFinishReason === 'end_turn' || anthropicFinishReason === 'stop_sequence') {
+                        finishReason = 'stop';
+                    }
+                    else if (anthropicFinishReason === 'max_tokens') {
+                        finishReason = 'length';
+                    }
+                    else if (anthropicFinishReason === 'tool_use') {
+                        finishReason = 'tool_calls';
+                    }
+                }
                 return {
                     content: parsedContent,
                     usage: {
@@ -257,7 +276,8 @@ export class AnthropicProvider {
         return streamResponse;
     }
     supportsFeature(feature) {
-        return feature in this.capabilities && this.capabilities[feature] === true;
+        return (feature in this.capabilities &&
+            this.capabilities[feature] === true);
     }
     transformRequest(request) {
         // Extract system message if present
@@ -314,21 +334,27 @@ export class AnthropicProvider {
         }
         // Handle tool choice
         if (request.toolChoice) {
-            if (request.toolChoice === 'required') {
-                anthropicRequest.tool_choice = { type: 'tool', name: request.tools?.[0]?.name };
-            }
-            else if (request.toolChoice === 'none') {
-                // Don't include tools if none
-                delete anthropicRequest.tools;
-            }
-            else if (request.toolChoice === 'auto') {
-                anthropicRequest.tool_choice = { type: 'auto' };
-            }
-            else if (typeof request.toolChoice === 'object' && 'name' in request.toolChoice) {
-                anthropicRequest.tool_choice = {
-                    type: 'tool',
-                    name: request.toolChoice.name,
-                };
+            switch (request.toolChoice) {
+                case 'required': {
+                    anthropicRequest.tool_choice = { type: 'tool', name: request.tools?.[0]?.name };
+                    break;
+                }
+                case 'none': {
+                    // Don't include tools if none
+                    delete anthropicRequest.tools;
+                    break;
+                }
+                case 'auto': {
+                    anthropicRequest.tool_choice = { type: 'auto' };
+                    break;
+                }
+                default:
+                    if (typeof request.toolChoice === 'object' && 'name' in request.toolChoice) {
+                        anthropicRequest.tool_choice = {
+                            type: 'tool',
+                            name: request.toolChoice.name,
+                        };
+                    }
             }
         }
         return anthropicRequest;
@@ -359,18 +385,24 @@ export class AnthropicProvider {
         const toolCalls = [];
         // Process content blocks
         for (const block of response.content) {
-            if (block.type === 'text') {
-                content += block.text;
-            }
-            else if (block.type === 'thinking') {
-                thinking += block.text;
-            }
-            else if (block.type === 'tool_use') {
-                toolCalls.push({
-                    id: block.id,
-                    name: block.name,
-                    arguments: block.input,
-                });
+            switch (block.type) {
+                case 'text': {
+                    content += block.text;
+                    break;
+                }
+                case 'thinking': {
+                    thinking += block.text;
+                    break;
+                }
+                case 'tool_use': {
+                    toolCalls.push({
+                        id: block.id,
+                        name: block.name,
+                        arguments: block.input,
+                    });
+                    break;
+                }
+                // No default
             }
         }
         let parsedContent;

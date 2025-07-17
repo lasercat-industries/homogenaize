@@ -18,9 +18,14 @@ export class LLMClientImpl {
             throw new Error(`Provider ${this.provider} not implemented yet`);
         }
         const request = {
-            ...options,
+            messages: options.messages,
             temperature: options.temperature ?? this.defaultOptions?.temperature,
             maxTokens: options.maxTokens ?? this.defaultOptions?.maxTokens,
+            stream: options.stream,
+            schema: options.schema,
+            tools: options.tools,
+            toolChoice: options.toolChoice,
+            features: options.features,
             model: this.model,
         };
         const response = await this.providerImpl.chat(request);
@@ -31,9 +36,14 @@ export class LLMClientImpl {
             throw new Error(`Provider ${this.provider} not implemented yet`);
         }
         const request = {
-            ...options,
+            messages: options.messages,
             temperature: options.temperature ?? this.defaultOptions?.temperature,
             maxTokens: options.maxTokens ?? this.defaultOptions?.maxTokens,
+            stream: true,
+            schema: options.schema,
+            tools: options.tools,
+            toolChoice: options.toolChoice,
+            features: options.features,
             model: this.model,
         };
         return this.providerImpl.stream(request);

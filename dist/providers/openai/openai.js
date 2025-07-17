@@ -16,7 +16,7 @@ function zodToOpenAISchema(schema) {
                 return { type: 'number' };
             case 'boolean':
                 return { type: 'boolean' };
-            case 'array':
+            case 'array': {
                 const itemDef = def.valueType?._def ||
                     def.valueType?.def ||
                     def.valueType ||
@@ -25,16 +25,19 @@ function zodToOpenAISchema(schema) {
                     def.element;
                 return {
                     type: 'array',
-                    items: itemDef ? processZodType(itemDef) : { type: 'any' },
+                    items: itemDef ? processZodType(itemDef) : { type: 'string' },
                 };
-            case 'object':
+            }
+            case 'object': {
                 const properties = {};
                 const required = [];
                 // Access shape directly from def
                 const shape = def.shape || {};
                 for (const [key, value] of Object.entries(shape)) {
                     // Handle both Zod v3 and v4 - in v4, each field has its own _def
-                    const fieldDef = value._def || value.def || value;
+                    const fieldDef = value._def ||
+                        value.def ||
+                        value;
                     const fieldSchema = processZodType(fieldDef);
                     // Remove the __isOptional marker and use it to determine required fields
                     // const isOptional = fieldSchema.__isOptional;
@@ -50,12 +53,14 @@ function zodToOpenAISchema(schema) {
                     required: required.length > 0 ? required : undefined,
                     additionalProperties: false,
                 };
-            case 'optional':
+            }
+            case 'optional': {
                 // For OpenAI, we need to handle optional fields differently
                 // Return the inner type but mark that it's optional
                 const innerDef = def.innerType?._def || def.innerType?.def || def.innerType;
-                const innerType = innerDef ? processZodType(innerDef) : { type: 'any' };
+                const innerType = innerDef ? processZodType(innerDef) : { type: 'string' };
                 return { ...innerType, __isOptional: true };
+            }
             case 'enum':
                 return {
                     type: 'string',
@@ -160,7 +165,7 @@ export class OpenAIProvider {
         const decoder = new TextDecoder();
         let buffer = '';
         let content = '';
-        let usage;
+        let usage = {};
         let model = '';
         let finishReason;
         let toolCallArguments = '';
@@ -195,7 +200,14 @@ export class OpenAIProvider {
                                 if (chunk.choices[0]?.delta?.tool_calls) {
                                     for (const toolCallDelta of chunk.choices[0].delta.tool_calls) {
                                         if (toolCallDelta.id) {
-                                            currentToolCall = toolCallDelta;
+                                            currentToolCall = {
+                                                id: toolCallDelta.id,
+                                                type: 'function',
+                                                function: {
+                                                    name: toolCallDelta.function?.name || '',
+                                                    arguments: '',
+                                                },
+                                            };
                                             toolCallArguments = '';
                                         }
                                         if (toolCallDelta.function?.arguments) {
@@ -214,7 +226,7 @@ export class OpenAIProvider {
                                     finishReason = chunk.choices[0].finish_reason;
                                 }
                             }
-                            catch (e) {
+                            catch {
                                 // Ignore parsing errors
                             }
                         }
@@ -223,7 +235,7 @@ export class OpenAIProvider {
             },
             async complete() {
                 // Drain any remaining content
-                for await (const _ of streamResponse) {
+                for await (const _chunk of streamResponse) {
                     // Just consume
                 }
                 let parsedContent;
@@ -253,17 +265,11 @@ export class OpenAIProvider {
                 }
                 return {
                     content: parsedContent,
-                    usage: usage
-                        ? {
-                            inputTokens: usage.prompt_tokens,
-                            outputTokens: usage.completion_tokens,
-                            totalTokens: usage.total_tokens,
-                        }
-                        : {
-                            inputTokens: 0,
-                            outputTokens: 0,
-                            totalTokens: 0,
-                        },
+                    usage: {
+                        inputTokens: usage.prompt_tokens || 0,
+                        outputTokens: usage.completion_tokens || 0,
+                        totalTokens: usage.total_tokens || 0,
+                    },
                     model,
                     finishReason,
                 };
@@ -272,7 +278,8 @@ export class OpenAIProvider {
         return streamResponse;
     }
     supportsFeature(feature) {
-        return feature in this.capabilities && this.capabilities[feature] === true;
+        return (feature in this.capabilities &&
+            this.capabilities[feature] === true);
     }
     transformRequest(request) {
         const openAIRequest = {
@@ -328,20 +335,26 @@ export class OpenAIProvider {
         }
         // Handle tool choice
         if (request.toolChoice) {
-            if (request.toolChoice === 'required') {
-                openAIRequest.tool_choice = 'required';
-            }
-            else if (request.toolChoice === 'none') {
-                openAIRequest.tool_choice = 'none';
-            }
-            else if (request.toolChoice === 'auto') {
-                openAIRequest.tool_choice = 'auto';
-            }
-            else if (typeof request.toolChoice === 'object' && 'name' in request.toolChoice) {
-                openAIRequest.tool_choice = {
-                    type: 'function',
-                    function: { name: request.toolChoice.name },
-                };
+            switch (request.toolChoice) {
+                case 'required': {
+                    openAIRequest.tool_choice = 'required';
+                    break;
+                }
+                case 'none': {
+                    openAIRequest.tool_choice = 'none';
+                    break;
+                }
+                case 'auto': {
+                    openAIRequest.tool_choice = 'auto';
+                    break;
+                }
+                default:
+                    if (typeof request.toolChoice === 'object' && 'name' in request.toolChoice) {
+                        openAIRequest.tool_choice = {
+                            type: 'function',
+                            function: { name: request.toolChoice.name },
+                        };
+                    }
             }
         }
         return openAIRequest;
@@ -380,7 +393,7 @@ export class OpenAIProvider {
                     const parsed = JSON.parse(toolCall.function.arguments);
                     content = schema.parse(parsed);
                 }
-                catch (error) {
+                catch {
                     content = (message.content || '');
                 }
             }

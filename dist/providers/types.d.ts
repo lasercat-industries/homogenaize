@@ -7,8 +7,8 @@ export type ProviderModels = {
     anthropic: AnthropicModel;
     gemini: GeminiModel;
 };
-export interface ProviderFeatures {
-    openai: {
+export interface OpenAIChatRequest extends ChatRequest {
+    features?: {
         logprobs?: boolean;
         topLogprobs?: number;
         seed?: number;
@@ -17,12 +17,16 @@ export interface ProviderFeatures {
             json_schema?: unknown;
         };
     };
-    anthropic: {
+}
+export interface AnthropicChatRequest extends ChatRequest {
+    features?: {
         thinking?: boolean;
         cacheControl?: boolean;
         maxThinkingTokens?: number;
     };
-    gemini: {
+}
+export interface GeminiChatRequest extends ChatRequest {
+    features?: {
         safetySettings?: Array<{
             category: string;
             threshold: string;
@@ -35,45 +39,41 @@ export interface ProviderFeatures {
         };
     };
 }
-export interface ProviderResponses {
-    openai: {
-        logprobs?: Array<{
+export type ProviderChatRequest<P extends ProviderName> = P extends 'openai' ? OpenAIChatRequest : P extends 'anthropic' ? AnthropicChatRequest : P extends 'gemini' ? GeminiChatRequest : never;
+export interface OpenAIChatResponse<T = string> extends ChatResponse<T> {
+    logprobs?: Array<{
+        token: string;
+        logprob: number;
+        topLogprobs?: Array<{
             token: string;
             logprob: number;
-            topLogprobs?: Array<{
-                token: string;
-                logprob: number;
-            }>;
         }>;
-        systemFingerprint?: string;
+    }>;
+    systemFingerprint?: string;
+}
+export interface AnthropicChatResponse<T = string> extends ChatResponse<T> {
+    thinking?: string;
+    cacheInfo?: {
+        cacheCreationInputTokens?: number;
+        cacheReadInputTokens?: number;
     };
-    anthropic: {
-        thinking?: string;
-        cacheInfo?: {
-            cacheCreationInputTokens?: number;
-            cacheReadInputTokens?: number;
-        };
-        stopReason?: string;
-    };
-    gemini: {
-        safetyRatings?: Array<{
-            category: string;
-            probability: string;
+    stopReason?: string;
+}
+export interface GeminiChatResponse<T = string> extends ChatResponse<T> {
+    safetyRatings?: Array<{
+        category: string;
+        probability: string;
+    }>;
+    citationMetadata?: {
+        citations: Array<{
+            startIndex?: number;
+            endIndex?: number;
+            uri?: string;
+            license?: string;
         }>;
-        citationMetadata?: {
-            citations: Array<{
-                startIndex?: number;
-                endIndex?: number;
-                uri?: string;
-                license?: string;
-            }>;
-        };
     };
 }
-export interface ProviderChatRequest<P extends ProviderName> extends ChatRequest {
-    features?: ProviderFeatures[P];
-}
-export type ProviderChatResponse<P extends ProviderName, T = string> = ChatResponse<T> & ProviderResponses[P];
+export type ProviderChatResponse<P extends ProviderName, T = string> = P extends 'openai' ? OpenAIChatResponse<T> : P extends 'anthropic' ? AnthropicChatResponse<T> : P extends 'gemini' ? GeminiChatResponse<T> : never;
 export interface TypedProvider<P extends ProviderName> extends Provider {
     readonly name: P;
     chat<T = string>(request: ProviderChatRequest<P>): Promise<ProviderChatResponse<P, T>>;
@@ -82,7 +82,7 @@ export interface TypedProvider<P extends ProviderName> extends Provider {
         complete(): Promise<ProviderChatResponse<P, T>>;
     }>;
 }
-export declare function isOpenAIResponse<T>(_response: ChatResponse<T>, provider: ProviderName): _response is ProviderChatResponse<'openai', T>;
-export declare function isAnthropicResponse<T>(_response: ChatResponse<T>, provider: ProviderName): _response is ProviderChatResponse<'anthropic', T>;
-export declare function isGeminiResponse<T>(_response: ChatResponse<T>, provider: ProviderName): _response is ProviderChatResponse<'gemini', T>;
+export declare function isOpenAIResponse<T>(_response: ChatResponse<T>, provider: ProviderName): _response is OpenAIChatResponse<T>;
+export declare function isAnthropicResponse<T>(_response: ChatResponse<T>, provider: ProviderName): _response is AnthropicChatResponse<T>;
+export declare function isGeminiResponse<T>(_response: ChatResponse<T>, provider: ProviderName): _response is GeminiChatResponse<T>;
 //# sourceMappingURL=types.d.ts.map
