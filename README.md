@@ -153,6 +153,14 @@ const response = await client.chat({
 if (response.toolCalls) {
   const results = await client.executeTools(response.toolCalls);
   console.log('Tool results:', results);
+  // Example result:
+  // [
+  //   {
+  //     toolCallId: 'call-123',
+  //     toolName: 'get_weather',
+  //     result: { temperature: 22, condition: 'sunny', location: 'Paris' }
+  //   }
+  // ]
 }
 ```
 
@@ -444,6 +452,14 @@ client.defineTool(config: {
 
 // Execute tool calls
 client.executeTools(toolCalls: ToolCall[]): Promise<ToolResult[]>
+
+// ToolResult interface
+interface ToolResult {
+  toolCallId: string;
+  toolName: string;
+  result: unknown;
+  error?: string;
+}
 ```
 
 ## Environment Variables

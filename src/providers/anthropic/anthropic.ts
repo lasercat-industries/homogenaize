@@ -362,6 +362,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
       async complete(): Promise<ProviderChatResponse<'anthropic', T>> {
         // Drain any remaining content
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for await (const _chunk of streamResponse) {
           // Just consume
         }
@@ -394,12 +395,17 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         // Map Anthropic finish reasons to standard ones
         let finishReason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | undefined;
         if (anthropicFinishReason) {
-          if (anthropicFinishReason === 'end_turn' || anthropicFinishReason === 'stop_sequence') {
-            finishReason = 'stop';
-          } else if (anthropicFinishReason === 'max_tokens') {
-            finishReason = 'length';
-          } else if (anthropicFinishReason === 'tool_use') {
-            finishReason = 'tool_calls';
+          switch (anthropicFinishReason) {
+            case 'end_turn':
+            case 'stop_sequence':
+              finishReason = 'stop';
+              break;
+            case 'max_tokens':
+              finishReason = 'length';
+              break;
+            case 'tool_use':
+              finishReason = 'tool_calls';
+              break;
           }
         }
 

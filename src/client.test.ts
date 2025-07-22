@@ -156,6 +156,7 @@ describe('LLM Client', () => {
       async executeTools(toolCalls: any[]) {
         return toolCalls.map((call) => ({
           toolCallId: call.id,
+          toolName: call.name,
           result: { mock: 'result' },
         }));
       }
@@ -205,6 +206,29 @@ describe('LLM Client', () => {
 
       expect(tool.name).toBe('get_weather');
       expect(tool.description).toBe('Get weather');
+    });
+
+    it('should include tool name in executeTools results', async () => {
+      const client = new MockLLMClient('openai', 'test-key', 'gpt-4');
+
+      const toolCalls = [
+        { id: 'call-1', name: 'calculator', arguments: { a: 5, b: 3 } },
+        { id: 'call-2', name: 'weather', arguments: { location: 'NYC' } },
+      ];
+
+      const results = await client.executeTools(toolCalls);
+
+      expect(results).toHaveLength(2);
+      expect(results[0]).toMatchObject({
+        toolCallId: 'call-1',
+        toolName: 'calculator',
+        result: { mock: 'result' },
+      });
+      expect(results[1]).toMatchObject({
+        toolCallId: 'call-2',
+        toolName: 'weather',
+        result: { mock: 'result' },
+      });
     });
   });
 });

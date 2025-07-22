@@ -385,7 +385,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
               if (data.usageMetadata) {
                 usage = data.usageMetadata;
               }
-            } catch (e) {
+            } catch {
               // Ignore parsing errors
             }
           }
@@ -394,6 +394,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
 
       async complete(): Promise<ProviderChatResponse<'gemini', T>> {
         // Drain any remaining content
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for await (const _chunk of streamResponse) {
           // Just consume
         }

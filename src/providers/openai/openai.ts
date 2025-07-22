@@ -407,6 +407,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
       async complete(): Promise<ProviderChatResponse<'openai', T>> {
         // Drain any remaining content
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for await (const _chunk of streamResponse) {
           // Just consume
         }

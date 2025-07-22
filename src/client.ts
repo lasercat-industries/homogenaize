@@ -47,6 +47,7 @@ export interface ExecutableTool<T extends z.ZodSchema = z.ZodSchema> extends Too
 // Tool execution result
 export interface ToolResult {
   toolCallId: string;
+  toolName: string;
   result: unknown;
   error?: string;
 }
@@ -185,6 +186,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       if (!tool) {
         results.push({
           toolCallId: call.id,
+          toolName: call.name,
           result: null,
           error: `Tool ${call.name} not found`,
         });
@@ -196,11 +198,13 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
         const result = await tool.execute(params);
         results.push({
           toolCallId: call.id,
+          toolName: call.name,
           result,
         });
       } catch (error) {
         results.push({
           toolCallId: call.id,
+          toolName: call.name,
           result: null,
           error: error instanceof Error ? error.message : String(error),
         });
