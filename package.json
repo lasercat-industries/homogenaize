@@ -1,6 +1,6 @@
 {
   "name": "@lasercat/homogenaize",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A TypeScript-native library that provides a unified interface for multiple LLM providers (OpenAI, Anthropic, Gemini)",
   "author": "Ryland Goldstein",
   "license": "MIT",
@@ -46,7 +46,7 @@
   },
   "homepage": "https://github.com/rylandgoldstein/homogenaize#readme",
   "scripts": {
-    "prebuild": "bun run clean && bun run generate-model-types",
+    "prebuild": "bun run clean && ([ \"$DONT_GEN_MODEL_TYPES\" = \"true\" ] || bun run generate-model-types)",
     "build": "bunx tsc -p tsconfig.build.json && bun run scripts/build.ts",
     "postbuild": "bun run build:validate",
     "build:analyze": "bun run build && bunx source-map-explorer dist/*.js",

@@ -33,6 +33,8 @@ jobs:
       id: build
       if: success()
       run: bun run build
+      env:
+        DONT_GEN_MODEL_TYPES: true
     
     - name: Run tests (attempt 1)
       id: test1
@@ -96,4 +98,5 @@ jobs:
       if: steps.tests_passed.outputs.tests_passed == 'true' && steps.version_check.outputs.version_changed == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
       env:
         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        DONT_GEN_MODEL_TYPES: true
       run: npm publish --access public
