@@ -54,8 +54,8 @@
     "build:size": "bun run build && bunx size-limit",
     "build:validate": "bun -e 'import(\"./dist/index.js\").then(() => console.log(\"✅ ESM import works\"))'",
     "clean": "bun run scripts/clean.ts",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path ./node_modules/@lasercat/config/.prettierignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path ./node_modules/@lasercat/config/.prettierignore",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "list-models": "bun run scripts/list-models.ts",
@@ -65,6 +65,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
+    "@lasercat/config": "^1.2.3",
     "@types/bun": "latest",
     "@types/node": "^24.0.13",
     "dotenv": "^17.2.0",
@@ -77,12 +78,13 @@
     "eslint-plugin-security": "^3.0.1",
     "eslint-plugin-unicorn": "^59.0.1",
     "eslint-plugin-unused-imports": "^4.1.4",
-    "typescript-eslint": "^8.36.0",
     "prettier": "^3.6.2",
+    "typescript-eslint": "^8.36.0",
     "uuid-mcp": "^1.0.0",
     "zod": "^4.0.0",
     "zod-to-json-schema": "^3.24.6"
   },
+  "prettier": "@lasercat/config/.prettierrc.json",
   "peerDependencies": {
     "typescript": "^5.8.3"
   }
