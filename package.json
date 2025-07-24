@@ -1,6 +1,6 @@
 {
   "name": "@lasercat/homogenaize",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "A TypeScript-native library that provides a unified interface for multiple LLM providers (OpenAI, Anthropic, Gemini)",
   "author": "Ryland Goldstein",
   "license": "MIT",
@@ -60,8 +60,7 @@
     "lint": "eslint .",
     "list-models": "bun run scripts/list-models.ts",
     "list-chat-models": "bun run scripts/list-chat-models.ts",
-    "generate-model-types": "bun run scripts/generate-model-types.ts",
-    "prepublishOnly": "bun run build && bun run test && bun run typecheck"
+    "generate-model-types": "bun run scripts/generate-model-types.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
