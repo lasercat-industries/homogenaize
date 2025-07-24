@@ -4,6 +4,8 @@ import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInf
 import type { RetryConfig } from '../../retry/types';
 import { retry } from '../../retry';
 import { LLMError } from '../../retry/errors';
+import type { ZodDef, ZodArrayDef, ZodObjectDef } from '../zod-types';
+import { getZodDef } from '../zod-types';
 
 type JSONSchemaType = {
   type: string;
@@ -121,14 +123,13 @@ interface OpenAIStreamChunk {
 
 // Helper to convert Zod schema to OpenAI-compatible JSON Schema
 function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
-  // Handle both Zod v3 and v4 structure
-  const zodType = schema._def || (schema as z.ZodTypeAny & { def?: unknown }).def;
+  const zodType = getZodDef(schema);
 
   if (!zodType) {
     throw new Error('Invalid Zod schema: missing _def property');
   }
 
-  function processZodType(def: any): JSONSchemaType {
+  function processZodType(def: ZodDef): JSONSchemaType {
     switch (def.type) {
       case 'string':
         return { type: 'string' };
@@ -137,39 +138,57 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
       case 'boolean':
         return { type: 'boolean' };
       case 'array': {
-        const itemDef =
-          def.valueType?._def ||
-          def.valueType?.def ||
-          def.valueType ||
-          def.element?._def ||
-          def.element?.def ||
-          def.element;
-        return {
+        const arrayDef = def as ZodArrayDef;
+        const itemDef = getZodDef(arrayDef.valueType) || getZodDef(arrayDef.element);
+        const arrayResult: JSONSchemaType = {
           type: 'array',
           items: itemDef ? processZodType(itemDef) : { type: 'string' },
         };
+
+        // Check for array constraints
+        if (arrayDef.checks) {
+          for (const check of arrayDef.checks) {
+            const checkDef = check.def || check._def || check;
+            if (!checkDef || typeof checkDef !== 'object') continue;
+
+            const checkObj = checkDef as { kind?: string; value?: unknown };
+            switch (checkObj.kind) {
+              case 'min':
+                arrayResult.minItems = checkObj.value as number;
+                break;
+              case 'max':
+                arrayResult.maxItems = checkObj.value as number;
+                break;
+              case 'length':
+                arrayResult.minItems = checkObj.value as number;
+                arrayResult.maxItems = checkObj.value as number;
+                break;
+            }
+          }
+        }
+
+        return arrayResult;
       }
       case 'object': {
+        const objectDef = def as ZodObjectDef;
         const properties: Record<string, JSONSchemaType> = {};
         const required: string[] = [];
 
         // Access shape directly from def
-        const shape = def.shape || {};
+        const shape = objectDef.shape || {};
         for (const [key, value] of Object.entries(shape)) {
-          // Handle both Zod v3 and v4 - in v4, each field has its own _def
-          const fieldDef =
-            (value as z.ZodTypeAny)._def ||
-            (value as z.ZodTypeAny & { def?: unknown }).def ||
-            value;
-          const fieldSchema = processZodType(fieldDef);
-          // Remove the __isOptional marker and use it to determine required fields
-          // const isOptional = fieldSchema.__isOptional;
-          delete fieldSchema.__isOptional;
-          properties[key] = fieldSchema;
+          const fieldDef = getZodDef(value);
+          if (fieldDef) {
+            const fieldSchema = processZodType(fieldDef);
+            // Remove the __isOptional marker and use it to determine required fields
+            // const isOptional = fieldSchema.__isOptional;
+            delete fieldSchema.__isOptional;
+            properties[key] = fieldSchema;
 
-          // OpenAI requires all fields to be in the required array, even optional ones
-          // For optional fields, we'll handle it differently in the API
-          required.push(key);
+            // OpenAI requires all fields to be in the required array, even optional ones
+            // For optional fields, we'll handle it differently in the API
+            required.push(key);
+          }
         }
 
         return {
@@ -182,20 +201,44 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
       case 'optional': {
         // For OpenAI, we need to handle optional fields differently
         // Return the inner type but mark that it's optional
-        const innerDef = def.innerType?._def || def.innerType?.def || def.innerType;
+        const optionalDef = def as {
+          type: 'optional';
+          innerType?: { _def?: ZodDef; def?: ZodDef };
+        };
+        const innerDef = getZodDef(optionalDef.innerType);
         const innerType = innerDef ? processZodType(innerDef) : { type: 'string' };
         return { ...innerType, __isOptional: true };
       }
-      case 'enum':
+      case 'enum': {
+        const enumDef = def as {
+          type: 'enum';
+          values?: unknown[];
+          entries?: Record<string, string>;
+          options?: unknown[];
+        };
+        let enumValues: unknown[] = [];
+
+        if (enumDef.values) {
+          enumValues = enumDef.values;
+        } else if (enumDef.options) {
+          enumValues = enumDef.options;
+        } else if (enumDef.entries) {
+          enumValues = Object.values(enumDef.entries);
+        }
+
         return {
           type: 'string',
-          enum: def.values,
+          enum: enumValues,
         };
-      case 'literal':
+      }
+      case 'literal': {
+        const literalDef = def as { type: 'literal'; value?: unknown };
+        const valueType = typeof literalDef.value;
         return {
-          type: typeof def.value,
-          const: def.value,
+          type: valueType === 'string' ? 'string' : valueType === 'number' ? 'number' : 'boolean',
+          const: literalDef.value,
         };
+      }
       default:
         // Fallback for unsupported types
         return { type: 'string' };
@@ -567,7 +610,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       .join('\n');
 
     return {
-      role: message.role as any,
+      role: message.role as 'system' | 'user' | 'assistant',
       content: textContent,
     };
   }

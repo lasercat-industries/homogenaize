@@ -4,6 +4,17 @@ import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInf
 import type { RetryConfig } from '../../retry/types';
 import { retry } from '../../retry';
 import { LLMError } from '../../retry/errors';
+import type {
+  ZodDef,
+  ZodArrayDef,
+  ZodObjectDef,
+  ZodOptionalDef,
+  ZodEnumDef,
+  ZodLiteralDef,
+} from '../zod-types';
+import { getZodDef } from '../zod-types';
+import { normalizeAnthropicFinishReason } from './anthropic-types';
+import type { AnthropicStopReason } from './anthropic-types';
 
 type JSONSchemaType = {
   type: string;
@@ -53,7 +64,7 @@ interface AnthropicResponse {
   role: 'assistant';
   model: string;
   content: AnthropicContent[];
-  stop_reason: 'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use';
+  stop_reason: AnthropicStopReason;
   stop_sequence: string | null;
   usage: {
     input_tokens: number;
@@ -100,14 +111,13 @@ interface MessageDeltaEvent {
 
 // Helper to convert Zod schema to Anthropic-compatible JSON Schema
 function zodToAnthropicSchema(schema: z.ZodSchema): JSONSchemaType {
-  // Handle both Zod v3 and v4 structure
-  const zodType = schema._def || (schema as z.ZodTypeAny & { def?: unknown }).def;
+  const zodType = getZodDef(schema);
 
   if (!zodType) {
     throw new Error('Invalid Zod schema: missing _def property');
   }
 
-  function processZodType(def: any): JSONSchemaType {
+  function processZodType(def: ZodDef): JSONSchemaType {
     switch (def.type) {
       case 'string':
         return { type: 'string' };
@@ -116,33 +126,30 @@ function zodToAnthropicSchema(schema: z.ZodSchema): JSONSchemaType {
       case 'boolean':
         return { type: 'boolean' };
       case 'array': {
-        const itemDef =
-          def.valueType?._def ||
-          def.valueType?.def ||
-          def.valueType ||
-          def.element?._def ||
-          def.element?.def ||
-          def.element;
+        const arrayDef = def as ZodArrayDef;
+        const itemDef = getZodDef(arrayDef.valueType) || getZodDef(arrayDef.element);
         return {
           type: 'array',
-          items: itemDef ? processZodType(itemDef) : { type: 'any' },
+          items: itemDef ? processZodType(itemDef) : { type: 'object', properties: {} },
         };
       }
       case 'object': {
+        const objectDef = def as ZodObjectDef;
         const properties: Record<string, JSONSchemaType> = {};
         const required: string[] = [];
 
         // Access shape directly from def
-        const shape = def.shape || {};
+        const shape = objectDef.shape || {};
         for (const [key, value] of Object.entries(shape)) {
-          // Handle both Zod v3 and v4 - in v4, each field has its own _def
-          const fieldDef = (value as any)._def || (value as any).def || value;
-          const fieldSchema = processZodType(fieldDef);
-          properties[key] = fieldSchema;
+          const fieldDef = getZodDef(value);
+          if (fieldDef) {
+            const fieldSchema = processZodType(fieldDef);
+            properties[key] = fieldSchema;
 
-          // Check if field is optional
-          if (fieldDef.type !== 'optional') {
-            required.push(key);
+            // Check if field is optional
+            if (fieldDef.type !== 'optional') {
+              required.push(key);
+            }
           }
         }
 
@@ -153,23 +160,28 @@ function zodToAnthropicSchema(schema: z.ZodSchema): JSONSchemaType {
         };
       }
       case 'optional': {
-        const innerDef =
-          (def as any).innerType?._def || (def as any).innerType?.def || (def as any).innerType;
-        return innerDef ? processZodType(innerDef) : { type: 'any' };
+        const optionalDef = def as ZodOptionalDef;
+        const innerDef = getZodDef(optionalDef.innerType);
+        return innerDef ? processZodType(innerDef) : { type: 'object', properties: {} };
       }
-      case 'enum':
+      case 'enum': {
+        const enumDef = def as ZodEnumDef;
         return {
           type: 'string',
-          enum: (def as any).values || [],
+          enum: enumDef.values || [],
         };
-      case 'literal':
+      }
+      case 'literal': {
+        const literalDef = def as ZodLiteralDef;
+        const valueType = typeof literalDef.value;
         return {
-          type: typeof def.value,
-          const: (def as any).value,
+          type: valueType === 'string' ? 'string' : valueType === 'number' ? 'number' : 'boolean',
+          const: literalDef.value,
         };
+      }
       default:
         // Fallback for unsupported types
-        return { type: 'string' };
+        return { type: 'object', properties: {} };
     }
   }
 
@@ -393,21 +405,9 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         }
 
         // Map Anthropic finish reasons to standard ones
-        let finishReason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | undefined;
-        if (anthropicFinishReason) {
-          switch (anthropicFinishReason) {
-            case 'end_turn':
-            case 'stop_sequence':
-              finishReason = 'stop';
-              break;
-            case 'max_tokens':
-              finishReason = 'length';
-              break;
-            case 'tool_use':
-              finishReason = 'tool_calls';
-              break;
-          }
-        }
+        const finishReason = anthropicFinishReason
+          ? normalizeAnthropicFinishReason(anthropicFinishReason)
+          : undefined;
 
         return {
           content: parsedContent,
@@ -610,21 +610,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       (response.usage.thinking_tokens || 0);
 
     // Normalize finish reason
-    let finishReason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | undefined;
-    switch (response.stop_reason) {
-      case 'end_turn':
-      case 'stop_sequence':
-        finishReason = 'stop';
-        break;
-      case 'max_tokens':
-        finishReason = 'length';
-        break;
-      case 'tool_use':
-        finishReason = 'tool_calls';
-        break;
-      default:
-        finishReason = response.stop_reason as any;
-    }
+    const finishReason = normalizeAnthropicFinishReason(response.stop_reason);
 
     const result: ProviderChatResponse<'anthropic', T> = {
       content: parsedContent,

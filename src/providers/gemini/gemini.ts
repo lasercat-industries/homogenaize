@@ -4,6 +4,17 @@ import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInf
 import { LLMError } from '../../retry/errors';
 import { retry } from '../../retry';
 import type { RetryConfig } from '../../retry/types';
+import type {
+  ZodDef,
+  ZodArrayDef,
+  ZodObjectDef,
+  ZodOptionalDef,
+  ZodEnumDef,
+  ZodLiteralDef,
+  ZodStringDef,
+  ZodNumberDef,
+} from '../zod-types';
+import { getZodDef } from '../zod-types';
 
 type JSONSchemaType = {
   type: string;
@@ -97,38 +108,41 @@ function normalizeGeminiFinishReason(
 
 // Helper to convert Zod schema to Gemini-compatible JSON Schema
 function zodToGeminiSchema(schema: z.ZodSchema): JSONSchemaType {
-  // Handle both Zod v3 and v4 structure
-  const zodType = schema._def || (schema as z.ZodTypeAny & { def?: unknown }).def;
+  const zodType = getZodDef(schema);
 
   if (!zodType) {
     throw new Error('Invalid Zod schema: missing _def property');
   }
 
-  function processZodType(def: any): JSONSchemaType {
+  function processZodType(def: ZodDef): JSONSchemaType {
     switch (def.type) {
       case 'string': {
+        const stringDef = def as ZodStringDef;
         const result: JSONSchemaType = { type: 'string' };
 
         // Check for format constraints
-        if (def.checks) {
-          for (const check of def.checks) {
+        if (stringDef.checks) {
+          for (const check of stringDef.checks) {
             // Handle both Zod v3 and v4 check structures
             const checkDef = check.def || check._def || check;
+            if (!checkDef || typeof checkDef !== 'object') continue;
 
-            if (checkDef.kind === 'uuid' || checkDef.format === 'uuid') {
+            const checkObj = checkDef as { kind?: string; format?: string; value?: unknown };
+
+            if (checkObj.kind === 'uuid' || checkObj.format === 'uuid') {
               // Gemini doesn't support 'uuid' format, use pattern instead
               result.pattern =
                 '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[4][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$';
-            } else if (checkDef.kind === 'email' || checkDef.format === 'email') {
+            } else if (checkObj.kind === 'email' || checkObj.format === 'email') {
               // Gemini doesn't support 'email' format, use pattern instead
               result.pattern = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$';
-            } else if (checkDef.kind === 'datetime' || checkDef.format === 'date-time') {
+            } else if (checkObj.kind === 'datetime' || checkObj.format === 'date-time') {
               // Gemini supports date-time format
               result.format = 'date-time';
-            } else if (checkDef.kind === 'min') {
-              result.minLength = checkDef.value;
-            } else if (checkDef.kind === 'max') {
-              result.maxLength = checkDef.value;
+            } else if (checkObj.kind === 'min') {
+              result.minLength = checkObj.value as number;
+            } else if (checkObj.kind === 'max') {
+              result.maxLength = checkObj.value as number;
             }
           }
         }
@@ -136,28 +150,32 @@ function zodToGeminiSchema(schema: z.ZodSchema): JSONSchemaType {
         return result;
       }
       case 'number': {
+        const numberDef = def as ZodNumberDef;
         const numResult: JSONSchemaType = { type: 'number' };
 
         // Check for number constraints
-        if (def.checks) {
-          for (const check of def.checks) {
+        if (numberDef.checks) {
+          for (const check of numberDef.checks) {
             const checkDef = check.def || check._def || check;
+            if (!checkDef || typeof checkDef !== 'object') continue;
 
-            switch (checkDef.kind) {
+            const checkObj = checkDef as { kind?: string; value?: unknown };
+
+            switch (checkObj.kind) {
               case 'int': {
                 numResult.type = 'integer';
                 break;
               }
               case 'min': {
-                numResult.minimum = checkDef.value;
+                numResult.minimum = checkObj.value as number;
                 break;
               }
               case 'max': {
-                numResult.maximum = checkDef.value;
+                numResult.maximum = checkObj.value as number;
                 break;
               }
               case 'multipleOf': {
-                numResult.multipleOf = checkDef.value;
+                numResult.multipleOf = checkObj.value as number;
                 break;
               }
               // No default
@@ -170,35 +188,33 @@ function zodToGeminiSchema(schema: z.ZodSchema): JSONSchemaType {
       case 'boolean':
         return { type: 'boolean' };
       case 'array': {
-        const itemDef =
-          def.valueType?._def ||
-          def.valueType?.def ||
-          def.valueType ||
-          def.element?._def ||
-          def.element?.def ||
-          def.element;
+        const arrayDef = def as ZodArrayDef;
+        const itemDef = getZodDef(arrayDef.valueType) || getZodDef(arrayDef.element);
         const arrayResult: JSONSchemaType = {
           type: 'array',
           items: itemDef ? processZodType(itemDef) : { type: 'string' },
         };
 
         // Check for array constraints
-        if (def.checks) {
-          for (const check of def.checks) {
+        if (arrayDef.checks) {
+          for (const check of arrayDef.checks) {
             const checkDef = check.def || check._def || check;
+            if (!checkDef || typeof checkDef !== 'object') continue;
 
-            switch (checkDef.kind) {
+            const checkObj = checkDef as { kind?: string; value?: unknown };
+
+            switch (checkObj.kind) {
               case 'min': {
-                arrayResult.minItems = checkDef.value;
+                arrayResult.minItems = checkObj.value as number;
                 break;
               }
               case 'max': {
-                arrayResult.maxItems = checkDef.value;
+                arrayResult.maxItems = checkObj.value as number;
                 break;
               }
               case 'length': {
-                arrayResult.minItems = checkDef.value;
-                arrayResult.maxItems = checkDef.value;
+                arrayResult.minItems = checkObj.value as number;
+                arrayResult.maxItems = checkObj.value as number;
                 break;
               }
               // No default
@@ -209,18 +225,20 @@ function zodToGeminiSchema(schema: z.ZodSchema): JSONSchemaType {
         return arrayResult;
       }
       case 'object': {
+        const objectDef = def as ZodObjectDef;
         const properties: Record<string, JSONSchemaType> = {};
         const required: string[] = [];
 
         // Access shape directly from def
-        const shape = def.shape || {};
+        const shape = objectDef.shape || {};
         for (const [key, value] of Object.entries(shape)) {
-          // Handle both Zod v3 and v4 - in v4, each field has its own _def
-          const fieldDef = (value as any)._def || (value as any).def || value;
-          properties[key] = processZodType(fieldDef);
-          // Check if field is optional
-          if (fieldDef.type !== 'optional') {
-            required.push(key);
+          const fieldDef = getZodDef(value);
+          if (fieldDef) {
+            properties[key] = processZodType(fieldDef);
+            // Check if field is optional
+            if (fieldDef.type !== 'optional') {
+              required.push(key);
+            }
           }
         }
 
@@ -231,19 +249,25 @@ function zodToGeminiSchema(schema: z.ZodSchema): JSONSchemaType {
         };
       }
       case 'optional': {
-        const innerDef = def.innerType?._def || def.innerType?.def || def.innerType;
+        const optionalDef = def as ZodOptionalDef;
+        const innerDef = getZodDef(optionalDef.innerType);
         return innerDef ? processZodType(innerDef) : { type: 'string' };
       }
-      case 'enum':
+      case 'enum': {
+        const enumDef = def as ZodEnumDef;
         return {
           type: 'string',
-          enum: def.values,
+          enum: enumDef.values || [],
         };
-      case 'literal':
+      }
+      case 'literal': {
+        const literalDef = def as ZodLiteralDef;
+        const valueType = typeof literalDef.value;
         return {
-          type: typeof def.value,
-          const: def.value,
+          type: valueType === 'string' ? 'string' : valueType === 'number' ? 'number' : 'boolean',
+          const: literalDef.value,
         };
+      }
       default:
         // Fallback for unsupported types
         return { type: 'string' };
@@ -437,7 +461,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
             totalTokens: usage.promptTokenCount + usage.candidatesTokenCount,
           },
           model,
-          finishReason: normalizeGeminiFinishReason(finishReason || '') || (finishReason as any),
+          finishReason: normalizeGeminiFinishReason(finishReason || ''),
         };
       },
     };
@@ -446,7 +470,10 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
   }
 
   supportsFeature(feature: string): boolean {
-    return feature in this.capabilities && (this.capabilities as any)[feature] === true;
+    return (
+      feature in this.capabilities &&
+      (this.capabilities as unknown as Record<string, boolean>)[feature] === true
+    );
   }
 
   private transformRequest(request: ProviderChatRequest<'gemini'>): GeminiRequest {
@@ -631,8 +658,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
             totalTokens: 0,
           },
       model,
-      finishReason:
-        normalizeGeminiFinishReason(candidate.finishReason) || (candidate.finishReason as any),
+      finishReason: normalizeGeminiFinishReason(candidate.finishReason),
     };
 
     // Only include tool calls if not using schema-based tool calling
