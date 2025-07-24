@@ -609,6 +609,23 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       response.usage.output_tokens +
       (response.usage.thinking_tokens || 0);
 
+    // Normalize finish reason
+    let finishReason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | undefined;
+    switch (response.stop_reason) {
+      case 'end_turn':
+      case 'stop_sequence':
+        finishReason = 'stop';
+        break;
+      case 'max_tokens':
+        finishReason = 'length';
+        break;
+      case 'tool_use':
+        finishReason = 'tool_calls';
+        break;
+      default:
+        finishReason = response.stop_reason as any;
+    }
+
     const result: ProviderChatResponse<'anthropic', T> = {
       content: parsedContent,
       usage: {
@@ -617,7 +634,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         totalTokens: totalTokens,
       },
       model: response.model,
-      finishReason: response.stop_reason as any,
+      finishReason,
       // id: response.id // Not part of the response type
     };
 

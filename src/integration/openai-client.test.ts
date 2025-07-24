@@ -10,7 +10,7 @@ global.fetch = mock() as any;
 
 describe('OpenAI Client Integration', () => {
   beforeEach(() => {
-    mock.restore();
+    (global.fetch as any).mockClear();
   });
 
   // Restore original fetch after all tests

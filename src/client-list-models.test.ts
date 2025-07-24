@@ -11,7 +11,6 @@ describe('Client List Models', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
-    mock.restore();
   });
 
   it('should list models through OpenAI client', async () => {

@@ -14,7 +14,7 @@ describe('Gemini Provider', () => {
 
   beforeEach(() => {
     provider = new GeminiProvider('test-api-key');
-    mock.restore();
+    (global.fetch as any).mockClear();
   });
 
   afterEach(() => {
@@ -82,7 +82,7 @@ describe('Gemini Provider', () => {
         outputTokens: 5,
         totalTokens: 15,
       });
-      expect(response.finishReason).toBe('STOP');
+      expect(response.finishReason).toBe('stop');
 
       // Check API call
       expect(global.fetch).toHaveBeenCalledWith(
@@ -177,7 +177,7 @@ describe('Gemini Provider', () => {
         schema,
       };
 
-      const response = await provider.chat(request);
+      const response = await provider.chat<z.infer<typeof schema>>(request);
 
       // Provider returns parsed content when schema is provided
       expect(response.content).toEqual({ name: 'John', age: 30, city: 'NYC' });
@@ -310,6 +310,7 @@ describe('Gemini Provider', () => {
         messages: [{ role: 'user', content: 'Hello' }],
       };
 
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await expect(provider.chat(request)).rejects.toThrow(
         'Gemini API error (400): Invalid request',
       );

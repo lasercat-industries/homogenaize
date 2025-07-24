@@ -171,6 +171,7 @@ describe('Client with Retry Configuration', () => {
       retry: retryConfig,
     });
 
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     await expect(
       client.chat({
         messages: [{ role: 'user', content: 'Test' }],

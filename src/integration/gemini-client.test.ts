@@ -10,7 +10,7 @@ global.fetch = mock() as any;
 
 describe('Gemini Client Integration', () => {
   beforeEach(() => {
-    mock.restore();
+    (global.fetch as any).mockClear();
   });
 
   // Restore original fetch after all tests
@@ -57,7 +57,7 @@ describe('Gemini Client Integration', () => {
 
     expect(response.content).toBe('Hello from Gemini!');
     expect(response.usage.totalTokens).toBe(30);
-    expect(response.finishReason).toBe('STOP');
+    expect(response.finishReason).toBe('stop');
 
     // Verify the API call
     const callBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);

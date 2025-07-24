@@ -77,6 +77,24 @@ interface GeminiResponse {
   };
 }
 
+// Helper to normalize Gemini finish reasons to standard format
+function normalizeGeminiFinishReason(
+  reason: string,
+): 'stop' | 'length' | 'tool_calls' | 'content_filter' | undefined {
+  switch (reason) {
+    case 'STOP':
+      return 'stop';
+    case 'MAX_TOKENS':
+      return 'length';
+    case 'SAFETY':
+    case 'RECITATION':
+    case 'PROHIBITED_CONTENT':
+      return 'content_filter';
+    default:
+      return undefined;
+  }
+}
+
 // Helper to convert Zod schema to Gemini-compatible JSON Schema
 function zodToGeminiSchema(schema: z.ZodSchema): JSONSchemaType {
   // Handle both Zod v3 and v4 structure
@@ -419,7 +437,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
             totalTokens: usage.promptTokenCount + usage.candidatesTokenCount,
           },
           model,
-          finishReason: finishReason as any,
+          finishReason: normalizeGeminiFinishReason(finishReason || '') || (finishReason as any),
         };
       },
     };
@@ -613,7 +631,8 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
             totalTokens: 0,
           },
       model,
-      finishReason: candidate.finishReason as any,
+      finishReason:
+        normalizeGeminiFinishReason(candidate.finishReason) || (candidate.finishReason as any),
     };
 
     // Only include tool calls if not using schema-based tool calling

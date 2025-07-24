@@ -14,7 +14,7 @@ describe('OpenAI Provider', () => {
 
   beforeEach(() => {
     provider = new OpenAIProvider('test-api-key');
-    mock.restore();
+    (global.fetch as any).mockClear();
   });
 
   afterEach(() => {
@@ -146,7 +146,7 @@ describe('OpenAI Provider', () => {
         json: async () => mockResponse,
       });
 
-      const response = await provider.chat({
+      const response = await provider.chat<z.infer<typeof schema>>({
         messages: [{ role: 'user', content: 'What is the capital of France?' }],
         schema,
       });
@@ -300,6 +300,7 @@ describe('OpenAI Provider', () => {
         }),
       });
 
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await expect(
         provider.chat({
           messages: [{ role: 'user', content: 'Hello' }],

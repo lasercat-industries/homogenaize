@@ -13,7 +13,6 @@ describe('List Models Functionality', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
-    mock.restore();
   });
 
   describe('OpenAI Provider', () => {
@@ -70,6 +69,7 @@ describe('List Models Functionality', () => {
       });
 
       const provider = new OpenAIProvider('invalid-key');
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await expect(provider.listModels()).rejects.toThrow('OpenAI API error');
     });
   });

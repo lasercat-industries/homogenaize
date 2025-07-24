@@ -309,7 +309,7 @@ describe('Real API Integration Tests', () => {
 
       expect(response.toolCalls).toBeDefined();
       expect(response.toolCalls!.length).toBeGreaterThan(0);
-      expect(response.finishReason).toBe('tool_use');
+      expect(response.finishReason).toBe('tool_calls');
 
       const toolResults = await client.executeTools(response.toolCalls!);
       expect(toolResults[0]?.result).toHaveProperty('result');
@@ -474,7 +474,7 @@ describe('Real API Integration Tests', () => {
 
       expect(response.toolCalls).toBeDefined();
       expect(response.toolCalls!.length).toBeGreaterThan(0);
-      expect(response.finishReason).toContain('STOP');
+      expect(response.finishReason).toContain('stop');
 
       const toolResults = await client.executeTools(response.toolCalls!);
       expect(toolResults[0]?.result).toHaveProperty('result');

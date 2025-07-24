@@ -14,7 +14,7 @@ describe('Anthropic Provider', () => {
 
   beforeEach(() => {
     provider = new AnthropicProvider('test-api-key');
-    mock.restore();
+    (global.fetch as any).mockClear();
   });
 
   afterEach(() => {
@@ -153,7 +153,7 @@ describe('Anthropic Provider', () => {
         schema,
       };
 
-      const response = await provider.chat(request);
+      const response = await provider.chat<z.infer<typeof schema>>(request);
 
       // Provider returns parsed content when schema is provided
       expect(response.content).toEqual({ name: 'John', age: 30, city: 'NYC' });
@@ -304,6 +304,7 @@ describe('Anthropic Provider', () => {
         messages: [{ role: 'user', content: 'Hello' }],
       };
 
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await expect(provider.chat(request)).rejects.toThrow(
         'Anthropic API error (400): Invalid request',
       );

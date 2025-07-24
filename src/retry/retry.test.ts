@@ -126,6 +126,7 @@ describe('Retry Infrastructure', () => {
         initialDelay: 10,
       };
 
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await expect(retry(mockFn, config)).rejects.toThrow('Server error');
       expect(mockFn).toHaveBeenCalledTimes(3); // Initial + 2 retries
     });
@@ -134,6 +135,7 @@ describe('Retry Infrastructure', () => {
       const error = new LLMError('Bad request', 400);
       const mockFn = mock().mockRejectedValue(error);
 
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await expect(retry(mockFn)).rejects.toThrow('Bad request');
       expect(mockFn).toHaveBeenCalledTimes(1);
     });
