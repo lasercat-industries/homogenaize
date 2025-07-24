@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import type { ProviderChatRequest, ProviderChatResponse, TypedProvider } from './types';
 import type { ChatResponse } from './provider';
 import { isOpenAIResponse, isAnthropicResponse } from './types';

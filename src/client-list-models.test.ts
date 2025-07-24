@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, mock } from 'bun:test';
 import { createOpenAILLM, createAnthropicLLM, createGeminiLLM } from './client';
 
 describe('Client List Models', () => {
@@ -6,12 +6,12 @@ describe('Client List Models', () => {
 
   beforeEach(() => {
     originalFetch = global.fetch;
-    global.fetch = vi.fn() as any;
+    global.fetch = mock() as any;
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
-    vi.clearAllMocks();
+    mock.restore();
   });
 
   it('should list models through OpenAI client', async () => {

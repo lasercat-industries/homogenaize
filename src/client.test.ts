@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 import type { LLMClient } from './client';
 import { createLLM, createOpenAILLM, createAnthropicLLM, createGeminiLLM } from './client';

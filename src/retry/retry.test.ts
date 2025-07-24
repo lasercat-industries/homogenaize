@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { calculateBackoff, withJitter, retry } from './retry';
 import type { RetryConfig } from './types';
 import { LLMError, isRetryableError } from './errors';
@@ -80,7 +80,7 @@ describe('Retry Infrastructure', () => {
 
   describe('retry', () => {
     it('should return result on first success', async () => {
-      const mockFn = vi.fn().mockResolvedValue('success');
+      const mockFn = mock().mockResolvedValue('success');
 
       const result = await retry(mockFn);
 
@@ -90,7 +90,7 @@ describe('Retry Infrastructure', () => {
 
     it('should retry on failure and eventually succeed', async () => {
       let callCount = 0;
-      const mockFn = vi.fn(() => {
+      const mockFn = mock(() => {
         callCount++;
         if (callCount === 1) {
           return Promise.reject(new LLMError('Server error', 500));
@@ -101,7 +101,7 @@ describe('Retry Infrastructure', () => {
         return Promise.resolve('success');
       });
 
-      const onRetry = vi.fn();
+      const onRetry = mock();
       const config: RetryConfig = {
         maxRetries: 3,
         initialDelay: 10, // Short delay for tests
@@ -119,7 +119,7 @@ describe('Retry Infrastructure', () => {
 
     it('should fail after max retries', async () => {
       const error = new LLMError('Server error', 500);
-      const mockFn = vi.fn().mockRejectedValue(error);
+      const mockFn = mock().mockRejectedValue(error);
 
       const config: RetryConfig = {
         maxRetries: 2,
@@ -132,7 +132,7 @@ describe('Retry Infrastructure', () => {
 
     it('should not retry non-retryable errors', async () => {
       const error = new LLMError('Bad request', 400);
-      const mockFn = vi.fn().mockRejectedValue(error);
+      const mockFn = mock().mockRejectedValue(error);
 
       await expect(retry(mockFn)).rejects.toThrow('Bad request');
       expect(mockFn).toHaveBeenCalledTimes(1);
@@ -141,7 +141,7 @@ describe('Retry Infrastructure', () => {
     it('should respect Retry-After header', async () => {
       const error = new LLMError('Rate limited', 429);
       error.retryAfter = 0.1; // 0.1 seconds for testing
-      const mockFn = vi.fn().mockRejectedValueOnce(error).mockResolvedValue('success');
+      const mockFn = mock().mockRejectedValueOnce(error).mockResolvedValue('success');
 
       const startTime = Date.now();
       const result = await retry(mockFn, { initialDelay: 1000 });
@@ -156,9 +156,9 @@ describe('Retry Infrastructure', () => {
 
     it('should apply jitter when enabled', async () => {
       const error = new LLMError('Server error', 500);
-      const mockFn = vi.fn().mockRejectedValueOnce(error).mockResolvedValue('success');
+      const mockFn = mock().mockRejectedValueOnce(error).mockResolvedValue('success');
 
-      const onRetry = vi.fn();
+      const onRetry = mock();
       const config: RetryConfig = {
         initialDelay: 100,
         jitter: true,
@@ -175,7 +175,7 @@ describe('Retry Infrastructure', () => {
 
     it('should preserve context in retried function', async () => {
       const context = { value: 42 };
-      const fn = vi.fn(async function (this: any) {
+      const fn = mock(async function (this: any) {
         if (this.value !== 42) throw new Error('Context lost');
         return 'success';
       });
@@ -185,7 +185,7 @@ describe('Retry Infrastructure', () => {
     });
 
     it('should pass arguments to retried function', async () => {
-      const fn = vi.fn(async (a: number, b: string) => `${a}-${b}`);
+      const fn = mock(async (a: number, b: string) => `${a}-${b}`);
 
       const result = await retry(() => fn(123, 'test'));
       expect(result).toBe('123-test');
@@ -193,8 +193,7 @@ describe('Retry Infrastructure', () => {
     });
 
     it('should handle async errors in retry', async () => {
-      const mockFn = vi
-        .fn()
+      const mockFn = mock()
         .mockRejectedValueOnce(new LLMError('Temporary failure', 503))
         .mockResolvedValue('recovered');
 

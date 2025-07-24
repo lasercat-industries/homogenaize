@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { describe, expect, it, beforeEach, afterAll, mock } from 'bun:test';
 import { z } from 'zod';
 import { createAnthropicLLM } from '../client';
 
@@ -6,11 +6,11 @@ import { createAnthropicLLM } from '../client';
 const originalFetch = global.fetch;
 
 // Mock fetch globally
-global.fetch = vi.fn() as any;
+global.fetch = mock() as any;
 
 describe('Anthropic Client Integration', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mock.restore();
   });
 
   // Restore original fetch after all tests

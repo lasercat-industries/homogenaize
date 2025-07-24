@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { createOpenAILLM, createAnthropicLLM, createGeminiLLM } from './client';
 import type { OpenaiModel, AnthropicModel, GeminiModel } from './generated/model-types';
 

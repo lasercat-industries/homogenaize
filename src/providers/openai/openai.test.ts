@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, afterAll, mock } from 'bun:test';
 import { z } from 'zod';
 import { OpenAIProvider } from './openai';
 // import type { ChatRequest } from '../provider';
@@ -7,18 +7,18 @@ import { OpenAIProvider } from './openai';
 const originalFetch = global.fetch;
 
 // Mock fetch for API calls
-global.fetch = vi.fn() as any;
+global.fetch = mock() as any;
 
 describe('OpenAI Provider', () => {
   let provider: OpenAIProvider;
 
   beforeEach(() => {
     provider = new OpenAIProvider('test-api-key');
-    vi.clearAllMocks();
+    mock.restore();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    mock.restore();
   });
 
   // Restore original fetch after all tests

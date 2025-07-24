@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, afterAll, mock } from 'bun:test';
 import { z } from 'zod';
 import { GeminiProvider } from './gemini';
 import type { ChatRequest } from '../provider';
@@ -7,18 +7,18 @@ import type { ChatRequest } from '../provider';
 const originalFetch = global.fetch;
 
 // Mock fetch for API calls
-global.fetch = vi.fn() as any;
+global.fetch = mock() as any;
 
 describe('Gemini Provider', () => {
   let provider: GeminiProvider;
 
   beforeEach(() => {
     provider = new GeminiProvider('test-api-key');
-    vi.clearAllMocks();
+    mock.restore();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    mock.restore();
   });
 
   // Restore original fetch after all tests

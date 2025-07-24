@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { describe, expect, it, beforeEach, afterAll, mock } from 'bun:test';
 import { z } from 'zod';
 import { createOpenAILLM } from '../client';
 
@@ -6,11 +6,11 @@ import { createOpenAILLM } from '../client';
 const originalFetch = global.fetch;
 
 // Mock fetch globally
-global.fetch = vi.fn() as any;
+global.fetch = mock() as any;
 
 describe('OpenAI Client Integration', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mock.restore();
   });
 
   // Restore original fetch after all tests

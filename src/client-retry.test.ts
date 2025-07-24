@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, mock } from 'bun:test';
 import { createOpenAILLM, createAnthropicLLM, createGeminiLLM } from './client';
 import type { RetryConfig } from './retry/types';
 
@@ -10,14 +10,14 @@ describe('Client with Retry Configuration', () => {
     // Save original fetch
     originalFetch = global.fetch;
     // Mock global fetch
-    mockFetch = vi.fn();
+    mockFetch = mock();
     global.fetch = mockFetch;
   });
 
   afterEach(() => {
     // Restore original fetch
     global.fetch = originalFetch;
-    vi.clearAllMocks();
+    mock.restore();
   });
 
   it('should accept retry configuration in client options', () => {
@@ -93,7 +93,7 @@ describe('Client with Retry Configuration', () => {
   });
 
   it('should respect onRetry callback', async () => {
-    const onRetry = vi.fn();
+    const onRetry = mock();
     const retryConfig: RetryConfig = {
       maxRetries: 1,
       initialDelay: 10,

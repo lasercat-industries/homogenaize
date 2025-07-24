@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, mock } from 'bun:test';
 import { OpenAIProvider } from './openai/openai';
 import { AnthropicProvider } from './anthropic/anthropic';
 import { GeminiProvider } from './gemini/gemini';
@@ -8,12 +8,12 @@ describe('List Models Functionality', () => {
 
   beforeEach(() => {
     originalFetch = global.fetch;
-    global.fetch = vi.fn() as any;
+    global.fetch = mock() as any;
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
-    vi.clearAllMocks();
+    mock.restore();
   });
 
   describe('OpenAI Provider', () => {
