@@ -232,12 +232,79 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
         };
       }
       case 'literal': {
-        const literalDef = def as { type: 'literal'; value?: unknown };
-        const valueType = typeof literalDef.value;
+        const literalDef = def as { type: 'literal'; value?: unknown; values?: unknown[] };
+        // Zod stores literal value in 'values' array
+        const actualValue = literalDef.value ?? literalDef.values?.[0];
+        const valueType = typeof actualValue;
         return {
           type: valueType === 'string' ? 'string' : valueType === 'number' ? 'number' : 'boolean',
-          const: literalDef.value,
+          const: actualValue,
         };
+      }
+      case 'union': {
+        const unionDef = def as { type: 'union'; options?: Array<{ _def?: ZodDef; def?: ZodDef }> };
+        if (!unionDef.options || unionDef.options.length === 0) {
+          return { type: 'string' };
+        }
+
+        const unionOptions = unionDef.options
+          .map((opt) => {
+            const optDef = getZodDef(opt);
+            return optDef ? processZodType(optDef) : null;
+          })
+          .filter(Boolean) as JSONSchemaType[];
+
+        // Wrap oneOf in a property for OpenAI compatibility
+        return {
+          type: 'object',
+          properties: {
+            value: {
+              oneOf: unionOptions,
+            } as unknown as JSONSchemaType,
+          },
+          required: ['value'],
+          additionalProperties: false,
+        } as JSONSchemaType;
+      }
+      case 'discriminatedUnion': {
+        const discUnionDef = def as {
+          type: 'discriminatedUnion';
+          discriminator?: string;
+          options?: Array<{ _def?: ZodDef; def?: ZodDef }>;
+          optionsMap?: Map<string, { _def?: ZodDef; def?: ZodDef }>;
+        };
+
+        // Try to get options from either options array or optionsMap
+        let options: Array<{ _def?: ZodDef; def?: ZodDef }> = [];
+        if (discUnionDef.options) {
+          options = discUnionDef.options;
+        } else if (discUnionDef.optionsMap) {
+          options = Array.from(discUnionDef.optionsMap.values());
+        }
+
+        if (options.length === 0) {
+          return { type: 'object', properties: {} };
+        }
+
+        // Convert each option to JSON schema
+        const unionOptions = options
+          .map((opt) => {
+            const optDef = getZodDef(opt);
+            return optDef ? processZodType(optDef) : null;
+          })
+          .filter(Boolean) as JSONSchemaType[];
+
+        // Wrap oneOf in a property for OpenAI compatibility
+        return {
+          type: 'object',
+          properties: {
+            value: {
+              oneOf: unionOptions,
+            } as unknown as JSONSchemaType,
+          },
+          required: ['value'],
+          additionalProperties: false,
+        } as JSONSchemaType;
       }
       default:
         // Fallback for unsupported types
@@ -464,7 +531,21 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
           currentToolCall?.function?.name === 'respond_with_structured_output'
         ) {
           try {
-            const parsed = JSON.parse(toolCallArguments);
+            let parsed = JSON.parse(toolCallArguments);
+
+            // Check if this is a wrapped discriminated union
+            const schemaWithDef = request.schema as { _def?: { type?: string; typeName?: string } };
+            const schemaDefType = schemaWithDef._def?.type;
+            const schemaTypeName = schemaWithDef._def?.typeName;
+            const isDiscriminatedUnion =
+              schemaDefType === 'discriminatedUnion' || schemaTypeName === 'ZodDiscriminatedUnion';
+            const isUnion = schemaDefType === 'union' || schemaTypeName === 'ZodUnion';
+
+            if ((isDiscriminatedUnion || isUnion) && parsed.value !== undefined) {
+              // Unwrap the value for discriminated unions
+              parsed = parsed.value;
+            }
+
             parsedContent = request.schema.parse(parsed) as T;
           } catch {
             parsedContent = content as T;
@@ -541,7 +622,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             name: 'respond_with_structured_output',
             description: 'Respond with structured data matching the required schema',
             parameters: jsonSchema,
-            strict: true,
+            // Don't use strict mode for schemas with oneOf (discriminated unions)
+            strict: !JSON.stringify(jsonSchema).includes('"oneOf"'),
           },
         },
       ];
@@ -551,15 +633,19 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     // Handle tools
     if (request.tools) {
-      openAIRequest.tools = request.tools.map((tool) => ({
-        type: 'function' as const,
-        function: {
-          name: tool.name,
-          description: tool.description,
-          parameters: zodToOpenAISchema(tool.parameters),
-          strict: true,
-        },
-      }));
+      openAIRequest.tools = request.tools.map((tool) => {
+        const parameters = zodToOpenAISchema(tool.parameters);
+        return {
+          type: 'function' as const,
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters,
+            // Don't use strict mode for schemas with oneOf (discriminated unions)
+            strict: !JSON.stringify(parameters).includes('"oneOf"'),
+          },
+        };
+      });
     }
 
     // Handle tool choice
@@ -634,7 +720,21 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       );
       if (toolCall) {
         try {
-          const parsed = JSON.parse(toolCall.function.arguments);
+          let parsed = JSON.parse(toolCall.function.arguments);
+
+          // Check if this is a wrapped discriminated union (has single 'value' property)
+          const schemaWithDef = schema as { _def?: { type?: string; typeName?: string } };
+          const schemaDefType = schemaWithDef._def?.type;
+          const schemaTypeName = schemaWithDef._def?.typeName;
+          const isDiscriminatedUnion =
+            schemaDefType === 'discriminatedUnion' || schemaTypeName === 'ZodDiscriminatedUnion';
+          const isUnion = schemaDefType === 'union' || schemaTypeName === 'ZodUnion';
+
+          if ((isDiscriminatedUnion || isUnion) && parsed.value !== undefined) {
+            // Unwrap the value for discriminated unions
+            parsed = parsed.value;
+          }
+
           content = schema.parse(parsed) as T;
         } catch {
           content = (message.content || '') as T;

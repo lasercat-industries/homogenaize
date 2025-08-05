@@ -54,6 +54,18 @@ export interface ZodLiteralDef extends ZodDefBase {
   value: string | number | boolean;
 }
 
+export interface ZodUnionDef extends ZodDefBase {
+  type: 'union';
+  options?: Array<{ _def?: ZodDef; def?: ZodDef }>;
+}
+
+export interface ZodDiscriminatedUnionDef extends ZodDefBase {
+  type: 'discriminatedUnion';
+  discriminator?: string;
+  options?: Array<{ _def?: ZodDef; def?: ZodDef }>;
+  optionsMap?: Map<string, { _def?: ZodDef; def?: ZodDef }>;
+}
+
 export type ZodDef =
   | ZodStringDef
   | ZodNumberDef
@@ -63,6 +75,8 @@ export type ZodDef =
   | ZodOptionalDef
   | ZodEnumDef
   | ZodLiteralDef
+  | ZodUnionDef
+  | ZodDiscriminatedUnionDef
   | ZodDefBase; // fallback for unknown types
 
 // Helper to safely get Zod def from a schema
