@@ -172,7 +172,7 @@ describe('Gemini Provider', () => {
         }),
       });
 
-      const request: ChatRequest = {
+      const request: ChatRequest<z.infer<typeof schema>> = {
         messages: [{ role: 'user', content: 'Generate a person' }],
         schema,
       };

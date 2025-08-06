@@ -4,6 +4,10 @@ import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInf
 import { LLMError } from '../../retry/errors';
 import { retry } from '../../retry';
 import type { RetryConfig } from '../../retry/types';
+import type { JSONSchemaType } from 'ajv';
+import type { GenericJSONSchema } from '../../types/schema';
+import { isZodSchema, isJSONSchema } from '../../utils/schema-utils';
+import { validateJSONSchema } from '../../utils/json-schema-validator';
 import type {
   ZodDef,
   ZodArrayDef,
@@ -15,16 +19,6 @@ import type {
   ZodNumberDef,
 } from '../zod-types';
 import { getZodDef } from '../zod-types';
-
-type JSONSchemaType = {
-  type: string;
-  properties?: Record<string, JSONSchemaType>;
-  items?: JSONSchemaType;
-  required?: string[];
-  enum?: unknown[];
-  const?: unknown;
-  [key: string]: unknown;
-};
 
 // Gemini-specific types
 interface GeminiContent {
@@ -41,7 +35,7 @@ interface GeminiTool {
   functionDeclarations: Array<{
     name: string;
     description: string;
-    parameters: JSONSchemaType;
+    parameters: GenericJSONSchema;
   }>;
 }
 
@@ -107,18 +101,18 @@ function normalizeGeminiFinishReason(
 }
 
 // Helper to convert Zod schema to Gemini-compatible JSON Schema
-function zodToGeminiSchema(schema: z.ZodSchema): JSONSchemaType {
+function zodToGeminiSchema(schema: z.ZodSchema): GenericJSONSchema {
   const zodType = getZodDef(schema);
 
   if (!zodType) {
     throw new Error('Invalid Zod schema: missing _def property');
   }
 
-  function processZodType(def: ZodDef): JSONSchemaType {
+  function processZodType(def: ZodDef): GenericJSONSchema {
     switch (def.type) {
       case 'string': {
         const stringDef = def as ZodStringDef;
-        const result: JSONSchemaType = { type: 'string' };
+        const result: GenericJSONSchema = { type: 'string' };
 
         // Check for format constraints
         if (stringDef.checks) {
@@ -151,7 +145,7 @@ function zodToGeminiSchema(schema: z.ZodSchema): JSONSchemaType {
       }
       case 'number': {
         const numberDef = def as ZodNumberDef;
-        const numResult: JSONSchemaType = { type: 'number' };
+        const numResult: GenericJSONSchema = { type: 'number' };
 
         // Check for number constraints
         if (numberDef.checks) {
@@ -190,7 +184,7 @@ function zodToGeminiSchema(schema: z.ZodSchema): JSONSchemaType {
       case 'array': {
         const arrayDef = def as ZodArrayDef;
         const itemDef = getZodDef(arrayDef.valueType) || getZodDef(arrayDef.element);
-        const arrayResult: JSONSchemaType = {
+        const arrayResult: GenericJSONSchema = {
           type: 'array',
           items: itemDef ? processZodType(itemDef) : { type: 'string' },
         };
@@ -226,7 +220,7 @@ function zodToGeminiSchema(schema: z.ZodSchema): JSONSchemaType {
       }
       case 'object': {
         const objectDef = def as ZodObjectDef;
-        const properties: Record<string, JSONSchemaType> = {};
+        const properties: Record<string, GenericJSONSchema> = {};
         const required: string[] = [];
 
         // Access shape directly from def
@@ -300,7 +294,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
   }
 
   async chat<T = string>(
-    request: ProviderChatRequest<'gemini'>,
+    request: ProviderChatRequest<'gemini', T>,
   ): Promise<ProviderChatResponse<'gemini', T>> {
     const makeRequest = async () => {
       const geminiRequest = this.transformRequest(request);
@@ -350,7 +344,9 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     return makeRequest();
   }
 
-  async stream<T = string>(request: ProviderChatRequest<'gemini'>): Promise<StreamingResponse<T>> {
+  async stream<T = string>(
+    request: ProviderChatRequest<'gemini', T>,
+  ): Promise<StreamingResponse<T>> {
     const geminiRequest = this.transformRequest(request);
     const model = request.model || 'gemini-1.5-pro-latest';
 
@@ -445,7 +441,18 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         if (request.schema && content) {
           try {
             const parsed = JSON.parse(content);
-            parsedContent = request.schema.parse(parsed) as T;
+            if (isZodSchema(request.schema)) {
+              parsedContent = request.schema.parse(parsed) as T;
+            } else if (isJSONSchema(request.schema)) {
+              const validation = validateJSONSchema<T>(request.schema, parsed);
+              if (validation.valid) {
+                parsedContent = validation.data;
+              } else {
+                throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+              }
+            } else {
+              parsedContent = parsed as T;
+            }
           } catch {
             parsedContent = content as T;
           }
@@ -476,7 +483,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     );
   }
 
-  private transformRequest(request: ProviderChatRequest<'gemini'>): GeminiRequest {
+  private transformRequest<T = string>(request: ProviderChatRequest<'gemini', T>): GeminiRequest {
     // Extract system message if present
     let systemInstruction: GeminiRequest['systemInstruction'];
     const contents: GeminiContent[] = [];
@@ -503,7 +510,17 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     // Handle structured output via schema using forced tool calling
     if (request.schema && !request.tools) {
       // Create a hidden tool for structured output
-      const jsonSchema = zodToGeminiSchema(request.schema);
+      let jsonSchema: GenericJSONSchema;
+
+      if (isZodSchema(request.schema)) {
+        jsonSchema = zodToGeminiSchema(request.schema);
+      } else if (isJSONSchema(request.schema)) {
+        // Use JSON Schema directly
+        jsonSchema = request.schema as GenericJSONSchema;
+      } else {
+        throw new Error('Invalid schema type provided');
+      }
+
       geminiRequest.tools = [
         {
           functionDeclarations: [
@@ -596,7 +613,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
   private transformResponse<T>(
     response: GeminiResponse,
     model: string,
-    schema?: z.ZodSchema,
+    schema?: z.ZodSchema<T> | JSONSchemaType<T> | GenericJSONSchema,
   ): ProviderChatResponse<'gemini', T> {
     const candidate = response.candidates[0];
     if (!candidate) {
@@ -629,14 +646,36 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     );
     if (schema && structuredOutputTool) {
       try {
-        parsedContent = schema.parse(structuredOutputTool.arguments) as T;
+        if (isZodSchema(schema)) {
+          parsedContent = schema.parse(structuredOutputTool.arguments) as T;
+        } else if (isJSONSchema(schema)) {
+          const validation = validateJSONSchema<T>(schema, structuredOutputTool.arguments);
+          if (validation.valid) {
+            parsedContent = validation.data;
+          } else {
+            throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+          }
+        } else {
+          parsedContent = structuredOutputTool.arguments as T;
+        }
       } catch {
         parsedContent = content as T;
       }
     } else if (schema && content) {
       try {
         const parsed = JSON.parse(content);
-        parsedContent = schema.parse(parsed) as T;
+        if (isZodSchema(schema)) {
+          parsedContent = schema.parse(parsed) as T;
+        } else if (isJSONSchema(schema)) {
+          const validation = validateJSONSchema<T>(schema, parsed);
+          if (validation.valid) {
+            parsedContent = validation.data;
+          } else {
+            throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+          }
+        } else {
+          parsedContent = parsed as T;
+        }
       } catch {
         parsedContent = content as T;
       }

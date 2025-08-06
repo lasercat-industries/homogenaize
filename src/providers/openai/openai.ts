@@ -6,17 +6,10 @@ import { retry } from '../../retry';
 import { LLMError } from '../../retry/errors';
 import type { ZodDef, ZodArrayDef, ZodObjectDef } from '../zod-types';
 import { getZodDef } from '../zod-types';
-
-type JSONSchemaType = {
-  type: string;
-  properties?: Record<string, JSONSchemaType>;
-  items?: JSONSchemaType;
-  required?: string[];
-  enum?: unknown[];
-  const?: unknown;
-  additionalProperties?: boolean;
-  [key: string]: unknown;
-};
+import type { JSONSchemaType } from 'ajv';
+import type { GenericJSONSchema } from '../../types/schema';
+import { isZodSchema, isJSONSchema } from '../../utils/schema-utils';
+import { validateJSONSchema } from '../../utils/json-schema-validator';
 
 // OpenAI-specific types
 interface OpenAIMessage {
@@ -37,7 +30,7 @@ interface OpenAITool {
   function: {
     name: string;
     description: string;
-    parameters: JSONSchemaType;
+    parameters: GenericJSONSchema;
     strict?: boolean;
   };
 }
@@ -59,7 +52,7 @@ interface OpenAIRequest {
   seed?: number;
   response_format?: {
     type: 'text' | 'json_object' | 'json_schema';
-    json_schema?: JSONSchemaType;
+    json_schema?: GenericJSONSchema;
   };
   tools?: OpenAITool[];
   tool_choice?: 'none' | 'auto' | 'required' | { type: 'function'; function: { name: string } };
@@ -122,14 +115,14 @@ interface OpenAIStreamChunk {
 }
 
 // Helper to convert Zod schema to OpenAI-compatible JSON Schema
-function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
+function zodToOpenAISchema(schema: z.ZodSchema): GenericJSONSchema {
   const zodType = getZodDef(schema);
 
   if (!zodType) {
     throw new Error('Invalid Zod schema: missing _def property');
   }
 
-  function processZodType(def: ZodDef): JSONSchemaType {
+  function processZodType(def: ZodDef): GenericJSONSchema {
     switch (def.type) {
       case 'string':
         return { type: 'string' };
@@ -140,7 +133,7 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
       case 'array': {
         const arrayDef = def as ZodArrayDef;
         const itemDef = getZodDef(arrayDef.valueType) || getZodDef(arrayDef.element);
-        const arrayResult: JSONSchemaType = {
+        const arrayResult: GenericJSONSchema = {
           type: 'array',
           items: itemDef ? processZodType(itemDef) : { type: 'string' },
         };
@@ -171,7 +164,7 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
       }
       case 'object': {
         const objectDef = def as ZodObjectDef;
-        const properties: Record<string, JSONSchemaType> = {};
+        const properties: Record<string, GenericJSONSchema> = {};
         const required: string[] = [];
 
         // Access shape directly from def
@@ -179,11 +172,7 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
         for (const [key, value] of Object.entries(shape)) {
           const fieldDef = getZodDef(value);
           if (fieldDef) {
-            const fieldSchema = processZodType(fieldDef);
-            // Remove the __isOptional marker and use it to determine required fields
-            // const isOptional = fieldSchema.__isOptional;
-            delete fieldSchema.__isOptional;
-            properties[key] = fieldSchema;
+            properties[key] = processZodType(fieldDef);
 
             // OpenAI requires all fields to be in the required array, even optional ones
             // For optional fields, we'll handle it differently in the API
@@ -200,14 +189,13 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
       }
       case 'optional': {
         // For OpenAI, we need to handle optional fields differently
-        // Return the inner type but mark that it's optional
+        // Return the inner type directly - optional handling is done in the parent object
         const optionalDef = def as {
           type: 'optional';
           innerType?: { _def?: ZodDef; def?: ZodDef };
         };
         const innerDef = getZodDef(optionalDef.innerType);
-        const innerType = innerDef ? processZodType(innerDef) : { type: 'string' };
-        return { ...innerType, __isOptional: true };
+        return innerDef ? processZodType(innerDef) : { type: 'string' as const };
       }
       case 'enum': {
         const enumDef = def as {
@@ -252,7 +240,7 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
             const optDef = getZodDef(opt);
             return optDef ? processZodType(optDef) : null;
           })
-          .filter(Boolean) as JSONSchemaType[];
+          .filter(Boolean) as GenericJSONSchema[];
 
         // Wrap oneOf in a property for OpenAI compatibility
         return {
@@ -260,11 +248,11 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
           properties: {
             value: {
               oneOf: unionOptions,
-            } as unknown as JSONSchemaType,
+            } as unknown as GenericJSONSchema,
           },
           required: ['value'],
           additionalProperties: false,
-        } as JSONSchemaType;
+        } as GenericJSONSchema;
       }
       case 'discriminatedUnion': {
         const discUnionDef = def as {
@@ -292,7 +280,7 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
             const optDef = getZodDef(opt);
             return optDef ? processZodType(optDef) : null;
           })
-          .filter(Boolean) as JSONSchemaType[];
+          .filter(Boolean) as GenericJSONSchema[];
 
         // Wrap oneOf in a property for OpenAI compatibility
         return {
@@ -300,11 +288,11 @@ function zodToOpenAISchema(schema: z.ZodSchema): JSONSchemaType {
           properties: {
             value: {
               oneOf: unionOptions,
-            } as unknown as JSONSchemaType,
+            } as unknown as GenericJSONSchema,
           },
           required: ['value'],
           additionalProperties: false,
-        } as JSONSchemaType;
+        } as GenericJSONSchema;
       }
       default:
         // Fallback for unsupported types
@@ -338,7 +326,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
   }
 
   async chat<T = string>(
-    request: ProviderChatRequest<'openai'>,
+    request: ProviderChatRequest<'openai', T>,
   ): Promise<ProviderChatResponse<'openai', T>> {
     const makeRequest = async () => {
       const openAIRequest = this.transformRequest(request);
@@ -390,7 +378,9 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     return makeRequest();
   }
 
-  async stream<T = string>(request: ProviderChatRequest<'openai'>): Promise<StreamingResponse<T>> {
+  async stream<T = string>(
+    request: ProviderChatRequest<'openai', T>,
+  ): Promise<StreamingResponse<T>> {
     const makeRequest = async (): Promise<Response> => {
       const openAIRequest = this.transformRequest(request);
       openAIRequest.stream = true;
@@ -533,27 +523,53 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
           try {
             let parsed = JSON.parse(toolCallArguments);
 
-            // Check if this is a wrapped discriminated union
-            const schemaWithDef = request.schema as { _def?: { type?: string; typeName?: string } };
-            const schemaDefType = schemaWithDef._def?.type;
-            const schemaTypeName = schemaWithDef._def?.typeName;
-            const isDiscriminatedUnion =
-              schemaDefType === 'discriminatedUnion' || schemaTypeName === 'ZodDiscriminatedUnion';
-            const isUnion = schemaDefType === 'union' || schemaTypeName === 'ZodUnion';
+            // Handle Zod vs JSON Schema validation
+            if (isZodSchema(request.schema)) {
+              // Check if this is a wrapped discriminated union
+              const schemaWithDef = request.schema as {
+                _def?: { type?: string; typeName?: string };
+              };
+              const schemaDefType = schemaWithDef._def?.type;
+              const schemaTypeName = schemaWithDef._def?.typeName;
+              const isDiscriminatedUnion =
+                schemaDefType === 'discriminatedUnion' ||
+                schemaTypeName === 'ZodDiscriminatedUnion';
+              const isUnion = schemaDefType === 'union' || schemaTypeName === 'ZodUnion';
 
-            if ((isDiscriminatedUnion || isUnion) && parsed.value !== undefined) {
-              // Unwrap the value for discriminated unions
-              parsed = parsed.value;
+              if ((isDiscriminatedUnion || isUnion) && parsed.value !== undefined) {
+                // Unwrap the value for discriminated unions
+                parsed = parsed.value;
+              }
+
+              parsedContent = request.schema.parse(parsed) as T;
+            } else if (isJSONSchema(request.schema)) {
+              const validation = validateJSONSchema<T>(request.schema, parsed);
+              if (validation.valid) {
+                parsedContent = validation.data;
+              } else {
+                throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+              }
+            } else {
+              parsedContent = parsed as T;
             }
-
-            parsedContent = request.schema.parse(parsed) as T;
           } catch {
             parsedContent = content as T;
           }
         } else if (request.schema && content) {
           try {
             const parsed = JSON.parse(content);
-            parsedContent = request.schema.parse(parsed) as T;
+            if (isZodSchema(request.schema)) {
+              parsedContent = request.schema.parse(parsed) as T;
+            } else if (isJSONSchema(request.schema)) {
+              const validation = validateJSONSchema<T>(request.schema, parsed);
+              if (validation.valid) {
+                parsedContent = validation.data;
+              } else {
+                throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+              }
+            } else {
+              parsedContent = parsed as T;
+            }
           } catch {
             parsedContent = content as T;
           }
@@ -584,7 +600,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     );
   }
 
-  private transformRequest(request: ProviderChatRequest<'openai'>): OpenAIRequest {
+  private transformRequest<T = string>(request: ProviderChatRequest<'openai', T>): OpenAIRequest {
     const openAIRequest: OpenAIRequest = {
       model: request.model || 'gpt-4o-mini', // Default fallback
       messages: request.messages.map(this.transformMessage),
@@ -606,7 +622,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       if (request.features.responseFormat !== undefined) {
         openAIRequest.response_format = request.features.responseFormat as {
           type: 'text' | 'json_object' | 'json_schema';
-          json_schema?: JSONSchemaType;
+          json_schema?: GenericJSONSchema;
         };
       }
     }
@@ -614,7 +630,17 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     // Handle structured output via schema using forced tool calling
     if (request.schema && !request.tools) {
       // Create a hidden tool for structured output
-      const jsonSchema = zodToOpenAISchema(request.schema);
+      let jsonSchema: GenericJSONSchema;
+
+      if (isZodSchema(request.schema)) {
+        jsonSchema = zodToOpenAISchema(request.schema);
+      } else if (isJSONSchema(request.schema)) {
+        // Use JSON Schema directly
+        jsonSchema = request.schema as GenericJSONSchema;
+      } else {
+        throw new Error('Invalid schema type provided');
+      }
+
       openAIRequest.tools = [
         {
           type: 'function' as const,
@@ -703,7 +729,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
   private transformResponse<T>(
     response: OpenAIResponse,
-    schema?: z.ZodSchema,
+    schema?: z.ZodSchema<T> | JSONSchemaType<T> | GenericJSONSchema,
   ): ProviderChatResponse<'openai', T> {
     const choice = response.choices[0];
     if (!choice) {
@@ -722,20 +748,33 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         try {
           let parsed = JSON.parse(toolCall.function.arguments);
 
-          // Check if this is a wrapped discriminated union (has single 'value' property)
-          const schemaWithDef = schema as { _def?: { type?: string; typeName?: string } };
-          const schemaDefType = schemaWithDef._def?.type;
-          const schemaTypeName = schemaWithDef._def?.typeName;
-          const isDiscriminatedUnion =
-            schemaDefType === 'discriminatedUnion' || schemaTypeName === 'ZodDiscriminatedUnion';
-          const isUnion = schemaDefType === 'union' || schemaTypeName === 'ZodUnion';
+          // Handle Zod vs JSON Schema validation
+          if (isZodSchema(schema)) {
+            // Check if this is a wrapped discriminated union (has single 'value' property)
+            const schemaWithDef = schema as { _def?: { type?: string; typeName?: string } };
+            const schemaDefType = schemaWithDef._def?.type;
+            const schemaTypeName = schemaWithDef._def?.typeName;
+            const isDiscriminatedUnion =
+              schemaDefType === 'discriminatedUnion' || schemaTypeName === 'ZodDiscriminatedUnion';
+            const isUnion = schemaDefType === 'union' || schemaTypeName === 'ZodUnion';
 
-          if ((isDiscriminatedUnion || isUnion) && parsed.value !== undefined) {
-            // Unwrap the value for discriminated unions
-            parsed = parsed.value;
+            if ((isDiscriminatedUnion || isUnion) && parsed.value !== undefined) {
+              // Unwrap the value for discriminated unions
+              parsed = parsed.value;
+            }
+
+            content = schema.parse(parsed) as T;
+          } else if (isJSONSchema(schema)) {
+            // Validate with AJV
+            const validation = validateJSONSchema<T>(schema, parsed);
+            if (validation.valid) {
+              content = validation.data;
+            } else {
+              throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+            }
+          } else {
+            content = parsed as T;
           }
-
-          content = schema.parse(parsed) as T;
         } catch {
           content = (message.content || '') as T;
         }
@@ -745,7 +784,18 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     } else if (schema && message.content) {
       try {
         const parsed = JSON.parse(message.content);
-        content = schema.parse(parsed) as T;
+        if (isZodSchema(schema)) {
+          content = schema.parse(parsed) as T;
+        } else if (isJSONSchema(schema)) {
+          const validation = validateJSONSchema<T>(schema, parsed);
+          if (validation.valid) {
+            content = validation.data;
+          } else {
+            throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+          }
+        } else {
+          content = parsed as T;
+        }
       } catch {
         content = message.content as T;
       }

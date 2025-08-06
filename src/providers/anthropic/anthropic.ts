@@ -13,18 +13,12 @@ import type {
   ZodLiteralDef,
 } from '../zod-types';
 import { getZodDef } from '../zod-types';
+import type { JSONSchemaType } from 'ajv';
+import type { GenericJSONSchema } from '../../types/schema';
+import { isZodSchema, isJSONSchema } from '../../utils/schema-utils';
+import { validateJSONSchema } from '../../utils/json-schema-validator';
 import { normalizeAnthropicFinishReason } from './anthropic-types';
 import type { AnthropicStopReason } from './anthropic-types';
-
-type JSONSchemaType = {
-  type: string;
-  properties?: Record<string, JSONSchemaType>;
-  items?: JSONSchemaType;
-  required?: string[];
-  enum?: unknown[];
-  const?: unknown;
-  [key: string]: unknown;
-};
 
 // Anthropic-specific types
 interface AnthropicMessage {
@@ -41,7 +35,7 @@ type AnthropicContent =
 interface AnthropicTool {
   name: string;
   description: string;
-  input_schema: JSONSchemaType;
+  input_schema: GenericJSONSchema;
 }
 
 interface AnthropicRequest {
@@ -110,14 +104,14 @@ interface MessageDeltaEvent {
 }
 
 // Helper to convert Zod schema to Anthropic-compatible JSON Schema
-function zodToAnthropicSchema(schema: z.ZodSchema): JSONSchemaType {
+function zodToAnthropicSchema(schema: z.ZodSchema): GenericJSONSchema {
   const zodType = getZodDef(schema);
 
   if (!zodType) {
     throw new Error('Invalid Zod schema: missing _def property');
   }
 
-  function processZodType(def: ZodDef): JSONSchemaType {
+  function processZodType(def: ZodDef): GenericJSONSchema {
     switch (def.type) {
       case 'string':
         return { type: 'string' };
@@ -135,7 +129,7 @@ function zodToAnthropicSchema(schema: z.ZodSchema): JSONSchemaType {
       }
       case 'object': {
         const objectDef = def as ZodObjectDef;
-        const properties: Record<string, JSONSchemaType> = {};
+        const properties: Record<string, GenericJSONSchema> = {};
         const required: string[] = [];
 
         // Access shape directly from def
@@ -212,7 +206,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
   }
 
   async chat<T = string>(
-    request: ProviderChatRequest<'anthropic'>,
+    request: ProviderChatRequest<'anthropic', T>,
   ): Promise<ProviderChatResponse<'anthropic', T>> {
     const makeRequest = async () => {
       const anthropicRequest = this.transformRequest(request);
@@ -263,7 +257,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
   }
 
   async stream<T = string>(
-    request: ProviderChatRequest<'anthropic'>,
+    request: ProviderChatRequest<'anthropic', T>,
   ): Promise<StreamingResponse<T>> {
     const anthropicRequest = this.transformRequest(request);
     anthropicRequest.stream = true;
@@ -389,14 +383,36 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         ) {
           try {
             const parsed = JSON.parse(toolUseInput);
-            parsedContent = request.schema.parse(parsed) as T;
+            if (isZodSchema(request.schema)) {
+              parsedContent = request.schema.parse(parsed) as T;
+            } else if (isJSONSchema(request.schema)) {
+              const validation = validateJSONSchema<T>(request.schema, parsed);
+              if (validation.valid) {
+                parsedContent = validation.data;
+              } else {
+                throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+              }
+            } else {
+              parsedContent = parsed as T;
+            }
           } catch {
             parsedContent = content as T;
           }
         } else if (request.schema && content) {
           try {
             const parsed = JSON.parse(content);
-            parsedContent = request.schema.parse(parsed) as T;
+            if (isZodSchema(request.schema)) {
+              parsedContent = request.schema.parse(parsed) as T;
+            } else if (isJSONSchema(request.schema)) {
+              const validation = validateJSONSchema<T>(request.schema, parsed);
+              if (validation.valid) {
+                parsedContent = validation.data;
+              } else {
+                throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+              }
+            } else {
+              parsedContent = parsed as T;
+            }
           } catch {
             parsedContent = content as T;
           }
@@ -433,7 +449,9 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     );
   }
 
-  private transformRequest(request: ProviderChatRequest<'anthropic'>): AnthropicRequest {
+  private transformRequest<T = string>(
+    request: ProviderChatRequest<'anthropic', T>,
+  ): AnthropicRequest {
     // Extract system message if present
     let system: string | undefined;
     const messages: AnthropicMessage[] = [];
@@ -457,7 +475,17 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     // Handle structured output via schema using forced tool calling
     if (request.schema && !request.tools) {
       // Create a hidden tool for structured output
-      const jsonSchema = zodToAnthropicSchema(request.schema);
+      let jsonSchema: GenericJSONSchema;
+
+      if (isZodSchema(request.schema)) {
+        jsonSchema = zodToAnthropicSchema(request.schema);
+      } else if (isJSONSchema(request.schema)) {
+        // Use JSON Schema directly
+        jsonSchema = request.schema as GenericJSONSchema;
+      } else {
+        throw new Error('Invalid schema type provided');
+      }
+
       anthropicRequest.tools = [
         {
           name: 'respond_with_structured_output',
@@ -549,7 +577,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
   private transformResponse<T>(
     response: AnthropicResponse,
-    schema?: z.ZodSchema,
+    schema?: z.ZodSchema<T> | JSONSchemaType<T> | GenericJSONSchema,
   ): ProviderChatResponse<'anthropic', T> {
     let content = '';
     let thinking = '';
@@ -589,14 +617,36 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     );
     if (schema && structuredOutputTool) {
       try {
-        parsedContent = schema.parse(structuredOutputTool.arguments) as T;
+        if (isZodSchema(schema)) {
+          parsedContent = schema.parse(structuredOutputTool.arguments) as T;
+        } else if (isJSONSchema(schema)) {
+          const validation = validateJSONSchema<T>(schema, structuredOutputTool.arguments);
+          if (validation.valid) {
+            parsedContent = validation.data;
+          } else {
+            throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+          }
+        } else {
+          parsedContent = structuredOutputTool.arguments as T;
+        }
       } catch {
         parsedContent = content as T;
       }
     } else if (schema && content) {
       try {
         const parsed = JSON.parse(content);
-        parsedContent = schema.parse(parsed) as T;
+        if (isZodSchema(schema)) {
+          parsedContent = schema.parse(parsed) as T;
+        } else if (isJSONSchema(schema)) {
+          const validation = validateJSONSchema<T>(schema, parsed);
+          if (validation.valid) {
+            parsedContent = validation.data;
+          } else {
+            throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+          }
+        } else {
+          parsedContent = parsed as T;
+        }
       } catch {
         parsedContent = content as T;
       }

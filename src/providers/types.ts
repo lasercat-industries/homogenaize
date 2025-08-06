@@ -15,7 +15,7 @@ export type ProviderModels = {
 };
 
 // Provider-specific request types
-export interface OpenAIChatRequest extends ChatRequest {
+export interface OpenAIChatRequest<T = string> extends ChatRequest<T> {
   features?: {
     logprobs?: boolean;
     topLogprobs?: number;
@@ -24,7 +24,7 @@ export interface OpenAIChatRequest extends ChatRequest {
   };
 }
 
-export interface AnthropicChatRequest extends ChatRequest {
+export interface AnthropicChatRequest<T = string> extends ChatRequest<T> {
   features?: {
     thinking?: boolean;
     cacheControl?: boolean;
@@ -32,7 +32,7 @@ export interface AnthropicChatRequest extends ChatRequest {
   };
 }
 
-export interface GeminiChatRequest extends ChatRequest {
+export interface GeminiChatRequest<T = string> extends ChatRequest<T> {
   features?: {
     safetySettings?: Array<{
       category: string;
@@ -48,12 +48,12 @@ export interface GeminiChatRequest extends ChatRequest {
 }
 
 // Union type for all provider requests
-export type ProviderChatRequest<P extends ProviderName> = P extends 'openai'
-  ? OpenAIChatRequest
+export type ProviderChatRequest<P extends ProviderName, T = string> = P extends 'openai'
+  ? OpenAIChatRequest<T>
   : P extends 'anthropic'
-    ? AnthropicChatRequest
+    ? AnthropicChatRequest<T>
     : P extends 'gemini'
-      ? GeminiChatRequest
+      ? GeminiChatRequest<T>
       : never;
 
 // Extended response type with provider-specific fields
@@ -102,9 +102,9 @@ export type ProviderChatResponse<P extends ProviderName, T = string> = P extends
 // Provider with specific type
 export interface TypedProvider<P extends ProviderName> extends Provider {
   readonly name: P;
-  chat<T = string>(request: ProviderChatRequest<P>): Promise<ProviderChatResponse<P, T>>;
+  chat<T = string>(request: ProviderChatRequest<P, T>): Promise<ProviderChatResponse<P, T>>;
   stream<T = string>(
-    request: ProviderChatRequest<P>,
+    request: ProviderChatRequest<P, T>,
   ): Promise<{
     [Symbol.asyncIterator](): AsyncIterator<T>;
     complete(): Promise<ProviderChatResponse<P, T>>;

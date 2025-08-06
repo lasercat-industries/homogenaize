@@ -31,3 +31,5 @@ AC850E13-C6FF-46FC-B382-B7BB5A25E647,Export client option types for better DX,do
 EF46C5C9-AAE1-4222-99B2-3B12F5D932D3,Fix circular dependencies and type performance,done,,20250716-1200-fix-circular-deps-performance.md
 2c486668-3d81-4e89-9e8f-3cd166ba0313,fix-eslint-issues,done,,20250117-1440-fix-eslint-issues.md
 3949FB4A-B07E-4DD4-8647-15C58EA0C4DA,Fix typecheck errors in test files,done,,20250724-1221-fix-typecheck-errors-tests.md
+389F2B55-2430-4507-A474-B29B6491DD86,Add JSON Schema support to all providers,done,,20250806-1143-add-json-schema-support.md
+492FAE27-7DD8-45A8-9601-0DCBC5E7BC69,Support both typed and untyped JSON schemas,done,,20250806-1223-support-typed-json-schemas.md

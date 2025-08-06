@@ -124,7 +124,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       throw new Error(`Provider ${this.provider} not implemented yet`);
     }
 
-    const request: ProviderChatRequest<P> = {
+    const request: ProviderChatRequest<P, T> = {
       messages: options.messages,
       temperature: options.temperature ?? this.defaultOptions?.temperature,
       maxTokens: options.maxTokens ?? this.defaultOptions?.maxTokens,
@@ -134,7 +134,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       toolChoice: options.toolChoice,
       features: options.features,
       model: this.model,
-    } as ProviderChatRequest<P>;
+    } as ProviderChatRequest<P, T>;
 
     const response = await this.providerImpl.chat<T>(request);
 
@@ -151,7 +151,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       throw new Error(`Provider ${this.provider} not implemented yet`);
     }
 
-    const request: ProviderChatRequest<P> = {
+    const request: ProviderChatRequest<P, T> = {
       messages: options.messages,
       temperature: options.temperature ?? this.defaultOptions?.temperature,
       maxTokens: options.maxTokens ?? this.defaultOptions?.maxTokens,
@@ -161,9 +161,9 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       toolChoice: options.toolChoice,
       features: options.features,
       model: this.model,
-    } as ProviderChatRequest<P>;
+    } as ProviderChatRequest<P, T>;
 
-    return this.providerImpl.stream(request);
+    return this.providerImpl.stream<T>(request);
   }
 
   defineTool<T extends z.ZodSchema>(config: ToolConfig<T>): ExecutableTool<T> {

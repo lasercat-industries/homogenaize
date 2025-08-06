@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { JSONSchemaType } from 'ajv';
+import type { GenericJSONSchema } from '../types/schema';
 
 // Model information
 export interface ModelInfo {
@@ -49,13 +51,13 @@ export interface ToolCall {
 }
 
 // Request types
-export interface ChatRequest {
+export interface ChatRequest<T = string> {
   messages: Message[];
   model?: string;
   temperature?: number;
   maxTokens?: number;
   stream?: boolean;
-  schema?: z.ZodSchema;
+  schema?: z.ZodSchema<T> | JSONSchemaType<T> | GenericJSONSchema;
   tools?: Tool[];
   toolChoice?: 'auto' | 'required' | 'none' | { name: string };
 }
@@ -95,8 +97,8 @@ export interface Provider {
   readonly name: string;
   readonly capabilities: ProviderCapabilities;
 
-  chat<T = string>(request: ChatRequest): Promise<ChatResponse<T>>;
-  stream<T = string>(request: ChatRequest): Promise<StreamingResponse<T>>;
+  chat<T = string>(request: ChatRequest<T>): Promise<ChatResponse<T>>;
+  stream<T = string>(request: ChatRequest<T>): Promise<StreamingResponse<T>>;
   supportsFeature(feature: string): boolean;
   listModels(): Promise<ModelInfo[]>;
 }

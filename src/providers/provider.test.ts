@@ -94,7 +94,7 @@ describe('Provider Interface', () => {
         confidence: z.number(),
       });
 
-      const request: ChatRequest = {
+      const request: ChatRequest<z.infer<typeof schema>> = {
         messages: [{ role: 'user', content: 'What is 2+2?' }],
         schema,
       };
@@ -135,7 +135,7 @@ describe('Provider Interface', () => {
         maxTokens: 4096,
       };
 
-      async chat<T = string>(request: ChatRequest): Promise<ChatResponse<T>> {
+      async chat<T = string>(request: ChatRequest<T>): Promise<ChatResponse<T>> {
         if (request.stream) {
           throw new Error('Use stream() method for streaming requests');
         }
@@ -152,7 +152,7 @@ describe('Provider Interface', () => {
         };
       }
 
-      async stream<T = string>(_request: ChatRequest): Promise<StreamingResponse<T>> {
+      async stream<T = string>(_request: ChatRequest<T>): Promise<StreamingResponse<T>> {
         const chunks = ['Mock', ' ', 'streaming', ' ', 'response'];
         let index = 0;
 

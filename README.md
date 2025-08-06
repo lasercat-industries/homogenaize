@@ -1,13 +1,14 @@
 # Homogenaize
 
-A TypeScript-native library that provides a unified interface for multiple LLM providers (OpenAI, Anthropic, Gemini), with full type safety and runtime validation using Zod.
+A TypeScript-native library that provides a unified interface for multiple LLM providers (OpenAI, Anthropic, Gemini), with full type safety and runtime validation using Zod and JSON Schema.
 
 ## Features
 
 - 🔥 **Unified API** - Single interface for OpenAI, Anthropic, and Gemini
 - 🛡️ **Type Safety** - Full TypeScript support with provider-specific features
 - 🎨 **Typed Model Names** - Autocomplete and compile-time validation for model names
-- ✅ **Runtime Validation** - Zod schemas for structured outputs
+- ✅ **Runtime Validation** - Zod schemas and JSON Schema for structured outputs
+- 📐 **JSON Schema Support** - Use typed `JSONSchemaType<T>` or generic JSON Schema alongside Zod
 - 🔄 **Streaming Support** - Async iterators for real-time responses
 - 🛠️ **Tool Calling** - Define and execute tools with automatic validation
 - 🎯 **Provider Features** - Access provider-specific capabilities while maintaining type safety
@@ -65,9 +66,11 @@ const response = await client.chat({
 console.log(response.content);
 ```
 
-## Structured Outputs with Zod
+## Structured Outputs
 
-Define a schema and get validated, typed responses from any provider:
+Define schemas using Zod or JSON Schema and get validated, typed responses from any provider:
+
+### Using Zod Schemas
 
 ```typescript
 import { z } from 'zod';
@@ -80,7 +83,6 @@ const PersonSchema = z.object({
   hobbies: z.array(z.string()),
 });
 
-// Works with the generic createLLM function
 const client = createLLM({
   provider: 'openai', // or 'anthropic' or 'gemini'
   apiKey: process.env.OPENAI_API_KEY!,
@@ -96,15 +98,92 @@ const response = await client.chat({
 // response.content is fully typed as { name: string, age: number, occupation: string, hobbies: string[] }
 console.log(response.content.name); // TypeScript knows this is a string
 console.log(response.content.hobbies[0]); // TypeScript knows this is a string[]
+```
 
-// Also works with provider-specific clients
-const anthropic = createAnthropicLLM({
-  /* ... */
+### Using JSON Schema
+
+You can use JSON Schema with full TypeScript type safety using AJV's `JSONSchemaType`:
+
+```typescript
+import type { JSONSchemaType } from 'ajv';
+import { createLLM } from 'homogenaize';
+
+interface PersonData {
+  name: string;
+  age: number;
+  occupation: string;
+  hobbies: string[];
+}
+
+// Typed JSON Schema - provides compile-time type checking
+const PersonSchema: JSONSchemaType<PersonData> = {
+  type: 'object',
+  properties: {
+    name: { type: 'string' },
+    age: { type: 'number' },
+    occupation: { type: 'string' },
+    hobbies: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+  },
+  required: ['name', 'age', 'occupation', 'hobbies'],
+  additionalProperties: false,
+};
+
+const client = createLLM({
+  provider: 'anthropic',
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+  model: 'claude-3-sonnet-20240229',
 });
-const anthropicResponse = await anthropic.chat({
-  messages: [{ role: 'user', content: 'Generate a person profile' }],
-  schema: PersonSchema, // Same schema works across all providers!
+
+// Get validated, typed responses with JSON Schema
+const response = await client.chat({
+  messages: [{ role: 'user', content: 'Generate a random person profile' }],
+  schema: PersonSchema,
 });
+
+// response.content is fully typed as PersonData
+console.log(response.content.name); // TypeScript knows this is a string
+console.log(response.content.age); // TypeScript knows this is a number
+```
+
+### Using Generic JSON Schema
+
+For dynamic schemas or when type safety isn't required:
+
+```typescript
+import { createLLM } from 'homogenaize';
+
+// Generic JSON Schema without compile-time type checking
+const DynamicSchema = {
+  type: 'object',
+  properties: {
+    result: { type: 'string' },
+    confidence: { type: 'number', minimum: 0, maximum: 1 },
+    tags: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+  },
+  required: ['result', 'confidence'],
+};
+
+const client = createLLM({
+  provider: 'gemini',
+  apiKey: process.env.GEMINI_API_KEY!,
+  model: 'gemini-1.5-pro',
+});
+
+const response = await client.chat({
+  messages: [{ role: 'user', content: 'Analyze this text and provide results' }],
+  schema: DynamicSchema,
+});
+
+// response.content is typed as unknown when using generic schemas
+// You'll need to cast or validate the type yourself
+const data = response.content as { result: string; confidence: number; tags?: string[] };
+console.log(data.result);
 ```
 
 ## Streaming Responses
@@ -429,7 +508,7 @@ client.chat(options: {
   messages: Message[];
   temperature?: number;
   maxTokens?: number;
-  schema?: ZodSchema;
+  schema?: ZodSchema | JSONSchemaType<T> | JSONSchema;
   tools?: Tool[];
   toolChoice?: 'auto' | 'required' | 'none';
   features?: ProviderSpecificFeatures;
