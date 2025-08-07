@@ -750,6 +750,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
           // Handle Zod vs JSON Schema validation
           if (isZodSchema(schema)) {
+            console.log('In zod schema specific parsing');
             // Check if this is a wrapped discriminated union (has single 'value' property)
             const schemaWithDef = schema as { _def?: { type?: string; typeName?: string } };
             const schemaDefType = schemaWithDef._def?.type;
@@ -761,6 +762,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             if ((isDiscriminatedUnion || isUnion) && parsed.value !== undefined) {
               // Unwrap the value for discriminated unions
               parsed = parsed.value;
+            } else {
+              console.log('Not a discriminated union');
             }
 
             content = schema.parse(parsed) as T;
@@ -775,16 +778,19 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
           } else {
             content = parsed as T;
           }
-        } catch {
+        } catch (e) {
+          console.log('Error parsing tool call', e);
           content = (message.content || '') as T;
         }
       } else {
         content = (message.content || '') as T;
       }
     } else if (schema && message.content) {
+      console.log('In non tool call case');
       try {
         const parsed = JSON.parse(message.content);
         if (isZodSchema(schema)) {
+          console.log('In zod schema specific parsing');
           content = schema.parse(parsed) as T;
         } else if (isJSONSchema(schema)) {
           const validation = validateJSONSchema<T>(schema, parsed);
@@ -796,7 +802,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         } else {
           content = parsed as T;
         }
-      } catch {
+      } catch (e) {
+        console.log('Error parsing message', e);
         content = message.content as T;
       }
     } else {
