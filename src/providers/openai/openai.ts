@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, Message } from '../provider';
 import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInfo } from '../types';
 import type { RetryConfig } from '../../retry/types';
@@ -739,6 +739,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     let content: T;
 
+    console.log(`full response`, response);
+
     // If we used schema-based tool calling, extract the structured data from tool call
     if (schema && message.tool_calls && message.tool_calls.length > 0) {
       const toolCall = message.tool_calls.find(
@@ -746,7 +748,9 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       );
       if (toolCall) {
         try {
+          console.log('tool call', toolCall);
           let parsed = JSON.parse(toolCall.function.arguments);
+          console.log('parsed tool call function.arguments', parsed);
 
           // Handle Zod vs JSON Schema validation
           if (isZodSchema(schema)) {
@@ -780,6 +784,9 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
           }
         } catch (e) {
           console.log('Error parsing tool call', e);
+          if (e instanceof ZodError) {
+            console.error("Validation failed:", e.issues);
+          } 
           content = (message.content || '') as T;
         }
       } else {
