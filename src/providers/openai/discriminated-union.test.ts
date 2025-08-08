@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 import { OpenAIProvider } from './openai';
+import { createLLM } from '../../client';
 
 describe('OpenAI Discriminated Union Schema Conversion', () => {
   const provider = new OpenAIProvider('test-key');
@@ -79,7 +80,11 @@ describe('OpenAI Discriminated Union Schema Conversion', () => {
       return;
     }
 
-    const provider = new OpenAIProvider(apiKey);
+    const client = createLLM({
+      provider: 'openai',
+      apiKey,
+      model: 'gpt-4.1-mini',
+    });
 
     const BaseResponseSchema = z.strictObject({
       status: z.enum(['blocked', 'in-progress', 'completed', 'failed']),
@@ -126,12 +131,11 @@ describe('OpenAI Discriminated Union Schema Conversion', () => {
         },
       ],
       schema: AgentResponseSchema,
-      temperature: 0.1,
       model: 'gpt-4o-mini' as const,
     };
 
-    const response = await provider.chat(request);
-
+    const response = await client.chat(request);
+    console.log(response);
     // Validate the response
     const parsed = AgentResponseSchema.parse(response.content);
     expect(parsed.status).toBe('completed');

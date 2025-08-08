@@ -15,6 +15,7 @@ import type { RetryConfig } from './retry/types';
 import { OpenAIProvider } from './providers/openai';
 import { AnthropicProvider } from './providers/anthropic';
 import { GeminiProvider } from './providers/gemini';
+import { getLogger, configureLogger, type LoggerConfig } from './utils/logger';
 
 // Client configuration
 export interface LLMConfig<P extends ProviderName> {
@@ -29,6 +30,7 @@ export interface LLMConfig<P extends ProviderName> {
     presencePenalty?: number;
   };
   retry?: RetryConfig;
+  logging?: LoggerConfig | boolean;
 }
 
 // Tool definition configuration
@@ -120,7 +122,16 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
   ) {}
 
   async chat<T = string>(options: ChatOptions<P, T>): Promise<ProviderChatResponse<P, T>> {
+    const logger = getLogger('client');
+    logger.debug('Chat request initiated', {
+      provider: this.provider,
+      model: this.model,
+      hasSchema: !!options.schema,
+      hasTools: !!options.tools,
+    });
+
     if (!this.providerImpl) {
+      logger.error(`Provider ${this.provider} not implemented yet`);
       throw new Error(`Provider ${this.provider} not implemented yet`);
     }
 
@@ -147,7 +158,15 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
     [Symbol.asyncIterator](): AsyncIterator<T>;
     complete(): Promise<ProviderChatResponse<P, T>>;
   }> {
+    const logger = getLogger('client');
+    logger.debug('Stream request initiated', {
+      provider: this.provider,
+      model: this.model,
+      hasSchema: !!options.schema,
+    });
+
     if (!this.providerImpl) {
+      logger.error(`Provider ${this.provider} not implemented yet`);
       throw new Error(`Provider ${this.provider} not implemented yet`);
     }
 
@@ -167,6 +186,9 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
   }
 
   defineTool<T extends z.ZodSchema>(config: ToolConfig<T>): ExecutableTool<T> {
+    const logger = getLogger('client');
+    logger.debug('Defining tool', { name: config.name });
+
     const tool: ExecutableTool<T> = {
       name: config.name,
       description: config.description,
@@ -179,11 +201,15 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
   }
 
   async executeTools(toolCalls: ToolCall[]): Promise<ToolResult[]> {
+    const logger = getLogger('client');
+    logger.info('Executing tool calls', { count: toolCalls.length });
+
     const results: ToolResult[] = [];
 
     for (const call of toolCalls) {
       const tool = this.tools.get(call.name);
       if (!tool) {
+        logger.warn(`Tool ${call.name} not found`);
         results.push({
           toolCallId: call.id,
           toolName: call.name,
@@ -224,6 +250,14 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
 
 // Factory functions
 export function createLLM<P extends ProviderName>(config: LLMConfig<P>): LLMClient<P> {
+  // Configure logging if specified
+  if (config.logging !== undefined) {
+    configureLogger(config.logging);
+  }
+
+  const logger = getLogger('client');
+  logger.info('Creating LLM client', { provider: config.provider, model: config.model });
+
   let providerImpl: TypedProvider<P> | undefined;
 
   // Create provider implementation based on provider name

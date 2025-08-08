@@ -19,6 +19,7 @@ import { isZodSchema, isJSONSchema } from '../../utils/schema-utils';
 import { validateJSONSchema } from '../../utils/json-schema-validator';
 import { normalizeAnthropicFinishReason } from './anthropic-types';
 import type { AnthropicStopReason } from './anthropic-types';
+import { getLogger } from '../../utils/logger';
 
 // Anthropic-specific types
 interface AnthropicMessage {
@@ -208,8 +209,16 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
   async chat<T = string>(
     request: ProviderChatRequest<'anthropic', T>,
   ): Promise<ProviderChatResponse<'anthropic', T>> {
+    const logger = getLogger('anthropic');
+    logger.info('Anthropic chat request initiated', { model: request.model });
+
     const makeRequest = async () => {
       const anthropicRequest = this.transformRequest(request);
+      logger.debug('Transformed request for Anthropic API', {
+        hasSystemMessage: !!anthropicRequest.system,
+        messageCount: anthropicRequest.messages.length,
+        hasTools: !!anthropicRequest.tools,
+      });
       const response = await fetch(`${this.baseURL}/messages`, {
         method: 'POST',
         headers: {
@@ -221,6 +230,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       });
 
       if (!response) {
+        logger.error('Network error: No response received from Anthropic');
         throw new LLMError(
           'Network error: No response received',
           undefined,
@@ -238,6 +248,11 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
         const retryAfter = response.headers.get('Retry-After');
         const errorMessage = `Anthropic API error (${response.status}): ${error.error?.message || 'Unknown error'}`;
+        logger.error('Anthropic API error', {
+          status: response.status,
+          error: error.error?.message,
+          retryAfter,
+        });
         const llmError = new LLMError(errorMessage, response.status, 'anthropic', request.model);
         if (retryAfter) {
           llmError.retryAfter = parseInt(retryAfter, 10);
@@ -246,6 +261,12 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       }
 
       const data = (await response.json()) as AnthropicResponse;
+      logger.info('Anthropic chat response received', {
+        usage: data.usage,
+        model: data.model,
+        stopReason: data.stop_reason,
+        hasThinking: !!data.usage?.thinking_tokens,
+      });
       return this.transformResponse<T>(data, request.schema);
     };
 
@@ -259,7 +280,11 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
   async stream<T = string>(
     request: ProviderChatRequest<'anthropic', T>,
   ): Promise<StreamingResponse<T>> {
+    const logger = getLogger('anthropic');
+    logger.info('Anthropic stream request initiated', { model: request.model });
+
     const anthropicRequest = this.transformRequest(request);
+    logger.debug('Transformed streaming request for Anthropic API');
     anthropicRequest.stream = true;
 
     const response = await fetch(`${this.baseURL}/messages`, {
@@ -278,6 +303,10 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         .catch(() => ({ error: { message: response.statusText } }))) as {
         error?: { message?: string };
       };
+      logger.error('Anthropic streaming API error', {
+        status: response.status,
+        error: error.error?.message,
+      });
       throw new Error(
         `Anthropic API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
       );

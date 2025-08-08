@@ -10,6 +10,7 @@ import type { JSONSchemaType } from 'ajv';
 import type { GenericJSONSchema } from '../../types/schema';
 import { isZodSchema, isJSONSchema } from '../../utils/schema-utils';
 import { validateJSONSchema } from '../../utils/json-schema-validator';
+import { getLogger } from '../../utils/logger';
 
 // OpenAI-specific types
 interface OpenAIMessage {
@@ -328,8 +329,14 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
   async chat<T = string>(
     request: ProviderChatRequest<'openai', T>,
   ): Promise<ProviderChatResponse<'openai', T>> {
+    const logger = getLogger('openai');
+    logger.info('OpenAI chat request initiated', { model: request.model });
+
     const makeRequest = async () => {
       const openAIRequest = this.transformRequest(request);
+      logger.debug('Transformed request for OpenAI API', {
+        requestSize: JSON.stringify(openAIRequest).length,
+      });
 
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
@@ -341,6 +348,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       });
 
       if (!response) {
+        logger.error('Network error: No response received from OpenAI');
         throw new LLMError(
           'Network error: No response received',
           undefined,
@@ -359,6 +367,11 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         // Extract retry-after header if present
         const retryAfter = response.headers.get('Retry-After');
         const errorMessage = `OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`;
+        logger.error('OpenAI API error', {
+          status: response.status,
+          error: error.error?.message,
+          retryAfter,
+        });
         const llmError = new LLMError(errorMessage, response.status, 'openai', request.model);
         if (retryAfter) {
           llmError.retryAfter = parseInt(retryAfter, 10);
@@ -367,6 +380,11 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       }
 
       const data = (await response.json()) as OpenAIResponse;
+      logger.info('OpenAI chat response received', {
+        usage: data.usage,
+        model: data.model,
+        finishReason: data.choices?.[0]?.finish_reason,
+      });
       return this.transformResponse<T>(data, request.schema);
     };
 
@@ -381,8 +399,12 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
   async stream<T = string>(
     request: ProviderChatRequest<'openai', T>,
   ): Promise<StreamingResponse<T>> {
+    const logger = getLogger('openai');
+    logger.info('OpenAI stream request initiated', { model: request.model });
+
     const makeRequest = async (): Promise<Response> => {
       const openAIRequest = this.transformRequest(request);
+      logger.debug('Transformed streaming request for OpenAI API');
       openAIRequest.stream = true;
       openAIRequest.stream_options = { include_usage: true };
 
@@ -739,7 +761,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     let content: T;
 
-    console.log(`full response`, response);
+    const logger = getLogger('openai');
+    logger.verbose('Full OpenAI response', { response });
 
     // If we used schema-based tool calling, extract the structured data from tool call
     if (schema && message.tool_calls && message.tool_calls.length > 0) {
@@ -748,13 +771,13 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       );
       if (toolCall) {
         try {
-          console.log('tool call', toolCall);
+          logger.debug('Processing tool call for structured output', { toolCall });
           let parsed = JSON.parse(toolCall.function.arguments);
-          console.log('parsed tool call function.arguments', parsed);
+          logger.debug('Parsed tool call arguments', { parsed });
 
           // Handle Zod vs JSON Schema validation
           if (isZodSchema(schema)) {
-            console.log('In zod schema specific parsing');
+            logger.debug('Using Zod schema for validation');
             // Check if this is a wrapped discriminated union (has single 'value' property)
             const schemaWithDef = schema as { _def?: { type?: string; typeName?: string } };
             const schemaDefType = schemaWithDef._def?.type;
@@ -767,7 +790,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
               // Unwrap the value for discriminated unions
               parsed = parsed.value;
             } else {
-              console.log('Not a discriminated union');
+              logger.debug('Schema is not a discriminated union');
             }
 
             content = schema.parse(parsed) as T;
@@ -783,17 +806,17 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             content = parsed as T;
           }
         } catch (e) {
-          console.log('Error parsing tool call', e);
+          logger.error('Error parsing tool call', { error: e });
           if (e instanceof ZodError) {
-            console.error("Validation failed:", e.issues);
-          } 
+            logger.error('Zod validation failed', { issues: e.issues });
+          }
           content = (message.content || '') as T;
         }
       } else {
         content = (message.content || '') as T;
       }
     } else if (schema && message.content) {
-      console.log('In non tool call case');
+      logger.debug('Processing response without tool calls');
       try {
         const parsed = JSON.parse(message.content);
         if (isZodSchema(schema)) {
@@ -810,7 +833,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
           content = parsed as T;
         }
       } catch (e) {
-        console.log('Error parsing message', e);
+        logger.error('Error parsing message content', { error: e });
         content = message.content as T;
       }
     } else {

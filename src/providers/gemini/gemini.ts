@@ -8,6 +8,7 @@ import type { JSONSchemaType } from 'ajv';
 import type { GenericJSONSchema } from '../../types/schema';
 import { isZodSchema, isJSONSchema } from '../../utils/schema-utils';
 import { validateJSONSchema } from '../../utils/json-schema-validator';
+import { getLogger } from '../../utils/logger';
 import type {
   ZodDef,
   ZodArrayDef,
@@ -296,9 +297,17 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
   async chat<T = string>(
     request: ProviderChatRequest<'gemini', T>,
   ): Promise<ProviderChatResponse<'gemini', T>> {
+    const logger = getLogger('gemini');
+    const model = request.model || 'gemini-1.5-pro-latest';
+    logger.info('Gemini chat request initiated', { model });
+
     const makeRequest = async () => {
       const geminiRequest = this.transformRequest(request);
-      const model = request.model || 'gemini-1.5-pro-latest';
+      logger.debug('Transformed request for Gemini API', {
+        hasSystemInstruction: !!geminiRequest.systemInstruction,
+        contentCount: geminiRequest.contents.length,
+        hasTools: !!geminiRequest.tools,
+      });
 
       const response = await fetch(`${this.baseURL}/models/${model}:generateContent`, {
         method: 'POST',
@@ -310,6 +319,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
       });
 
       if (!response) {
+        logger.error('Network error: No response received from Gemini');
         throw new LLMError(
           'Network error: No response received',
           undefined,
@@ -326,6 +336,11 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         };
         const retryAfter = response.headers.get('Retry-After');
         const errorMessage = `Gemini API error (${response.status}): ${error.error?.message || 'Unknown error'}`;
+        logger.error('Gemini API error', {
+          status: response.status,
+          error: error.error?.message,
+          retryAfter,
+        });
         const llmError = new LLMError(errorMessage, response.status, 'gemini', request.model);
         if (retryAfter) {
           llmError.retryAfter = parseInt(retryAfter, 10);
@@ -334,6 +349,11 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
       }
 
       const data = (await response.json()) as GeminiResponse;
+      logger.info('Gemini chat response received', {
+        usage: data.usageMetadata,
+        candidateCount: data.candidates?.length,
+        finishReason: data.candidates?.[0]?.finishReason,
+      });
       return this.transformResponse<T>(data, model, request.schema);
     };
 
@@ -347,8 +367,12 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
   async stream<T = string>(
     request: ProviderChatRequest<'gemini', T>,
   ): Promise<StreamingResponse<T>> {
-    const geminiRequest = this.transformRequest(request);
+    const logger = getLogger('gemini');
     const model = request.model || 'gemini-1.5-pro-latest';
+    logger.info('Gemini stream request initiated', { model });
+
+    const geminiRequest = this.transformRequest(request);
+    logger.debug('Transformed streaming request for Gemini API');
 
     const response = await fetch(`${this.baseURL}/models/${model}:streamGenerateContent?alt=sse`, {
       method: 'POST',
@@ -365,6 +389,10 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         .catch(() => ({ error: { message: response.statusText } }))) as {
         error?: { message?: string };
       };
+      logger.error('Gemini streaming API error', {
+        status: response.status,
+        error: error.error?.message,
+      });
       throw new Error(
         `Gemini API error (${response.status}): ${error.error?.message || 'Unknown error'}`,
       );
