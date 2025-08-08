@@ -15,6 +15,7 @@ A TypeScript-native library that provides a unified interface for multiple LLM p
 - 🔁 **Retry Logic** - Built-in exponential backoff with configurable retry strategies
 - 📋 **Model Discovery** - List available models for each provider
 - 🧠 **Thinking Tokens** - Support for Anthropic's thinking tokens feature
+- 📊 **Structured Logging** - Configurable Winston logging with automatic sensitive data redaction
 
 ## Installation
 
@@ -417,6 +418,144 @@ if (complete.thinking) {
 ```
 
 Note: Thinking tokens are only available with Anthropic's Claude models and require specific model versions that support this feature.
+
+## Logging
+
+Homogenaize includes a powerful logging system built on Winston that provides detailed insights into library operations while maintaining zero noise by default.
+
+### Basic Configuration
+
+```typescript
+// Enable logging with default settings (info level)
+const client = createLLM({
+  provider: 'openai',
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: 'gpt-4o-mini',
+  logging: true,
+});
+
+// Or disable logging explicitly
+const client = createLLM({
+  provider: 'anthropic',
+  apiKey: process.env.ANTHROPIC_API_KEY!,
+  model: 'claude-3-sonnet-20240229',
+  logging: false, // Default behavior - no logs
+});
+```
+
+### Advanced Configuration
+
+```typescript
+import { createLLM } from 'homogenaize';
+
+const client = createLLM({
+  provider: 'gemini',
+  apiKey: process.env.GEMINI_API_KEY!,
+  model: 'gemini-1.5-pro',
+  logging: {
+    level: 'debug', // error, warn, info, debug, verbose, silent
+    format: 'json', // json or pretty (default: pretty)
+    prefix: '[MyApp]', // Optional prefix for all log messages
+  },
+});
+
+// Example log output (pretty format):
+// 2024-01-15T10:30:45.123Z [info]: [MyApp] Creating LLM client {"provider":"gemini","model":"gemini-1.5-pro"}
+// 2024-01-15T10:30:45.456Z [debug]: [MyApp] Transformed request for Gemini API {"contentCount":1,"hasTools":false}
+```
+
+### Environment Variables
+
+Configure logging globally using environment variables:
+
+```bash
+# Set log level
+export HOMOGENAIZE_LOG_LEVEL=debug
+
+# Set output format
+export HOMOGENAIZE_LOG_FORMAT=json
+
+# Run your application
+node app.js
+```
+
+### Log Levels
+
+- **error**: API failures, network errors, validation failures
+- **warn**: Rate limit warnings, deprecated features, recoverable errors
+- **info**: Request/response summaries, token usage, model selection
+- **debug**: Request transformation, schema validation, retry attempts
+- **verbose**: Full request/response bodies, detailed transformations
+- **silent**: No logging (default)
+
+### Custom Transports
+
+For production environments, you can configure custom Winston transports:
+
+```typescript
+import winston from 'winston';
+import { createLLM } from 'homogenaize';
+
+const client = createLLM({
+  provider: 'openai',
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: 'gpt-4o-mini',
+  logging: {
+    level: 'info',
+    format: 'json',
+    transports: [
+      new winston.transports.File({
+        filename: 'llm-errors.log',
+        level: 'error',
+      }),
+      new winston.transports.File({
+        filename: 'llm-combined.log',
+      }),
+      new winston.transports.Console({
+        format: winston.format.simple(),
+      }),
+    ],
+  },
+});
+```
+
+### Security Features
+
+The logging system automatically redacts sensitive information:
+
+- API keys (OpenAI, Anthropic, Gemini formats)
+- Tokens and secrets
+- Password fields
+- Any field with 'key', 'token', 'secret', or 'password' in the name
+
+Example:
+
+```typescript
+// This will be logged as:
+// API Key: ***REDACTED***
+// Instead of showing the actual key
+```
+
+### What Gets Logged
+
+**Provider Operations:**
+
+- Request initiation with model and provider info
+- Response completion with token usage
+- API errors with status codes and retry information
+- Streaming events and completion
+
+**Client Operations:**
+
+- Client creation with configuration
+- Tool definitions and executions
+- Request routing and transformations
+
+**Retry Logic:**
+
+- Retry attempts with backoff calculations
+- Rate limit handling
+- Final success or failure
 
 ## Building Abstractions
 
