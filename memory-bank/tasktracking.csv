@@ -34,3 +34,6 @@ EF46C5C9-AAE1-4222-99B2-3B12F5D932D3,Fix circular dependencies and type performa
 389F2B55-2430-4507-A474-B29B6491DD86,Add JSON Schema support to all providers,done,,20250806-1143-add-json-schema-support.md
 492FAE27-7DD8-45A8-9601-0DCBC5E7BC69,Support both typed and untyped JSON schemas,done,,20250806-1223-support-typed-json-schemas.md
 ACF50567-EE08-4406-8246-DB170CC25C2D,Implement Winston logging system,done,,20250807-1437-implement-winston-logging.md
+B7E8F9A0-1B2C-3D4E-5F67-8G9H0I1J2K3L,Implement generic API alongside type-safe API,done,,20250808-1441-implement-generic-api.md
+C8F9G0A1-2C3D-4E5F-6G78-9H0I1J2K3L4M,Fix ESLint errors in generic-client.ts,done,,20250808-1510-fix-generic-client-eslint.md
+9F88A61C-3C44-4EBF-A705-ACAB8810E904,Fix generic client instantiating real providers with test keys,done,,20250808-1545-fix-generic-client-test-keys.md

@@ -58,3 +58,21 @@ export type {
 } from './generated/model-types';
 
 export { OPENAI_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS } from './generated/model-types';
+
+// Generic client exports (without provider type parameters)
+export {
+  createGenericLLM,
+  createGenericOpenAI,
+  createGenericAnthropic,
+  createGenericGemini,
+  type GenericLLMClient,
+  type GenericLLMConfig,
+  type GenericToolConfig,
+  type GenericExecutableTool,
+  type GenericToolResult,
+  type GenericChatOptions,
+  type GenericStreamOptions,
+  type GenericDefineToolOptions,
+  type GenericExecuteToolsOptions,
+  type GenericChatResponse,
+} from './generic-client';
