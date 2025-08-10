@@ -67,6 +67,68 @@ const response = await client.chat({
 console.log(response.content);
 ```
 
+## Generic API (Provider Type Pollution Avoidance)
+
+If you want to avoid provider types spreading throughout your codebase (at the cost of compile-time model validation), use the Generic API:
+
+```typescript
+import {
+  createGenericLLM,
+  createGenericOpenAI,
+  createGenericAnthropic,
+  createGenericGemini,
+} from 'homogenaize';
+
+// Generic API - no provider type parameters needed
+const client = createGenericLLM({
+  provider: 'openai', // Runtime provider selection
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: 'gpt-4', // Any string accepted (no compile-time validation)
+});
+
+// Provider-specific generic factories
+const openai = createGenericOpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: 'gpt-4', // Any string model name
+});
+
+// Switch providers at runtime without type changes
+function createClient(provider: string) {
+  return createGenericLLM({
+    provider: provider as any,
+    apiKey: getApiKey(provider),
+    model: getModel(provider),
+  });
+}
+
+// Same interface, no type pollution
+const response = await client.chat({
+  messages: [{ role: 'user', content: 'Hello!' }],
+});
+
+// Still supports all features (schemas, tools, streaming)
+const structuredResponse = await client.chat({
+  messages: [{ role: 'user', content: 'Generate data' }],
+  schema: MyZodSchema, // Still works with Zod/JSON Schema
+});
+```
+
+### When to Use Generic vs Type-Safe API
+
+**Use the Type-Safe API when:**
+
+- You want compile-time validation of model names
+- You need IDE autocomplete for provider-specific features
+- You're working with a single provider
+- Type safety is more important than flexibility
+
+**Use the Generic API when:**
+
+- You need to switch providers dynamically at runtime
+- You want to avoid provider types in your function signatures
+- You're building provider-agnostic abstractions
+- You're willing to trade compile-time safety for flexibility
+
 ## Structured Outputs
 
 Define schemas using Zod or JSON Schema and get validated, typed responses from any provider:
