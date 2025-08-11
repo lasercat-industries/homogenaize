@@ -1,6 +1,6 @@
 {
   "name": "@lasercat/homogenaize",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "A TypeScript-native library that provides a unified interface for multiple LLM providers (OpenAI, Anthropic, Gemini)",
   "author": "Ryland Goldstein",
   "license": "MIT",
@@ -82,7 +82,7 @@
     "prettier": "^3.6.2",
     "typescript-eslint": "^8.36.0",
     "uuid-mcp": "^1.0.0",
-    "zod": "^4.0.0",
+    "zod": "^4.0.17",
     "zod-to-json-schema": "^3.24.6"
   },
   "prettier": "@lasercat/config/.prettierrc.json",
