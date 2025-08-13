@@ -141,7 +141,7 @@ describe('Structured Output Reliability Tests', () => {
   describe.skipIf(SKIP_GEMINI)('Gemini Provider', () => {
     const client = createGeminiLLM({
       apiKey: process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '',
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
     });
 
     // Gemini-specific schema that's more lenient with UUID format

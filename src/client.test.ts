@@ -41,11 +41,11 @@ describe('LLM Client', () => {
     it('should create Gemini client with specific factory', () => {
       const client = createGeminiLLM({
         apiKey: 'test-key',
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-flash',
       });
 
       expect(client.provider).toBe('gemini');
-      expect(client.model).toBe('gemini-1.5-pro');
+      expect(client.model).toBe('gemini-2.5-flash');
     });
   });
 
@@ -196,7 +196,7 @@ describe('LLM Client', () => {
     });
 
     it('should support tool definition', () => {
-      const client = new MockLLMClient('gemini', 'test-key', 'gemini-1.5-pro');
+      const client = new MockLLMClient('gemini', 'test-key', 'gemini-2.5-flash');
       const tool = client.defineTool({
         name: 'get_weather',
         description: 'Get weather',

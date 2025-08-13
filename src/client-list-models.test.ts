@@ -69,8 +69,8 @@ describe('Client List Models', () => {
     const mockResponse = {
       models: [
         {
-          name: 'models/gemini-1.5-pro',
-          displayName: 'Gemini 1.5 Pro',
+          name: 'models/gemini-2.5-flash',
+          displayName: 'Gemini 2.5 Flash',
           description: 'Mid-size model',
         },
       ],
@@ -83,13 +83,13 @@ describe('Client List Models', () => {
 
     const client = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-flash',
     });
 
     const models = await client.listModels();
 
     expect(models).toHaveLength(1);
-    expect(models[0]?.id).toBe('gemini-1.5-pro');
+    expect(models[0]?.id).toBe('gemini-2.5-flash');
     expect(models[0]?.description).toBe('Mid-size model');
   });
 });

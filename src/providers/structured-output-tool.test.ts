@@ -122,7 +122,7 @@ describe('Structured Output via Tool Calling', () => {
       };
 
       const response = await provider.chat({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         messages: [
           {
             role: 'user',

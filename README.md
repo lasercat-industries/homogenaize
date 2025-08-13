@@ -52,7 +52,7 @@ const anthropic = createAnthropicLLM({
 
 const gemini = createGeminiLLM({
   apiKey: process.env.GEMINI_API_KEY!,
-  model: 'gemini-1.5-pro', // ✨ Only Gemini models allowed
+  model: 'gemini-2.5-flash', // ✨ Only Gemini models allowed
 });
 
 // Use the same interface for all providers
@@ -235,7 +235,7 @@ const DynamicSchema = {
 const client = createLLM({
   provider: 'gemini',
   apiKey: process.env.GEMINI_API_KEY!,
-  model: 'gemini-1.5-pro',
+  model: 'gemini-2.5-flash',
 });
 
 const response = await client.chat({
@@ -513,7 +513,7 @@ import { createLLM } from 'homogenaize';
 const client = createLLM({
   provider: 'gemini',
   apiKey: process.env.GEMINI_API_KEY!,
-  model: 'gemini-1.5-pro',
+  model: 'gemini-2.5-flash',
   logging: {
     level: 'debug', // error, warn, info, debug, verbose, silent
     format: 'json', // json or pretty (default: pretty)

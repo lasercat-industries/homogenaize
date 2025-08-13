@@ -120,14 +120,14 @@ describe('List Models Functionality', () => {
       const mockResponse = {
         models: [
           {
-            name: 'models/gemini-1.5-pro',
-            displayName: 'Gemini 1.5 Pro',
+            name: 'models/gemini-2.5-flash',
+            displayName: 'Gemini 2.5 Flash',
             description: 'Mid-size multimodal model',
             supportedGenerationMethods: ['generateContent', 'streamGenerateContent'],
           },
           {
-            name: 'models/gemini-1.5-flash',
-            displayName: 'Gemini 1.5 Flash',
+            name: 'models/gemini-2.0-flash',
+            displayName: 'Gemini 2.0 Flash',
             description: 'Fast and versatile multimodal model',
             supportedGenerationMethods: ['generateContent', 'streamGenerateContent'],
           },
@@ -144,8 +144,8 @@ describe('List Models Functionality', () => {
 
       expect(models).toHaveLength(2);
       expect(models[0]).toMatchObject({
-        id: 'gemini-1.5-pro',
-        name: 'Gemini 1.5 Pro',
+        id: 'gemini-2.5-flash',
+        name: 'Gemini 2.5 Flash',
         description: 'Mid-size multimodal model',
       });
 

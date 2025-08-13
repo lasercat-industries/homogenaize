@@ -202,7 +202,7 @@ describe('Client with Retry Configuration', () => {
 
     const geminiClient = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-flash',
       retry: retryConfig,
     });
 

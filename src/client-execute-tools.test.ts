@@ -73,7 +73,7 @@ describe('Client executeTools with toolName', () => {
     const client = createLLM({
       provider: 'gemini' as const,
       apiKey: 'test-key',
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
     });
 
     // Define a tool that throws an error

@@ -32,7 +32,11 @@ describe('Typed Model Names', () => {
   });
 
   it('should accept valid Gemini model names', () => {
-    const validModels: GeminiModel[] = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+    const validModels: GeminiModel[] = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash-exp',
+      'gemini-2.0-flash',
+    ];
 
     validModels.forEach((model) => {
       const client = createGeminiLLM({
@@ -58,7 +62,7 @@ describe('Typed Model Names', () => {
 
     const geminiClient = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro', // TypeScript should autocomplete valid models here
+      model: 'gemini-2.5-flash', // TypeScript should autocomplete valid models here
     });
 
     expect(openaiClient).toBeDefined();

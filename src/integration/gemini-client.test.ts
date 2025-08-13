@@ -45,7 +45,7 @@ describe('Gemini Client Integration', () => {
 
     const client = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-flash',
     });
 
     const response = await client.chat({
@@ -106,7 +106,7 @@ describe('Gemini Client Integration', () => {
 
     const client = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-flash',
     });
 
     const response = await client.chat({
@@ -159,7 +159,7 @@ describe('Gemini Client Integration', () => {
 
     const client = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-flash',
     });
 
     const response = await client.chat({
@@ -193,7 +193,7 @@ describe('Gemini Client Integration', () => {
 
     const client = createGeminiLLM({
       apiKey: 'test-key',
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-flash',
     });
 
     const tool = client.defineTool(weatherTool);
