@@ -151,10 +151,11 @@ describe('JSON Schema Support', () => {
         model: 'gpt-4' as const,
       };
 
-      // Test that transformRequest handles JSON Schema
+      // Test that transformRequest handles JSON Schema with native response_format
       const transformed = (openaiProvider as any).transformRequest(request);
-      expect(transformed.tools).toBeDefined();
-      expect(transformed.tools[0].function.parameters).toEqual(jsonSchema);
+      expect(transformed.response_format).toBeDefined();
+      expect(transformed.response_format.type).toBe('json_schema');
+      expect(transformed.response_format.json_schema.schema).toEqual(jsonSchema);
     });
 
     it('should handle Zod Schema in OpenAI transformRequest', () => {
@@ -164,11 +165,12 @@ describe('JSON Schema Support', () => {
         model: 'gpt-4' as const,
       };
 
-      // Test that transformRequest handles Zod Schema
+      // Test that transformRequest handles Zod Schema with native response_format
       const transformed = (openaiProvider as any).transformRequest(request);
-      expect(transformed.tools).toBeDefined();
-      expect(transformed.tools[0].function.parameters).toBeDefined();
-      expect(transformed.tools[0].function.parameters.type).toBe('object');
+      expect(transformed.response_format).toBeDefined();
+      expect(transformed.response_format.type).toBe('json_schema');
+      expect(transformed.response_format.json_schema.schema).toBeDefined();
+      expect(transformed.response_format.json_schema.schema.type).toBe('object');
     });
 
     it('should handle JSON Schema in Anthropic transformRequest', () => {

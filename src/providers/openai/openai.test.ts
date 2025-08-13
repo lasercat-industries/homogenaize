@@ -124,19 +124,9 @@ describe('OpenAI Provider', () => {
             index: 0,
             message: {
               role: 'assistant',
-              content: null,
-              tool_calls: [
-                {
-                  id: 'call_123',
-                  type: 'function',
-                  function: {
-                    name: 'respond_with_structured_output',
-                    arguments: '{"answer": "Paris", "confidence": 0.95}',
-                  },
-                },
-              ],
+              content: '{"answer": "Paris", "confidence": 0.95}',
             },
-            finish_reason: 'tool_calls',
+            finish_reason: 'stop',
           },
         ],
       };
@@ -153,12 +143,15 @@ describe('OpenAI Provider', () => {
 
       expect(response.content).toEqual({ answer: 'Paris', confidence: 0.95 });
 
-      // Verify tools were created for structured output
+      // Verify native response_format was used for structured output
       const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);
-      expect(callArgs.tools).toBeDefined();
-      expect(callArgs.tools).toHaveLength(1);
-      expect(callArgs.tools[0].function.name).toBe('respond_with_structured_output');
-      expect(callArgs.tool_choice).toBe('required');
+      expect(callArgs.response_format).toBeDefined();
+      expect(callArgs.response_format.type).toBe('json_schema');
+      expect(callArgs.response_format.json_schema).toBeDefined();
+      expect(callArgs.response_format.json_schema.name).toBe('response');
+      expect(callArgs.response_format.json_schema.schema).toBeDefined();
+      expect(callArgs.tools).toBeUndefined();
+      expect(callArgs.tool_choice).toBeUndefined();
     });
 
     it('should handle tool calls', async () => {

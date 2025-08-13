@@ -53,15 +53,17 @@ describe('OpenAI Discriminated Union Schema Conversion', () => {
     // Use the private method to test schema conversion
     const transformed = (provider as any).transformRequest(request);
 
-    expect(transformed.tools).toBeDefined();
-    expect(transformed.tools).toHaveLength(1);
-    expect(transformed.tool_choice).toBe('required');
-
-    const toolFunction = transformed.tools[0].function;
-    expect(toolFunction.name).toBe('respond_with_structured_output');
+    // Should use native response_format instead of tools
+    expect(transformed.response_format).toBeDefined();
+    expect(transformed.response_format.type).toBe('json_schema');
+    expect(transformed.response_format.json_schema).toBeDefined();
+    expect(transformed.response_format.json_schema.name).toBe('response');
+    expect(transformed.response_format.json_schema.strict).toBe(false); // Disabled for oneOf
+    expect(transformed.tools).toBeUndefined();
+    expect(transformed.tool_choice).toBeUndefined();
 
     // Check the generated JSON schema
-    const schema = toolFunction.parameters;
+    const schema = transformed.response_format.json_schema.schema;
 
     // The discriminated union should be wrapped in a value property for OpenAI
     expect(schema.type).toBe('object');
@@ -135,7 +137,8 @@ describe('OpenAI Discriminated Union Schema Conversion', () => {
     };
 
     const response = await client.chat(request);
-    // Validate the response
+
+    // Validate the response - should be automatically unwrapped by the provider
     const parsed = AgentResponseSchema.parse(response.content);
     expect(parsed.status).toBe('completed');
     expect(parsed.content).toBeDefined();

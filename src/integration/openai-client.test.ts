@@ -86,19 +86,9 @@ describe('OpenAI Client Integration', () => {
           index: 0,
           message: {
             role: 'assistant',
-            content: null,
-            tool_calls: [
-              {
-                id: 'call_123',
-                type: 'function',
-                function: {
-                  name: 'respond_with_structured_output',
-                  arguments: '{"name": "John Doe", "age": 30, "city": "New York"}',
-                },
-              },
-            ],
+            content: '{"name": "John Doe", "age": 30, "city": "New York"}',
           },
-          finish_reason: 'tool_calls',
+          finish_reason: 'stop',
         },
       ],
     };
@@ -126,12 +116,14 @@ describe('OpenAI Client Integration', () => {
       city: 'New York',
     });
 
-    // Verify tools were created internally for structured output
+    // Verify native response_format was used for structured output
     const callBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
-    expect(callBody.tools).toBeDefined();
-    expect(callBody.tools).toHaveLength(1);
-    expect(callBody.tools[0].function.name).toBe('respond_with_structured_output');
-    expect(callBody.tool_choice).toBe('required');
+    expect(callBody.response_format).toBeDefined();
+    expect(callBody.response_format.type).toBe('json_schema');
+    expect(callBody.response_format.json_schema).toBeDefined();
+    expect(callBody.response_format.json_schema.schema).toBeDefined();
+    expect(callBody.tools).toBeUndefined();
+    expect(callBody.tool_choice).toBeUndefined();
   });
 
   it('should handle OpenAI-specific features', async () => {

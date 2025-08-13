@@ -12,7 +12,7 @@ const testSchema = z.object({
 
 describe('Structured Output via Tool Calling', () => {
   describe('OpenAI Provider', () => {
-    it('should use tool calling internally when schema is provided', async () => {
+    it('should use native structured output when schema is provided', async () => {
       const apiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
       if (!apiKey) {
         console.log('Skipping OpenAI test - no API key found');
@@ -21,7 +21,7 @@ describe('Structured Output via Tool Calling', () => {
 
       const provider = new OpenAIProvider(apiKey);
 
-      // Spy on the transformRequest method to verify tool is created
+      // Spy on the transformRequest method to verify native response_format is used
       const originalTransform = provider['transformRequest'].bind(provider);
       let capturedRequest: any;
       provider['transformRequest'] = (request) => {
@@ -47,10 +47,12 @@ describe('Structured Output via Tool Calling', () => {
       expect(parsed.age).toBe(30);
       expect(parsed.email).toBe('john@example.com');
 
-      // Verify that tools were created internally
-      expect(capturedRequest.tools).toBeDefined();
-      expect(capturedRequest.tools).toHaveLength(1);
-      expect(capturedRequest.tool_choice).toBe('required');
+      // Verify that native response_format was used (not tools)
+      expect(capturedRequest.response_format).toBeDefined();
+      expect(capturedRequest.response_format.type).toBe('json_schema');
+      expect(capturedRequest.response_format.json_schema).toBeDefined();
+      expect(capturedRequest.tools).toBeUndefined();
+      expect(capturedRequest.tool_choice).toBeUndefined();
     });
   });
 
