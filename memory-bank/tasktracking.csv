@@ -37,3 +37,4 @@ ACF50567-EE08-4406-8246-DB170CC25C2D,Implement Winston logging system,done,,2025
 B7E8F9A0-1B2C-3D4E-5F67-8G9H0I1J2K3L,Implement generic API alongside type-safe API,done,,20250808-1441-implement-generic-api.md
 C8F9G0A1-2C3D-4E5F-6G78-9H0I1J2K3L4M,Fix ESLint errors in generic-client.ts,done,,20250808-1510-fix-generic-client-eslint.md
 9F88A61C-3C44-4EBF-A705-ACAB8810E904,Fix generic client instantiating real providers with test keys,done,,20250808-1545-fix-generic-client-test-keys.md
+BCAEF31C-D9A8-46A3-AF6F-314C91CD81AD,Create advanced Zod schema tests for OpenAI,done,,20250110-1600-advanced-zod-openai-tests.md

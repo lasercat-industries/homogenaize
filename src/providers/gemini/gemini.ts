@@ -686,8 +686,17 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         } else {
           parsedContent = structuredOutputTool.arguments as T;
         }
-      } catch {
-        parsedContent = content as T;
+      } catch (error) {
+        // Log the validation error details for debugging
+        console.error('Gemini schema validation failed:', {
+          error: error instanceof Error ? error.message : error,
+          receivedData: structuredOutputTool.arguments,
+          schema: isZodSchema(schema) ? 'Zod schema' : 'JSON schema',
+        });
+        // If validation fails but we have the structured output, return the raw arguments
+        // This prevents returning empty content when Gemini successfully returns data
+        // that doesn't match the schema exactly
+        parsedContent = structuredOutputTool.arguments as T;
       }
     } else if (schema && content) {
       try {
