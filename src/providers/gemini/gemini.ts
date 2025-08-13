@@ -265,9 +265,20 @@ function zodToGeminiSchema(schema: z.ZodSchema): GenericJSONSchema {
       }
       case 'enum': {
         const enumDef = def as ZodEnumDef;
+        let enumValues: string[] = [];
+
+        // Zod can store enum values in different fields
+        if (enumDef.values) {
+          enumValues = enumDef.values;
+        } else if (enumDef.options) {
+          enumValues = enumDef.options;
+        } else if (enumDef.entries) {
+          enumValues = Object.values(enumDef.entries);
+        }
+
         return {
           type: 'string',
-          enum: enumDef.values || [],
+          enum: enumValues,
         };
       }
       case 'literal': {
@@ -425,9 +436,20 @@ function zodToGeminiNativeSchema(schema: z.ZodSchema): GeminiNativeSchema {
 
       case 'enum': {
         const enumDef = def as ZodEnumDef;
+        let enumValues: string[] = [];
+
+        // Zod can store enum values in different fields
+        if (enumDef.values) {
+          enumValues = enumDef.values;
+        } else if (enumDef.options) {
+          enumValues = enumDef.options;
+        } else if (enumDef.entries) {
+          enumValues = Object.values(enumDef.entries);
+        }
+
         return {
           type: 'STRING',
-          enum: enumDef.values || [],
+          enum: enumValues,
         };
       }
 
