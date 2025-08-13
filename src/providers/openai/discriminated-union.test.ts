@@ -135,7 +135,6 @@ describe('OpenAI Discriminated Union Schema Conversion', () => {
     };
 
     const response = await client.chat(request);
-    console.log(response);
     // Validate the response
     const parsed = AgentResponseSchema.parse(response.content);
     expect(parsed.status).toBe('completed');

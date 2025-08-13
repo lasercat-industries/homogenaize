@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, ToolCall, Message } from '../provider';
 import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInfo } from '../types';
 import type { RetryConfig } from '../../retry/types';
@@ -214,11 +214,25 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
     const makeRequest = async () => {
       const anthropicRequest = this.transformRequest(request);
+      const requestBody = JSON.stringify(anthropicRequest);
+
       logger.debug('Transformed request for Anthropic API', {
         hasSystemMessage: !!anthropicRequest.system,
         messageCount: anthropicRequest.messages.length,
         hasTools: !!anthropicRequest.tools,
       });
+
+      // Log full request payload at verbose level
+      logger.verbose('Anthropic request payload', {
+        url: `${this.baseURL}/messages`,
+        model: anthropicRequest.model,
+        system: anthropicRequest.system,
+        messages: anthropicRequest.messages,
+        tools: anthropicRequest.tools,
+        temperature: anthropicRequest.temperature,
+        max_tokens: anthropicRequest.max_tokens,
+      });
+
       const response = await fetch(`${this.baseURL}/messages`, {
         method: 'POST',
         headers: {
@@ -226,7 +240,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
           'anthropic-version': this.apiVersion,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(anthropicRequest),
+        body: requestBody,
       });
 
       if (!response) {
@@ -240,19 +254,44 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       }
 
       if (!response.ok) {
-        const error = (await response
-          .json()
-          .catch(() => ({ error: { message: response.statusText } }))) as {
-          error?: { message?: string };
-        };
+        let error: { error?: { message?: string } };
+        let errorText: string;
+
+        // Handle both real responses and test mocks
+        if (typeof response.text === 'function') {
+          errorText = await response.text();
+          try {
+            error = JSON.parse(errorText);
+          } catch {
+            error = { error: { message: errorText || response.statusText } };
+          }
+        } else {
+          // Fallback for test mocks that only have .json()
+          error = (await response
+            .json()
+            .catch(() => ({ error: { message: response.statusText } }))) as {
+            error?: { message?: string };
+          };
+          errorText = JSON.stringify(error);
+        }
 
         const retryAfter = response.headers.get('Retry-After');
         const errorMessage = `Anthropic API error (${response.status}): ${error.error?.message || 'Unknown error'}`;
-        logger.error('Anthropic API error', {
+
+        // Log full error details including request that caused it
+        logger.error('Anthropic API error - Full Details', {
           status: response.status,
           error: error.error?.message,
           retryAfter,
+          requestPayload: {
+            model: anthropicRequest.model,
+            messages: anthropicRequest.messages,
+            tools: anthropicRequest.tools,
+            system: anthropicRequest.system,
+          },
+          rawErrorResponse: errorText,
         });
+
         const llmError = new LLMError(errorMessage, response.status, 'anthropic', request.model);
         if (retryAfter) {
           llmError.retryAfter = parseInt(retryAfter, 10);
@@ -261,6 +300,16 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       }
 
       const data = (await response.json()) as AnthropicResponse;
+
+      // Log raw response at verbose level
+      logger.verbose('Anthropic raw response', {
+        id: data.id,
+        model: data.model,
+        content: data.content,
+        stop_reason: data.stop_reason,
+        usage: data.usage,
+      });
+
       logger.info('Anthropic chat response received', {
         usage: data.usage,
         model: data.model,
@@ -481,6 +530,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
   private transformRequest<T = string>(
     request: ProviderChatRequest<'anthropic', T>,
   ): AnthropicRequest {
+    const logger = getLogger('anthropic');
     // Extract system message if present
     let system: string | undefined;
     const messages: AnthropicMessage[] = [];
@@ -536,36 +586,54 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
     // Handle tools
     if (request.tools) {
-      anthropicRequest.tools = request.tools.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        input_schema: tool.parameters
+      logger.debug('Processing tools for request', { toolCount: request.tools.length });
+      anthropicRequest.tools = request.tools.map((tool) => {
+        logger.verbose('Converting tool schema', { toolName: tool.name });
+        const schema = tool.parameters
           ? zodToAnthropicSchema(tool.parameters)
-          : { type: 'object', properties: {} },
-      }));
+          : { type: 'object' as const, properties: {} };
+        logger.debug('Tool converted', {
+          toolName: tool.name,
+          hasParameters: !!tool.parameters,
+        });
+        return {
+          name: tool.name,
+          description: tool.description,
+          input_schema: schema,
+        };
+      });
+      logger.info('Tools configured', {
+        toolNames: request.tools.map((t) => t.name),
+      });
     }
 
     if (request.toolChoice === 'required' && request.tools?.length !== 1) {
+      logger.error('Invalid tool configuration: required tool choice needs exactly 1 tool', {
+        toolCount: request.tools?.length,
+      });
       throw new Error('Only 1 tool can be provided when using toolChoice: required');
     }
 
     // Handle tool choice
     if (request.toolChoice) {
+      logger.debug('Processing tool choice', { toolChoice: request.toolChoice });
       switch (request.toolChoice) {
         case 'required': {
           anthropicRequest.tool_choice = { type: 'tool', name: request.tools?.[0]?.name };
-
+          logger.verbose('Tool choice set to required', {
+            toolName: request.tools?.[0]?.name,
+          });
           break;
         }
         case 'none': {
           // Don't include tools if none
           delete anthropicRequest.tools;
-
+          logger.verbose('Tool choice set to none, removing tools');
           break;
         }
         case 'auto': {
           anthropicRequest.tool_choice = { type: 'auto' };
-
+          logger.verbose('Tool choice set to auto');
           break;
         }
         default:
@@ -574,6 +642,9 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
               type: 'tool',
               name: request.toolChoice.name,
             };
+            logger.verbose('Tool choice set to specific tool', {
+              toolName: request.toolChoice.name,
+            });
           }
       }
     }
@@ -608,30 +679,45 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     response: AnthropicResponse,
     schema?: z.ZodSchema<T> | JSONSchemaType<T> | GenericJSONSchema,
   ): ProviderChatResponse<'anthropic', T> {
+    const logger = getLogger('anthropic');
     let content = '';
     let thinking = '';
     const toolCalls: ToolCall[] = [];
+
+    logger.debug('Processing response content blocks', {
+      blockCount: response.content.length,
+    });
 
     // Process content blocks
     for (const block of response.content) {
       switch (block.type) {
         case 'text': {
           content += block.text;
-
+          logger.verbose('Processed text block', {
+            textLength: block.text.length,
+          });
           break;
         }
         case 'thinking': {
           thinking += block.text;
-
+          logger.verbose('Processed thinking block', {
+            thinkingLength: block.text.length,
+          });
           break;
         }
         case 'tool_use': {
+          logger.debug('Processing tool use block', {
+            toolId: block.id,
+            toolName: block.name,
+          });
           toolCalls.push({
             id: block.id,
             name: block.name,
             arguments: block.input,
           });
-
+          logger.info('Tool call processed', {
+            toolName: block.name,
+          });
           break;
         }
         // No default
@@ -645,38 +731,97 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       (tc) => tc.name === 'respond_with_structured_output',
     );
     if (schema && structuredOutputTool) {
+      logger.debug('Extracting structured output from tool call');
       try {
         if (isZodSchema(schema)) {
+          logger.verbose('Validating with Zod schema');
           parsedContent = schema.parse(structuredOutputTool.arguments) as T;
+          logger.info('Structured output validated successfully');
         } else if (isJSONSchema(schema)) {
+          logger.verbose('Validating with JSON schema');
           const validation = validateJSONSchema<T>(schema, structuredOutputTool.arguments);
           if (validation.valid) {
             parsedContent = validation.data;
+            logger.info('Structured output validated successfully');
           } else {
+            logger.error('JSON Schema validation failed - Full Details', {
+              errors: validation.errors,
+              failedData: structuredOutputTool.arguments,
+              schema: schema,
+            });
             throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
           }
         } else {
           parsedContent = structuredOutputTool.arguments as T;
         }
-      } catch {
+      } catch (e) {
+        if (e instanceof ZodError) {
+          logger.error('Zod validation failed for tool call - Full Details', {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            zodErrors: (e as any).errors,
+            issues: e.issues,
+            failedData: structuredOutputTool.arguments,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            schemaType: (schema as any)._def?.typeName || 'unknown',
+            message: e.message,
+            formattedError: e.format(),
+          });
+        } else {
+          logger.error('Error parsing tool call - Full Details', {
+            error: e instanceof Error ? e.message : String(e),
+            errorType: e?.constructor?.name,
+            failedData: structuredOutputTool.arguments,
+            toolName: structuredOutputTool.name,
+          });
+        }
         parsedContent = content as T;
       }
     } else if (schema && content) {
+      logger.debug('Processing content for schema validation');
       try {
         const parsed = JSON.parse(content);
+        logger.debug('Parsed content for validation', { parsed });
+
         if (isZodSchema(schema)) {
+          logger.verbose('Validating with Zod schema');
           parsedContent = schema.parse(parsed) as T;
+          logger.info('Zod validation successful for content');
         } else if (isJSONSchema(schema)) {
+          logger.verbose('Validating with JSON schema');
           const validation = validateJSONSchema<T>(schema, parsed);
           if (validation.valid) {
             parsedContent = validation.data;
+            logger.info('JSON Schema validation successful');
           } else {
+            logger.error('JSON Schema validation failed - Full Details', {
+              errors: validation.errors,
+              failedData: parsed,
+              schema: schema,
+            });
             throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
           }
         } else {
           parsedContent = parsed as T;
         }
-      } catch {
+      } catch (e) {
+        if (e instanceof ZodError) {
+          logger.error('Zod validation failed for content - Full Details', {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            zodErrors: (e as any).errors,
+            issues: e.issues,
+            failedData: content,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            schemaType: (schema as any)._def?.typeName || 'unknown',
+            message: e.message,
+            formattedError: e.format(),
+          });
+        } else {
+          logger.error('Error parsing content - Full Details', {
+            error: e instanceof Error ? e.message : String(e),
+            errorType: e?.constructor?.name,
+            rawContent: content,
+          });
+        }
         parsedContent = content as T;
       }
     } else {

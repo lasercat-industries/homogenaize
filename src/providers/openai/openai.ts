@@ -117,13 +117,18 @@ interface OpenAIStreamChunk {
 
 // Helper to convert Zod schema to OpenAI-compatible JSON Schema
 function zodToOpenAISchema(schema: z.ZodSchema): GenericJSONSchema {
+  const logger = getLogger('openai-schema');
+  logger.debug('Converting Zod schema to OpenAI JSON Schema');
+
   const zodType = getZodDef(schema);
 
   if (!zodType) {
+    logger.error('Invalid Zod schema: missing _def property');
     throw new Error('Invalid Zod schema: missing _def property');
   }
 
   function processZodType(def: ZodDef): GenericJSONSchema {
+    logger.verbose('Processing Zod type', { type: def.type });
     switch (def.type) {
       case 'string':
         return { type: 'string' };
@@ -334,8 +339,21 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     const makeRequest = async () => {
       const openAIRequest = this.transformRequest(request);
+      const requestBody = JSON.stringify(openAIRequest);
+
       logger.debug('Transformed request for OpenAI API', {
-        requestSize: JSON.stringify(openAIRequest).length,
+        requestSize: requestBody.length,
+      });
+
+      // Log full request payload at verbose level
+      logger.verbose('OpenAI request payload', {
+        url: `${this.baseURL}/chat/completions`,
+        model: openAIRequest.model,
+        messages: openAIRequest.messages,
+        tools: openAIRequest.tools,
+        temperature: openAIRequest.temperature,
+        max_tokens: openAIRequest.max_tokens,
+        response_format: openAIRequest.response_format,
       });
 
       const response = await fetch(`${this.baseURL}/chat/completions`, {
@@ -344,7 +362,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(openAIRequest),
+        body: requestBody,
       });
 
       if (!response) {
@@ -358,20 +376,44 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       }
 
       if (!response.ok) {
-        const error = (await response
-          .json()
-          .catch(() => ({ error: { message: response.statusText } }))) as {
-          error?: { message?: string };
-        };
+        let error: { error?: { message?: string } };
+        let errorText: string;
+
+        // Handle both real responses and test mocks
+        if (typeof response.text === 'function') {
+          errorText = await response.text();
+          try {
+            error = JSON.parse(errorText);
+          } catch {
+            error = { error: { message: errorText || response.statusText } };
+          }
+        } else {
+          // Fallback for test mocks that only have .json()
+          error = (await response
+            .json()
+            .catch(() => ({ error: { message: response.statusText } }))) as {
+            error?: { message?: string };
+          };
+          errorText = JSON.stringify(error);
+        }
 
         // Extract retry-after header if present
         const retryAfter = response.headers.get('Retry-After');
         const errorMessage = `OpenAI API error (${response.status}): ${error.error?.message || 'Unknown error'}`;
-        logger.error('OpenAI API error', {
+
+        // Log full error details including request that caused it
+        logger.error('OpenAI API error - Full Details', {
           status: response.status,
           error: error.error?.message,
           retryAfter,
+          requestPayload: {
+            model: openAIRequest.model,
+            messages: openAIRequest.messages,
+            tools: openAIRequest.tools,
+          },
+          rawErrorResponse: errorText,
         });
+
         const llmError = new LLMError(errorMessage, response.status, 'openai', request.model);
         if (retryAfter) {
           llmError.retryAfter = parseInt(retryAfter, 10);
@@ -380,6 +422,15 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       }
 
       const data = (await response.json()) as OpenAIResponse;
+
+      // Log raw response at verbose level
+      logger.verbose('OpenAI raw response', {
+        id: data.id,
+        model: data.model,
+        choices: data.choices,
+        usage: data.usage,
+      });
+
       logger.info('OpenAI chat response received', {
         usage: data.usage,
         model: data.model,
@@ -623,6 +674,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
   }
 
   private transformRequest<T = string>(request: ProviderChatRequest<'openai', T>): OpenAIRequest {
+    const logger = getLogger('openai');
     const openAIRequest: OpenAIRequest = {
       model: request.model || 'gpt-4o-mini', // Default fallback
       messages: request.messages.map(this.transformMessage),
@@ -681,8 +733,16 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     // Handle tools
     if (request.tools) {
+      logger.debug('Processing tools for request', { toolCount: request.tools.length });
       openAIRequest.tools = request.tools.map((tool) => {
+        logger.verbose('Converting tool schema', { toolName: tool.name });
         const parameters = zodToOpenAISchema(tool.parameters);
+        const strict = !JSON.stringify(parameters).includes('"oneOf"');
+        logger.debug('Tool converted', {
+          toolName: tool.name,
+          strictMode: strict,
+          hasOneOf: !strict,
+        });
         return {
           type: 'function' as const,
           function: {
@@ -690,28 +750,32 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             description: tool.description,
             parameters,
             // Don't use strict mode for schemas with oneOf (discriminated unions)
-            strict: !JSON.stringify(parameters).includes('"oneOf"'),
+            strict,
           },
         };
+      });
+      logger.info('Tools configured', {
+        toolNames: request.tools.map((t) => t.name),
       });
     }
 
     // Handle tool choice
     if (request.toolChoice) {
+      logger.debug('Processing tool choice', { toolChoice: request.toolChoice });
       switch (request.toolChoice) {
         case 'required': {
           openAIRequest.tool_choice = 'required';
-
+          logger.verbose('Tool choice set to required');
           break;
         }
         case 'none': {
           openAIRequest.tool_choice = 'none';
-
+          logger.verbose('Tool choice set to none');
           break;
         }
         case 'auto': {
           openAIRequest.tool_choice = 'auto';
-
+          logger.verbose('Tool choice set to auto');
           break;
         }
         default:
@@ -720,6 +784,9 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
               type: 'function',
               function: { name: request.toolChoice.name },
             };
+            logger.verbose('Tool choice set to specific function', {
+              functionName: request.toolChoice.name,
+            });
           }
       }
     }
@@ -770,9 +837,11 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         (tc) => tc.function.name === 'respond_with_structured_output',
       );
       if (toolCall) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let parsed: any;
         try {
           logger.debug('Processing tool call for structured output', { toolCall });
-          let parsed = JSON.parse(toolCall.function.arguments);
+          parsed = JSON.parse(toolCall.function.arguments);
           logger.debug('Parsed tool call arguments', { parsed });
 
           // Handle Zod vs JSON Schema validation
@@ -794,21 +863,43 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             }
 
             content = schema.parse(parsed) as T;
+            logger.info('Zod validation successful for structured output');
           } else if (isJSONSchema(schema)) {
             // Validate with AJV
             const validation = validateJSONSchema<T>(schema, parsed);
             if (validation.valid) {
               content = validation.data;
+              logger.info('JSON Schema validation successful');
             } else {
+              logger.error('JSON Schema validation failed - Full Details', {
+                errors: validation.errors,
+                failedData: parsed,
+                schema: schema,
+              });
               throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
             }
           } else {
             content = parsed as T;
           }
         } catch (e) {
-          logger.error('Error parsing tool call', { error: e });
           if (e instanceof ZodError) {
-            logger.error('Zod validation failed', { issues: e.issues });
+            logger.error('Zod validation failed - Full Details', {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              zodErrors: (e as any).errors,
+              issues: e.issues,
+              failedData: parsed,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              schemaType: (schema as any)._def?.typeName || 'unknown',
+              message: e.message,
+              formattedError: e.format(),
+            });
+          } else {
+            logger.error('Error parsing tool call - Full Details', {
+              error: e instanceof Error ? e.message : String(e),
+              errorType: e?.constructor?.name,
+              failedData: toolCall?.function?.arguments,
+              rawResponse: message,
+            });
           }
           content = (message.content || '') as T;
         }
@@ -819,21 +910,49 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       logger.debug('Processing response without tool calls');
       try {
         const parsed = JSON.parse(message.content);
+        logger.debug('Parsed message content for validation', { parsed });
+
         if (isZodSchema(schema)) {
-          console.log('In zod schema specific parsing');
+          logger.debug('Validating with Zod schema');
           content = schema.parse(parsed) as T;
+          logger.info('Zod validation successful for message content');
         } else if (isJSONSchema(schema)) {
+          logger.debug('Validating with JSON Schema');
           const validation = validateJSONSchema<T>(schema, parsed);
           if (validation.valid) {
             content = validation.data;
+            logger.info('JSON Schema validation successful');
           } else {
+            logger.error('JSON Schema validation failed - Full Details', {
+              errors: validation.errors,
+              failedData: parsed,
+              schema: schema,
+            });
             throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
           }
         } else {
           content = parsed as T;
         }
       } catch (e) {
-        logger.error('Error parsing message content', { error: e });
+        if (e instanceof ZodError) {
+          logger.error('Zod validation failed for message content - Full Details', {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            zodErrors: (e as any).errors,
+            issues: e.issues,
+            failedData: message.content,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            schemaType: (schema as any)._def?.typeName || 'unknown',
+            message: e.message,
+            formattedError: e.format(),
+          });
+        } else {
+          logger.error('Error parsing message content - Full Details', {
+            error: e instanceof Error ? e.message : String(e),
+            errorType: e?.constructor?.name,
+            rawContent: message.content,
+            messageType: typeof message.content,
+          });
+        }
         content = message.content as T;
       }
     } else {
@@ -854,11 +973,37 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     // Handle tool calls - but not if we used schema-based tool calling
     if (message.tool_calls && !schema) {
-      result.toolCalls = message.tool_calls.map((tc) => ({
-        id: tc.id,
-        name: tc.function.name,
-        arguments: JSON.parse(tc.function.arguments),
-      }));
+      logger.info('Processing tool calls from response', {
+        toolCallCount: message.tool_calls.length,
+      });
+      result.toolCalls = message.tool_calls.map((tc) => {
+        logger.debug('Processing tool call', {
+          toolId: tc.id,
+          toolName: tc.function.name,
+          argumentsLength: tc.function.arguments.length,
+        });
+        try {
+          const parsedArgs = JSON.parse(tc.function.arguments);
+          logger.verbose('Tool call arguments parsed successfully', {
+            toolName: tc.function.name,
+          });
+          return {
+            id: tc.id,
+            name: tc.function.name,
+            arguments: parsedArgs,
+          };
+        } catch (error) {
+          logger.error('Failed to parse tool call arguments', {
+            toolName: tc.function.name,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            rawArguments: tc.function.arguments,
+          });
+          throw error;
+        }
+      });
+      logger.info('Tool calls processed', {
+        toolNames: result.toolCalls.map((tc) => tc.name),
+      });
     }
 
     // Handle logprobs

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, ToolCall, Message } from '../provider';
 import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInfo } from '../types';
 import { LLMError } from '../../retry/errors';
@@ -303,10 +303,22 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
 
     const makeRequest = async () => {
       const geminiRequest = this.transformRequest(request);
+      const requestBody = JSON.stringify(geminiRequest);
+
       logger.debug('Transformed request for Gemini API', {
         hasSystemInstruction: !!geminiRequest.systemInstruction,
         contentCount: geminiRequest.contents.length,
         hasTools: !!geminiRequest.tools,
+      });
+
+      // Log full request payload at verbose level
+      logger.verbose('Gemini request payload', {
+        url: `${this.baseURL}/models/${model}:generateContent`,
+        systemInstruction: geminiRequest.systemInstruction,
+        contents: geminiRequest.contents,
+        tools: geminiRequest.tools,
+        generationConfig: geminiRequest.generationConfig,
+        safetySettings: geminiRequest.safetySettings,
       });
 
       const response = await fetch(`${this.baseURL}/models/${model}:generateContent`, {
@@ -315,7 +327,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
           'Content-Type': 'application/json',
           'x-goog-api-key': this.apiKey,
         },
-        body: JSON.stringify(geminiRequest),
+        body: requestBody,
       });
 
       if (!response) {
@@ -329,18 +341,42 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
       }
 
       if (!response.ok) {
-        const error = (await response
-          .json()
-          .catch(() => ({ error: { message: response.statusText } }))) as {
-          error?: { message?: string };
-        };
+        let error: { error?: { message?: string } };
+        let errorText: string;
+
+        // Handle both real responses and test mocks
+        if (typeof response.text === 'function') {
+          errorText = await response.text();
+          try {
+            error = JSON.parse(errorText);
+          } catch {
+            error = { error: { message: errorText || response.statusText } };
+          }
+        } else {
+          // Fallback for test mocks that only have .json()
+          error = (await response
+            .json()
+            .catch(() => ({ error: { message: response.statusText } }))) as {
+            error?: { message?: string };
+          };
+          errorText = JSON.stringify(error);
+        }
         const retryAfter = response.headers.get('Retry-After');
         const errorMessage = `Gemini API error (${response.status}): ${error.error?.message || 'Unknown error'}`;
-        logger.error('Gemini API error', {
+
+        // Log full error details including request that caused it
+        logger.error('Gemini API error - Full Details', {
           status: response.status,
           error: error.error?.message,
           retryAfter,
+          requestPayload: {
+            systemInstruction: geminiRequest.systemInstruction,
+            contents: geminiRequest.contents,
+            tools: geminiRequest.tools,
+          },
+          rawErrorResponse: errorText,
         });
+
         const llmError = new LLMError(errorMessage, response.status, 'gemini', request.model);
         if (retryAfter) {
           llmError.retryAfter = parseInt(retryAfter, 10);
@@ -349,6 +385,13 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
       }
 
       const data = (await response.json()) as GeminiResponse;
+
+      // Log raw response at verbose level
+      logger.verbose('Gemini raw response', {
+        candidates: data.candidates,
+        usageMetadata: data.usageMetadata,
+      });
+
       logger.info('Gemini chat response received', {
         usage: data.usageMetadata,
         candidateCount: data.candidates?.length,
@@ -512,6 +555,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
   }
 
   private transformRequest<T = string>(request: ProviderChatRequest<'gemini', T>): GeminiRequest {
+    const logger = getLogger('gemini');
     // Extract system message if present
     let systemInstruction: GeminiRequest['systemInstruction'];
     const contents: GeminiContent[] = [];
@@ -575,38 +619,54 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
 
     // Handle tools
     if (request.tools) {
+      logger.debug('Processing tools for request', { toolCount: request.tools.length });
       geminiRequest.tools = [
         {
-          functionDeclarations: request.tools.map((tool) => ({
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.parameters
+          functionDeclarations: request.tools.map((tool) => {
+            logger.verbose('Converting tool schema', { toolName: tool.name });
+            const parameters = tool.parameters
               ? zodToGeminiSchema(tool.parameters)
-              : { type: 'object', properties: {} },
-          })),
+              : { type: 'object' as const, properties: {} };
+            logger.debug('Tool converted', {
+              toolName: tool.name,
+              hasParameters: !!tool.parameters,
+            });
+            return {
+              name: tool.name,
+              description: tool.description,
+              parameters,
+            };
+          }),
         },
       ];
+      logger.info('Tools configured', {
+        toolNames: request.tools.map((t) => t.name),
+      });
     }
 
     // Handle tool choice
     if (request.toolChoice) {
+      logger.debug('Processing tool choice', { toolChoice: request.toolChoice });
       switch (request.toolChoice) {
         case 'required': {
           geminiRequest.toolConfig = {
             functionCallingConfig: { mode: 'ANY' },
           };
+          logger.verbose('Tool choice set to required (ANY)');
           break;
         }
         case 'none': {
           geminiRequest.toolConfig = {
             functionCallingConfig: { mode: 'NONE' },
           };
+          logger.verbose('Tool choice set to none');
           break;
         }
         case 'auto': {
           geminiRequest.toolConfig = {
             functionCallingConfig: { mode: 'AUTO' },
           };
+          logger.verbose('Tool choice set to auto');
           break;
         }
         // No default
@@ -643,12 +703,18 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     model: string,
     schema?: z.ZodSchema<T> | JSONSchemaType<T> | GenericJSONSchema,
   ): ProviderChatResponse<'gemini', T> {
+    const logger = getLogger('gemini');
     const candidate = response.candidates[0];
     if (!candidate) {
+      logger.error('No candidate in Gemini response');
       throw new Error('No candidate in response');
     }
     let content = '';
     const toolCalls: ToolCall[] = [];
+
+    logger.debug('Processing response content parts', {
+      partCount: candidate.content?.parts?.length || 0,
+    });
 
     // Process content parts
     if (candidate.content && candidate.content.parts) {
@@ -656,11 +722,21 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         const part = candidate.content.parts[i];
         if (part && 'text' in part && part.text) {
           content += part.text;
+          logger.verbose('Processed text part', {
+            textLength: part.text.length,
+          });
         } else if (part && 'functionCall' in part) {
+          logger.debug('Processing function call', {
+            functionName: part.functionCall.name,
+            index: i,
+          });
           toolCalls.push({
             id: `${part.functionCall.name}_${i}`,
             name: part.functionCall.name,
             arguments: part.functionCall.args,
+          });
+          logger.info('Function call processed', {
+            functionName: part.functionCall.name,
           });
         }
       }
@@ -673,38 +749,97 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
       (tc) => tc.name === 'respond_with_structured_output',
     );
     if (schema && structuredOutputTool) {
+      logger.debug('Extracting structured output from tool call');
       try {
         if (isZodSchema(schema)) {
+          logger.verbose('Validating with Zod schema');
           parsedContent = schema.parse(structuredOutputTool.arguments) as T;
+          logger.info('Structured output validated successfully');
         } else if (isJSONSchema(schema)) {
+          logger.verbose('Validating with JSON schema');
           const validation = validateJSONSchema<T>(schema, structuredOutputTool.arguments);
           if (validation.valid) {
             parsedContent = validation.data;
+            logger.info('Structured output validated successfully');
           } else {
+            logger.error('JSON Schema validation failed - Full Details', {
+              errors: validation.errors,
+              failedData: structuredOutputTool.arguments,
+              schema: schema,
+            });
             throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
           }
         } else {
           parsedContent = structuredOutputTool.arguments as T;
         }
-      } catch {
+      } catch (e) {
+        if (e instanceof ZodError) {
+          logger.error('Zod validation failed for tool call - Full Details', {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            zodErrors: (e as any).errors,
+            issues: e.issues,
+            failedData: structuredOutputTool.arguments,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            schemaType: (schema as any)._def?.typeName || 'unknown',
+            message: e.message,
+            formattedError: e.format(),
+          });
+        } else {
+          logger.error('Error parsing tool call - Full Details', {
+            error: e instanceof Error ? e.message : String(e),
+            errorType: e?.constructor?.name,
+            failedData: structuredOutputTool.arguments,
+            toolName: structuredOutputTool.name,
+          });
+        }
         parsedContent = content as T;
       }
     } else if (schema && content) {
+      logger.debug('Processing content for schema validation');
       try {
         const parsed = JSON.parse(content);
+        logger.debug('Parsed content for validation', { parsed });
+
         if (isZodSchema(schema)) {
+          logger.verbose('Validating with Zod schema');
           parsedContent = schema.parse(parsed) as T;
+          logger.info('Zod validation successful for content');
         } else if (isJSONSchema(schema)) {
+          logger.verbose('Validating with JSON schema');
           const validation = validateJSONSchema<T>(schema, parsed);
           if (validation.valid) {
             parsedContent = validation.data;
+            logger.info('JSON Schema validation successful');
           } else {
+            logger.error('JSON Schema validation failed - Full Details', {
+              errors: validation.errors,
+              failedData: parsed,
+              schema: schema,
+            });
             throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
           }
         } else {
           parsedContent = parsed as T;
         }
-      } catch {
+      } catch (e) {
+        if (e instanceof ZodError) {
+          logger.error('Zod validation failed for content - Full Details', {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            zodErrors: (e as any).errors,
+            issues: e.issues,
+            failedData: content,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            schemaType: (schema as any)._def?.typeName || 'unknown',
+            message: e.message,
+            formattedError: e.format(),
+          });
+        } else {
+          logger.error('Error parsing content - Full Details', {
+            error: e instanceof Error ? e.message : String(e),
+            errorType: e?.constructor?.name,
+            rawContent: content,
+          });
+        }
         parsedContent = content as T;
       }
     } else {
