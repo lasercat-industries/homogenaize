@@ -1,0 +1,185 @@
+bun test v1.2.14 (6a363a38)
+
+src/providers/openai/advanced-zod-schemas-extended.test.ts:
+(pass) OpenAI Extended Zod Schema Support > Enum Variations > should handle native enums [899.33ms]
+ 8 |   public originalError?: Error;
+ 9 |   public isRetryable?: boolean;
+10 |   public retryAfter?: number;
+11 | 
+12 |   constructor(message: string, statusCode?: number, provider?: string, model?: string) {
+13 |     super(message);
+         ^
+LLMError: OpenAI API error (400): Invalid schema for function 'respond_with_structured_output': context=('properties', 'userLevel'), enum value 1 does not validate against {'type': 'string'}.
+ statusCode: 400,
+   provider: "openai",
+      model: "gpt-4o-mini",
+ originalError: undefined,
+ isRetryable: false,
+ retryAfter: undefined,
+
+      at new LLMError (/Users/rylandgoldstein/repos/homogenaize/src/retry/errors.ts:13:5)
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/openai.ts:375:26)
+(fail) OpenAI Extended Zod Schema Support > Enum Variations > should handle numeric enums [1195.68ms]
+87 |           },
+88 |         ],
+89 |         schema: MixedUnionSchema,
+90 |       });
+91 | 
+92 |       expect(Array.isArray(response.content.data)).toBe(true);
+                                                        ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/advanced-zod-schemas-extended.test.ts:92:52)
+(fail) OpenAI Extended Zod Schema Support > Complex Union Scenarios > should handle mixed type unions with refinements [966.17ms]
+108 |           },
+109 |         ],
+110 |         schema: NullableUnionSchema,
+111 |       });
+112 | 
+113 |       expect(response.content.value).toBeNull();
+                                           ^
+error: expect(received).toBeNull()
+
+Received: undefined
+
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/advanced-zod-schemas-extended.test.ts:113:38)
+(fail) OpenAI Extended Zod Schema Support > Complex Union Scenarios > should handle nullable unions [1194.04ms]
+ 8 |   public originalError?: Error;
+ 9 |   public isRetryable?: boolean;
+10 |   public retryAfter?: number;
+11 | 
+12 |   constructor(message: string, statusCode?: number, provider?: string, model?: string) {
+13 |     super(message);
+         ^
+LLMError: OpenAI API error (400): Invalid schema for function 'respond_with_structured_output': context=('properties', 'config'), const value None does not validate against {'type': 'boolean'}.
+ statusCode: 400,
+   provider: "openai",
+      model: "gpt-4o-mini",
+ originalError: undefined,
+ isRetryable: false,
+ retryAfter: undefined,
+
+      at new LLMError (/Users/rylandgoldstein/repos/homogenaize/src/retry/errors.ts:13:5)
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/openai.ts:375:26)
+(fail) OpenAI Extended Zod Schema Support > Literal Types and Constants > should handle literal values [426.64ms]
+(pass) OpenAI Extended Zod Schema Support > Literal Types and Constants > should handle const values [1421.88ms]
+179 |         url: z.string().url(),
+180 |         uuid: z.string().uuid(),
+181 |         cuid: z.string().cuid(),
+182 |         cuid2: z.string().cuid2(),
+183 |         ulid: z.string().ulid(),
+184 |         ip: z.string().ip(),
+                             ^
+TypeError: z.string().ip is not a function. (In 'z.string().ip()', 'z.string().ip' is undefined)
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/advanced-zod-schemas-extended.test.ts:184:24)
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/advanced-zod-schemas-extended.test.ts:176:48)
+(fail) OpenAI Extended Zod Schema Support > String Validations > should handle various string formats [2.47ms]
+(pass) OpenAI Extended Zod Schema Support > String Validations > should handle string length constraints [2022.88ms]
+(pass) OpenAI Extended Zod Schema Support > Number Validations > should handle number constraints [1895.79ms]
+313 |           },
+314 |         ],
+315 |         schema: BigIntSchema,
+316 |       });
+317 | 
+318 |       expect(typeof response.content.bigNumber).toBe('bigint');
+                                                      ^
+error: expect(received).toBe(expected)
+
+Expected: "bigint"
+Received: "undefined"
+
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/advanced-zod-schemas-extended.test.ts:318:49)
+(fail) OpenAI Extended Zod Schema Support > Number Validations > should handle BigInt [1047.83ms]
+(pass) OpenAI Extended Zod Schema Support > Object Manipulations > should handle strict objects [628.86ms]
+362 |       });
+363 | 
+364 |       expect(response.content.required).toBe('test');
+365 |       expect(response.content.number).toBe(42);
+366 |       // Passthrough should allow extra fields
+367 |       expect(response.content.extra).toBe('allowed');
+                                           ^
+error: expect(received).toBe(expected)
+
+Expected: "allowed"
+Received: undefined
+
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/advanced-zod-schemas-extended.test.ts:367:38)
+(fail) OpenAI Extended Zod Schema Support > Object Manipulations > should handle passthrough objects [801.54ms]
+385 |           },
+386 |         ],
+387 |         schema: PartialSchema,
+388 |       });
+389 | 
+390 |       expect(response.content.name).toBe('Alice');
+                                          ^
+error: expect(received).toBe(expected)
+
+Expected: "Alice"
+Received: undefined
+
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/advanced-zod-schemas-extended.test.ts:390:37)
+(fail) OpenAI Extended Zod Schema Support > Object Manipulations > should handle partial objects [859.21ms]
+409 |           },
+410 |         ],
+411 |         schema: RequiredSchema,
+412 |       });
+413 | 
+414 |       expect(response.content.name).toBe('Bob');
+                                          ^
+error: expect(received).toBe(expected)
+
+Expected: "Bob"
+Received: undefined
+
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/advanced-zod-schemas-extended.test.ts:414:37)
+(fail) OpenAI Extended Zod Schema Support > Object Manipulations > should handle required objects [1023.71ms]
+(pass) OpenAI Extended Zod Schema Support > Object Manipulations > should handle pick and omit [1711.33ms]
+468 |             }),
+469 |           }),
+470 |         }),
+471 |       });
+472 | 
+473 |       const DeepPartialSchema = NestedSchema.deepPartial();
+                                                   ^
+TypeError: z.object({
+        user: z.object({
+          name: z.string(),
+          profile: z.object({
+            bio: z.string(),
+            location: z.object({
+              city: z.string(),
+              country: z.string()
+            })
+          })
+        })
+      }).deepPartial is not a function. (In 'z.object({
+        user: z.object({
+          name: z.string(),
+          profile: z.object({
+            bio: z.string(),
+            location: z.object({
+              city: z.string(),
+              country: z.string()
+            })
+          })
+        })
+      }).deepPartial()', 'z.object({
+        user: z.object({
+          name: z.string(),
+          profile: z.object({
+            bio: z.string(),
+            location: z.object({
+              city: z.string(),
+              country: z.string()
+            })
+          })
+        })
+      }).deepPartial' is undefined)
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/advanced-zod-schemas-extended.test.ts:473:46)
+      at <anonymous> (/Users/rylandgoldstein/repos/homogenaize/src/providers/openai/advanced-zod-schemas-extended.test.ts:459:38)
+(fail) OpenAI Extended Zod Schema Support > Object Manipulations > should handle deep partial [0.28ms]
+(pass) OpenAI Extended Zod Schema Support > Object Manipulations > should handle merge [1187.42ms]
+(pass) OpenAI Extended Zod Schema Support > Object Manipulations > should handle extend [1961.22ms]
