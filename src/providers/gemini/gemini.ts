@@ -40,6 +40,20 @@ interface GeminiTool {
   }>;
 }
 
+// Gemini native structured output schema format
+// Uses uppercase type names and includes propertyOrdering
+interface GeminiNativeSchema {
+  type: 'STRING' | 'INTEGER' | 'NUMBER' | 'BOOLEAN' | 'ARRAY' | 'OBJECT';
+  format?: string;
+  enum?: string[];
+  properties?: Record<string, GeminiNativeSchema>;
+  required?: string[];
+  propertyOrdering?: string[];
+  items?: GeminiNativeSchema;
+  minItems?: number;
+  maxItems?: number;
+}
+
 interface GeminiRequest {
   contents: GeminiContent[];
   systemInstruction?: {
@@ -53,6 +67,7 @@ interface GeminiRequest {
     maxOutputTokens?: number;
     stopSequences?: string[];
     responseMimeType?: string;
+    responseSchema?: GeminiNativeSchema;
   };
   safetySettings?: Array<{
     category: string;
@@ -266,6 +281,178 @@ function zodToGeminiSchema(schema: z.ZodSchema): GenericJSONSchema {
       default:
         // Fallback for unsupported types
         return { type: 'string' };
+    }
+  }
+
+  return processZodType(zodType);
+}
+
+// Convert Zod schema to Gemini's native structured output format
+function zodToGeminiNativeSchema(schema: z.ZodSchema): GeminiNativeSchema {
+  const logger = getLogger('gemini-schema');
+  logger.debug('Converting Zod schema to Gemini native format');
+
+  const zodType = getZodDef(schema);
+
+  if (!zodType) {
+    logger.error('Invalid Zod schema: missing _def property');
+    throw new Error('Invalid Zod schema: missing _def property');
+  }
+
+  function processZodType(def: ZodDef): GeminiNativeSchema {
+    logger.verbose('Processing Zod type for Gemini native', { type: def.type });
+
+    switch (def.type) {
+      case 'string': {
+        const stringDef = def as ZodStringDef;
+        const result: GeminiNativeSchema = { type: 'STRING' };
+
+        // Check for string format constraints
+        if (stringDef.checks) {
+          for (const check of stringDef.checks) {
+            const checkDef = check.def || check._def || check;
+            if (!checkDef || typeof checkDef !== 'object') continue;
+
+            const checkObj = checkDef as { kind?: string; format?: string };
+            if (checkObj.kind === 'datetime' || checkObj.format === 'date-time') {
+              result.format = 'date-time';
+            }
+          }
+        }
+
+        return result;
+      }
+
+      case 'number': {
+        const numberDef = def as ZodNumberDef;
+        let isInteger = false;
+
+        // Check if it's an integer
+        if (numberDef.checks) {
+          for (const check of numberDef.checks) {
+            const checkDef = check.def || check._def || check;
+            if (!checkDef || typeof checkDef !== 'object') continue;
+
+            const checkObj = checkDef as { kind?: string };
+            if (checkObj.kind === 'int') {
+              isInteger = true;
+              break;
+            }
+          }
+        }
+
+        return { type: isInteger ? 'INTEGER' : 'NUMBER' };
+      }
+
+      case 'boolean':
+        return { type: 'BOOLEAN' };
+
+      case 'array': {
+        const arrayDef = def as ZodArrayDef;
+        const itemDef = getZodDef(arrayDef.valueType) || getZodDef(arrayDef.element);
+        const result: GeminiNativeSchema = {
+          type: 'ARRAY',
+          items: itemDef ? processZodType(itemDef) : { type: 'STRING' },
+        };
+
+        // Check for array constraints
+        if (arrayDef.checks) {
+          for (const check of arrayDef.checks) {
+            const checkDef = check.def || check._def || check;
+            if (!checkDef || typeof checkDef !== 'object') continue;
+
+            const checkObj = checkDef as { kind?: string; value?: unknown };
+
+            switch (checkObj.kind) {
+              case 'min':
+                result.minItems = checkObj.value as number;
+                break;
+              case 'max':
+                result.maxItems = checkObj.value as number;
+                break;
+              case 'length':
+                result.minItems = checkObj.value as number;
+                result.maxItems = checkObj.value as number;
+                break;
+            }
+          }
+        }
+
+        return result;
+      }
+
+      case 'object': {
+        const objectDef = def as ZodObjectDef;
+        const properties: Record<string, GeminiNativeSchema> = {};
+        const required: string[] = [];
+        const propertyOrdering: string[] = [];
+
+        // Access shape directly from def
+        const shape = objectDef.shape || {};
+        for (const [key, value] of Object.entries(shape)) {
+          const fieldDef = getZodDef(value);
+          if (fieldDef) {
+            properties[key] = processZodType(fieldDef);
+            propertyOrdering.push(key);
+
+            // Check if field is optional
+            if (fieldDef.type !== 'optional') {
+              required.push(key);
+            }
+          }
+        }
+
+        const result: GeminiNativeSchema = {
+          type: 'OBJECT',
+          properties,
+        };
+
+        if (required.length > 0) {
+          result.required = required;
+        }
+
+        // Always include propertyOrdering for consistent output
+        result.propertyOrdering = propertyOrdering;
+
+        return result;
+      }
+
+      case 'optional': {
+        const optionalDef = def as ZodOptionalDef;
+        const innerDef = getZodDef(optionalDef.innerType);
+        return innerDef ? processZodType(innerDef) : { type: 'STRING' };
+      }
+
+      case 'enum': {
+        const enumDef = def as ZodEnumDef;
+        return {
+          type: 'STRING',
+          enum: enumDef.values || [],
+        };
+      }
+
+      case 'literal': {
+        const literalDef = def as ZodLiteralDef;
+        const value = literalDef.value;
+        const valueType = typeof value;
+
+        // For literals, we can use enum with single value
+        if (valueType === 'string') {
+          return {
+            type: 'STRING',
+            enum: [value as string],
+          };
+        } else if (valueType === 'number') {
+          // Gemini doesn't support enum for numbers, just return the type
+          return { type: Number.isInteger(value as number) ? 'INTEGER' : 'NUMBER' };
+        } else {
+          return { type: 'BOOLEAN' };
+        }
+      }
+
+      default:
+        logger.warn('Unsupported Zod type for Gemini native schema', { type: def.type });
+        return { type: 'STRING' };
     }
   }
 
@@ -579,35 +766,69 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
       },
     };
 
-    // Handle structured output via schema using forced tool calling
+    // Handle structured output via native Gemini responseSchema when only schema is provided
     if (request.schema && !request.tools) {
-      // Create a hidden tool for structured output
-      let jsonSchema: GenericJSONSchema;
+      logger.debug('Using native structured output for schema-only request');
+
+      // Use native Gemini structured output
+      if (!geminiRequest.generationConfig) {
+        geminiRequest.generationConfig = {};
+      }
+
+      geminiRequest.generationConfig.responseMimeType = 'application/json';
 
       if (isZodSchema(request.schema)) {
-        jsonSchema = zodToGeminiSchema(request.schema);
+        // Convert to Gemini native schema format
+        geminiRequest.generationConfig.responseSchema = zodToGeminiNativeSchema(request.schema);
+        logger.verbose('Converted Zod schema to Gemini native format');
       } else if (isJSONSchema(request.schema)) {
-        // Use JSON Schema directly
-        jsonSchema = request.schema as GenericJSONSchema;
+        // Convert JSON Schema to Gemini format
+        // For now, we'll use the existing conversion and adapt it
+        // In the future, we could have a dedicated JSON Schema to Gemini converter
+        const jsonSchema = request.schema as GenericJSONSchema;
+
+        // Convert JSON Schema properties to Gemini native format
+        const convertedProperties: Record<string, GeminiNativeSchema> = {};
+        if (jsonSchema.properties) {
+          for (const [key, prop] of Object.entries(jsonSchema.properties)) {
+            // Simple conversion - maps lowercase types to uppercase
+            const propType = prop.type;
+            let geminiType: GeminiNativeSchema['type'] = 'STRING';
+
+            switch (propType) {
+              case 'string':
+                geminiType = 'STRING';
+                break;
+              case 'number':
+                geminiType = 'NUMBER';
+                break;
+              case 'integer':
+                geminiType = 'INTEGER';
+                break;
+              case 'boolean':
+                geminiType = 'BOOLEAN';
+                break;
+              case 'array':
+                geminiType = 'ARRAY';
+                break;
+              case 'object':
+                geminiType = 'OBJECT';
+                break;
+            }
+
+            convertedProperties[key] = { type: geminiType };
+          }
+        }
+
+        geminiRequest.generationConfig.responseSchema = {
+          type: 'OBJECT',
+          properties: convertedProperties,
+          required: jsonSchema.required,
+        };
+        logger.verbose('Using JSON Schema with basic conversion');
       } else {
         throw new Error('Invalid schema type provided');
       }
-
-      geminiRequest.tools = [
-        {
-          functionDeclarations: [
-            {
-              name: 'respond_with_structured_output',
-              description: 'Respond with structured data matching the required schema',
-              parameters: jsonSchema,
-            },
-          ],
-        },
-      ];
-      // Force the model to use this tool
-      geminiRequest.toolConfig = {
-        functionCallingConfig: { mode: 'ANY' },
-      };
     }
 
     // Handle Gemini-specific features
@@ -617,30 +838,56 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
       }
     }
 
-    // Handle tools
+    // Handle tools (and schema via tools if both are provided)
     if (request.tools) {
       logger.debug('Processing tools for request', { toolCount: request.tools.length });
-      geminiRequest.tools = [
-        {
-          functionDeclarations: request.tools.map((tool) => {
-            logger.verbose('Converting tool schema', { toolName: tool.name });
-            const parameters = tool.parameters
-              ? zodToGeminiSchema(tool.parameters)
-              : { type: 'object' as const, properties: {} };
-            logger.debug('Tool converted', {
-              toolName: tool.name,
-              hasParameters: !!tool.parameters,
-            });
-            return {
-              name: tool.name,
-              description: tool.description,
-              parameters,
-            };
-          }),
-        },
-      ];
+
+      // If we have both schema and tools, we need to use the tool-based approach for schema
+      // because Gemini doesn't support both responseSchema and tools simultaneously
+      const toolDeclarations = request.tools.map((tool) => {
+        logger.verbose('Converting tool schema', { toolName: tool.name });
+        const parameters = tool.parameters
+          ? zodToGeminiSchema(tool.parameters)
+          : { type: 'object' as const, properties: {} };
+        logger.debug('Tool converted', {
+          toolName: tool.name,
+          hasParameters: !!tool.parameters,
+        });
+        return {
+          name: tool.name,
+          description: tool.description,
+          parameters,
+        };
+      });
+
+      // If we have a schema AND tools, add the schema as a tool
+      if (request.schema) {
+        logger.info('Both schema and tools provided, using tool-based approach for schema');
+
+        let schemaAsToolParams: GenericJSONSchema;
+        if (isZodSchema(request.schema)) {
+          schemaAsToolParams = zodToGeminiSchema(request.schema);
+        } else if (isJSONSchema(request.schema)) {
+          schemaAsToolParams = request.schema as GenericJSONSchema;
+        } else {
+          throw new Error('Invalid schema type provided');
+        }
+
+        toolDeclarations.push({
+          name: 'respond_with_structured_output',
+          description: 'Respond with structured data matching the required schema',
+          parameters: schemaAsToolParams,
+        });
+
+        // Force the model to use the schema tool
+        geminiRequest.toolConfig = {
+          functionCallingConfig: { mode: 'ANY' },
+        };
+      }
+
+      geminiRequest.tools = [{ functionDeclarations: toolDeclarations }];
       logger.info('Tools configured', {
-        toolNames: request.tools.map((t) => t.name),
+        toolNames: toolDeclarations.map((t) => t.name),
       });
     }
 
@@ -744,11 +991,65 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
 
     let parsedContent: T;
 
+    // Check if we have native structured output (no tools, just schema)
+    // In this case, the content should already be valid JSON
+    const hasNativeStructuredOutput = schema && !toolCalls.length && content;
+
     // If we used schema-based tool calling, extract the structured data from tool call
     const structuredOutputTool = toolCalls.find(
       (tc) => tc.name === 'respond_with_structured_output',
     );
-    if (schema && structuredOutputTool) {
+
+    if (hasNativeStructuredOutput) {
+      // Handle native structured output - content should be JSON
+      logger.debug('Processing native structured output response');
+      try {
+        const parsed = JSON.parse(content);
+        logger.debug('Parsed native structured output', { parsed });
+
+        if (isZodSchema(schema)) {
+          logger.verbose('Validating native output with Zod schema');
+          parsedContent = schema.parse(parsed) as T;
+          logger.info('Native structured output validated successfully');
+        } else if (isJSONSchema(schema)) {
+          logger.verbose('Validating native output with JSON schema');
+          const validation = validateJSONSchema<T>(schema, parsed);
+          if (validation.valid) {
+            parsedContent = validation.data;
+            logger.info('Native structured output validated successfully');
+          } else {
+            logger.error('JSON Schema validation failed for native output - Full Details', {
+              errors: validation.errors,
+              failedData: parsed,
+              schema: schema,
+            });
+            throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+          }
+        } else {
+          parsedContent = parsed as T;
+        }
+      } catch (e) {
+        if (e instanceof ZodError) {
+          logger.error('Zod validation failed for native output - Full Details', {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            zodErrors: (e as any).errors,
+            issues: e.issues,
+            failedData: content,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            schemaType: (schema as any)._def?.typeName || 'unknown',
+            message: e.message,
+            formattedError: e.format(),
+          });
+        } else {
+          logger.error('Error parsing native structured output - Full Details', {
+            error: e instanceof Error ? e.message : String(e),
+            errorType: e?.constructor?.name,
+            rawContent: content,
+          });
+        }
+        parsedContent = content as T;
+      }
+    } else if (schema && structuredOutputTool) {
       logger.debug('Extracting structured output from tool call');
       try {
         if (isZodSchema(schema)) {

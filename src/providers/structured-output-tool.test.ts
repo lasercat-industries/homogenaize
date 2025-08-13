@@ -101,7 +101,7 @@ describe('Structured Output via Tool Calling', () => {
   });
 
   describe('Gemini Provider', () => {
-    it('should use tool calling internally when schema is provided', async () => {
+    it('should use native structured output when schema is provided', async () => {
       const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
       if (!apiKey) {
         console.log('Skipping Gemini test - no API key found');
@@ -110,7 +110,7 @@ describe('Structured Output via Tool Calling', () => {
 
       const provider = new GeminiProvider(apiKey);
 
-      // Spy on the transformRequest method to verify tool is created
+      // Spy on the transformRequest method to verify native structured output is used
       const originalTransform = provider['transformRequest'].bind(provider);
       let capturedRequest: any;
       provider['transformRequest'] = (request) => {
@@ -136,10 +136,11 @@ describe('Structured Output via Tool Calling', () => {
       expect(parsed.age).toBe(35);
       expect(parsed.email).toBe('bob@example.com');
 
-      // Verify that tools were created internally
-      expect(capturedRequest.tools).toBeDefined();
-      expect(capturedRequest.tools).toHaveLength(1);
-      expect(capturedRequest.toolConfig?.functionCallingConfig?.mode).toBe('ANY');
+      // Verify that native structured output was used (not tools)
+      expect(capturedRequest.tools).toBeUndefined();
+      expect(capturedRequest.generationConfig?.responseMimeType).toBe('application/json');
+      expect(capturedRequest.generationConfig?.responseSchema).toBeDefined();
+      expect(capturedRequest.generationConfig?.responseSchema?.type).toBe('OBJECT');
     });
   });
 });

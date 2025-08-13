@@ -152,10 +152,7 @@ describe('Gemini Provider', () => {
               content: {
                 parts: [
                   {
-                    functionCall: {
-                      name: 'respond_with_structured_output',
-                      args: { name: 'John', age: 30, city: 'NYC' },
-                    },
+                    text: JSON.stringify({ name: 'John', age: 30, city: 'NYC' }),
                   },
                 ],
                 role: 'model',
@@ -182,12 +179,79 @@ describe('Gemini Provider', () => {
       // Provider returns parsed content when schema is provided
       expect(response.content).toEqual({ name: 'John', age: 30, city: 'NYC' });
 
-      // Check that tools were created for structured output
+      // Check that native structured output is used (not tools) when only schema is provided
+      const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);
+      expect(callArgs.tools).toBeUndefined();
+      expect(callArgs.generationConfig.responseMimeType).toBe('application/json');
+      expect(callArgs.generationConfig.responseSchema).toBeDefined();
+      expect(callArgs.generationConfig.responseSchema.type).toBe('OBJECT');
+      expect(callArgs.generationConfig.responseSchema.properties).toBeDefined();
+      expect(callArgs.generationConfig.responseSchema.required).toEqual(['name', 'age', 'city']);
+    });
+
+    it('should use tool-based approach when both schema and tools are provided', async () => {
+      const schema = z.object({
+        summary: z.string(),
+      });
+
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    functionCall: {
+                      name: 'respond_with_structured_output',
+                      args: { summary: 'Weather retrieved successfully' },
+                    },
+                  },
+                ],
+                role: 'model',
+              },
+              finishReason: 'STOP',
+              index: 0,
+            },
+          ],
+          usageMetadata: {
+            promptTokenCount: 50,
+            candidatesTokenCount: 20,
+            totalTokenCount: 70,
+          },
+        }),
+      });
+
+      const tools = [
+        {
+          name: 'get_weather',
+          description: 'Get weather for a location',
+          parameters: z.object({ location: z.string() }),
+        },
+      ];
+
+      const request: ChatRequest<z.infer<typeof schema>> = {
+        messages: [{ role: 'user', content: 'Get weather and summarize' }],
+        schema,
+        tools,
+      };
+
+      const response = await provider.chat<z.infer<typeof schema>>(request);
+
+      // Provider returns parsed content when schema is provided
+      expect(response.content).toEqual({ summary: 'Weather retrieved successfully' });
+
+      // Check that tools were created (including the schema tool) when both are provided
       const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);
       expect(callArgs.tools).toBeDefined();
-      expect(callArgs.tools[0].functionDeclarations).toHaveLength(1);
-      expect(callArgs.tools[0].functionDeclarations[0].name).toBe('respond_with_structured_output');
+      expect(callArgs.tools[0].functionDeclarations).toHaveLength(2);
+      expect(callArgs.tools[0].functionDeclarations[0].name).toBe('get_weather');
+      expect(callArgs.tools[0].functionDeclarations[1].name).toBe('respond_with_structured_output');
       expect(callArgs.toolConfig.functionCallingConfig.mode).toBe('ANY');
+
+      // Should NOT use native structured output when tools are also provided
+      expect(callArgs.generationConfig.responseMimeType).toBeUndefined();
+      expect(callArgs.generationConfig.responseSchema).toBeUndefined();
     });
 
     it('should handle tool calls', async () => {

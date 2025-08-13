@@ -87,10 +87,7 @@ describe('Gemini Client Integration', () => {
             content: {
               parts: [
                 {
-                  functionCall: {
-                    name: 'respond_with_structured_output',
-                    args: { name: 'Alice', age: 30, city: 'New York' },
-                  },
+                  text: JSON.stringify({ name: 'Alice', age: 30, city: 'New York' }),
                 },
               ],
               role: 'model',
@@ -123,11 +120,12 @@ describe('Gemini Client Integration', () => {
       city: 'New York',
     });
 
-    // Verify tools were created internally for structured output
+    // Verify native structured output was used (not tools)
     const callBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
-    expect(callBody.tools).toBeDefined();
-    expect(callBody.tools[0].functionDeclarations).toHaveLength(1);
-    expect(callBody.tools[0].functionDeclarations[0].name).toBe('respond_with_structured_output');
+    expect(callBody.tools).toBeUndefined();
+    expect(callBody.generationConfig.responseMimeType).toBe('application/json');
+    expect(callBody.generationConfig.responseSchema).toBeDefined();
+    expect(callBody.generationConfig.responseSchema.type).toBe('OBJECT');
   });
 
   it('should handle Gemini-specific features', async () => {

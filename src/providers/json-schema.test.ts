@@ -191,10 +191,12 @@ describe('JSON Schema Support', () => {
         model: 'gemini-pro' as const,
       };
 
-      // Test that transformRequest handles JSON Schema
+      // Test that transformRequest handles JSON Schema with native structured output
       const transformed = (geminiProvider as any).transformRequest(request);
-      expect(transformed.tools).toBeDefined();
-      expect(transformed.tools[0].functionDeclarations[0].parameters).toEqual(jsonSchema);
+      expect(transformed.tools).toBeUndefined();
+      expect(transformed.generationConfig.responseMimeType).toBe('application/json');
+      expect(transformed.generationConfig.responseSchema).toBeDefined();
+      expect(transformed.generationConfig.responseSchema.type).toBe('OBJECT');
     });
   });
 
