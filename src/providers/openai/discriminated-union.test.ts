@@ -6,7 +6,7 @@ import { createLLM } from '../../client';
 describe('OpenAI Discriminated Union Schema Conversion', () => {
   const provider = new OpenAIProvider('test-key');
 
-  it('should handle discriminated unions with extended schemas', () => {
+  it('should throw error for discriminated unions with extended schemas', () => {
     // Define the schemas as provided by the user
     const BaseResponseSchema = z.strictObject({
       status: z.enum(['blocked', 'in-progress', 'completed', 'failed']),
@@ -50,31 +50,27 @@ describe('OpenAI Discriminated Union Schema Conversion', () => {
       model: 'gpt-4o-mini' as const,
     };
 
-    // Use the private method to test schema conversion
-    const transformed = (provider as any).transformRequest(request);
+    // Should throw error when trying to use discriminated union
+    expect(() => {
+      (provider as any).transformRequest(request);
+    }).toThrow('Discriminated unions are not supported with OpenAI strict mode');
 
-    // Should use native response_format instead of tools
-    expect(transformed.response_format).toBeDefined();
-    expect(transformed.response_format.type).toBe('json_schema');
-    expect(transformed.response_format.json_schema).toBeDefined();
-    expect(transformed.response_format.json_schema.name).toBe('response');
-    expect(transformed.response_format.json_schema.strict).toBe(false); // Disabled for oneOf
-    expect(transformed.tools).toBeUndefined();
-    expect(transformed.tool_choice).toBeUndefined();
+    // Verify the error message includes helpful guidance
+    let error: Error | null = null;
+    try {
+      (provider as any).transformRequest(request);
+    } catch (e) {
+      error = e as Error;
+    }
 
-    // Check the generated JSON schema
-    const schema = transformed.response_format.json_schema.schema;
-
-    // The discriminated union should be wrapped in a value property for OpenAI
-    expect(schema.type).toBe('object');
-    expect(schema.properties).toBeDefined();
-    expect(schema.properties.value).toBeDefined();
-    expect(schema.properties.value.oneOf).toBeDefined();
-    expect(schema.properties.value.oneOf).toHaveLength(3); // 3 union variants
-    expect(schema.required).toContain('value');
+    expect(error).toBeDefined();
+    expect(error!.message).toContain('discriminated union');
+    expect(error!.message).toContain('oneOf');
+    expect(error!.message).toContain('refactor');
+    expect(error!.message).toContain('z.object({ type: z.enum([...]), ...fields })');
   });
 
-  it('should handle discriminated union in real API call', async () => {
+  it('should reject discriminated union in real API call', async () => {
     // Skip if no API key
     const apiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
     if (!apiKey) {
@@ -85,7 +81,7 @@ describe('OpenAI Discriminated Union Schema Conversion', () => {
     const client = createLLM({
       provider: 'openai',
       apiKey,
-      model: 'gpt-4.1-mini',
+      model: 'gpt-4o-mini',
     });
 
     const BaseResponseSchema = z.strictObject({
@@ -136,17 +132,14 @@ describe('OpenAI Discriminated Union Schema Conversion', () => {
       model: 'gpt-4o-mini' as const,
     };
 
-    const response = await client.chat(request);
-
-    // Validate the response - should be automatically unwrapped by the provider
-    const parsed = AgentResponseSchema.parse(response.content);
-    expect(parsed.status).toBe('completed');
-    expect(parsed.content).toBeDefined();
-
-    if (parsed.status === 'completed') {
-      expect(parsed.completion).toBeDefined();
-      expect(parsed.completion.summary).toBeDefined();
-      expect(parsed.completion.artifacts).toBeInstanceOf(Array);
+    // Should throw error when trying to use discriminated union
+    try {
+      await client.chat(request);
+      expect(false).toBe(true); // Should not reach here
+    } catch (error) {
+      expect((error as Error).message).toContain(
+        'Discriminated unions are not supported with OpenAI strict mode',
+      );
     }
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "@lasercat/homogenaize",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "A TypeScript-native library that provides a unified interface for multiple LLM providers (OpenAI, Anthropic, Gemini)",
   "author": "Ryland Goldstein",
   "license": "MIT",

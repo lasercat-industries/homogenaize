@@ -1,16 +1,17 @@
-import { describe, expect, it, beforeEach, afterEach, afterAll, mock } from 'bun:test';
+import { describe, expect, it, beforeEach, afterEach, beforeAll, afterAll, mock } from 'bun:test';
 import { z } from 'zod';
 import { OpenAIProvider } from './openai';
 // import type { ChatRequest } from '../provider';
 
-// Store original fetch
-const originalFetch = global.fetch;
-
-// Mock fetch for API calls
-global.fetch = mock() as any;
-
 describe('OpenAI Provider', () => {
   let provider: OpenAIProvider;
+  let originalFetch: typeof global.fetch;
+
+  beforeAll(() => {
+    // Store original fetch and replace with mock
+    originalFetch = global.fetch;
+    global.fetch = mock() as any;
+  });
 
   beforeEach(() => {
     provider = new OpenAIProvider('test-api-key');

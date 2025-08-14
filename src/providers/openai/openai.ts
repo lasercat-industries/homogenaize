@@ -119,10 +119,11 @@ interface OpenAIStreamChunk {
   };
 }
 
-// Helper to convert Zod schema to OpenAI-compatible JSON Schema
-function zodToOpenAISchema(schema: z.ZodSchema): GenericJSONSchema {
-  const logger = getLogger('openai-schema');
-  logger.debug('Converting Zod schema to OpenAI JSON Schema');
+// Helper to convert Zod schema to OpenAI-compatible JSON Schema with strict mode
+// This converter ensures compatibility with OpenAI's structured output requirements
+function zodToOpenAIStrictSchema(schema: z.ZodSchema): GenericJSONSchema {
+  const logger = getLogger('openai-strict-schema');
+  logger.debug('Converting Zod schema to OpenAI strict mode JSON Schema');
 
   const zodType = getZodDef(schema);
 
@@ -173,7 +174,7 @@ function zodToOpenAISchema(schema: z.ZodSchema): GenericJSONSchema {
         return arrayResult;
       }
       case 'object': {
-        const objectDef = def as ZodObjectDef;
+        const objectDef = def as ZodObjectDef & { catchall?: unknown };
         const properties: Record<string, GenericJSONSchema> = {};
         const required: string[] = [];
 
@@ -190,22 +191,42 @@ function zodToOpenAISchema(schema: z.ZodSchema): GenericJSONSchema {
           }
         }
 
+        // Check if catchall is defined - if so, we cannot use strict mode
+        if (objectDef.catchall) {
+          logger.warn(
+            'Schema contains .catchall() which is incompatible with OpenAI strict mode. ' +
+              'Additional properties will be set to false, which may cause validation issues.',
+          );
+        }
+
         return {
           type: 'object',
           properties,
           required: required.length > 0 ? required : undefined,
-          additionalProperties: false,
+          additionalProperties: false, // Always false for strict mode
         };
       }
       case 'optional': {
-        // For OpenAI, we need to handle optional fields differently
-        // Return the inner type directly - optional handling is done in the parent object
+        // In strict mode, optional fields must be expressed as unions with null
         const optionalDef = def as {
           type: 'optional';
           innerType?: { _def?: ZodDef; def?: ZodDef };
         };
         const innerDef = getZodDef(optionalDef.innerType);
-        return innerDef ? processZodType(innerDef) : { type: 'string' as const };
+        if (!innerDef) {
+          // Default to anyOf with string and null
+          return {
+            anyOf: [{ type: 'string' }, { type: 'null' }],
+          } as GenericJSONSchema;
+        }
+
+        const innerType = processZodType(innerDef);
+
+        // For all types, use anyOf notation for union with null
+        // OpenAI supports this format for nullable fields in strict mode
+        return {
+          anyOf: [innerType, { type: 'null' }],
+        } as GenericJSONSchema;
       }
       case 'enum': {
         const enumDef = def as {
@@ -240,69 +261,38 @@ function zodToOpenAISchema(schema: z.ZodSchema): GenericJSONSchema {
         };
       }
       case 'union': {
-        const unionDef = def as { type: 'union'; options?: Array<{ _def?: ZodDef; def?: ZodDef }> };
-        if (!unionDef.options || unionDef.options.length === 0) {
-          return { type: 'string' };
+        // Check if this is actually a discriminated union
+        const unionDef = def as { type: 'union'; discriminator?: string };
+        if (unionDef.discriminator) {
+          // This is a discriminated union
+          throw new Error(
+            'Discriminated unions are not supported with OpenAI strict mode.\n' +
+              "The schema contains a discriminated union which would require 'oneOf', " +
+              "but OpenAI's structured output does not support oneOf.\n" +
+              'Please refactor your schema to use a single object with optional/nullable fields.\n' +
+              "Example: Instead of z.discriminatedUnion('type', [...]), " +
+              'use z.object({ type: z.enum([...]), ...fields })',
+          );
         }
-
-        const unionOptions = unionDef.options
-          .map((opt) => {
-            const optDef = getZodDef(opt);
-            return optDef ? processZodType(optDef) : null;
-          })
-          .filter(Boolean) as GenericJSONSchema[];
-
-        // Wrap oneOf in a property for OpenAI compatibility
-        return {
-          type: 'object',
-          properties: {
-            value: {
-              oneOf: unionOptions,
-            } as unknown as GenericJSONSchema,
-          },
-          required: ['value'],
-          additionalProperties: false,
-        } as GenericJSONSchema;
+        // Regular union
+        throw new Error(
+          'Union types are not supported with OpenAI strict mode.\n' +
+            "OpenAI's structured output does not support oneOf.\n" +
+            'Please refactor to use nullable fields instead.\n' +
+            'Example: Instead of z.union([z.string(), z.number()]), ' +
+            'consider using separate optional fields or a different schema structure.',
+        );
       }
       case 'discriminatedUnion': {
-        const discUnionDef = def as {
-          type: 'discriminatedUnion';
-          discriminator?: string;
-          options?: Array<{ _def?: ZodDef; def?: ZodDef }>;
-          optionsMap?: Map<string, { _def?: ZodDef; def?: ZodDef }>;
-        };
-
-        // Try to get options from either options array or optionsMap
-        let options: Array<{ _def?: ZodDef; def?: ZodDef }> = [];
-        if (discUnionDef.options) {
-          options = discUnionDef.options;
-        } else if (discUnionDef.optionsMap) {
-          options = Array.from(discUnionDef.optionsMap.values());
-        }
-
-        if (options.length === 0) {
-          return { type: 'object', properties: {} };
-        }
-
-        // Convert each option to JSON schema
-        const unionOptions = options
-          .map((opt) => {
-            const optDef = getZodDef(opt);
-            return optDef ? processZodType(optDef) : null;
-          })
-          .filter(Boolean) as GenericJSONSchema[];
-
-        // Wrap oneOf in a property for OpenAI compatibility
-        return {
-          type: 'object',
-          properties: {
-            value: {
-              oneOf: unionOptions,
-            } as unknown as GenericJSONSchema,
-          },
-          required: ['value'],
-          additionalProperties: false,
-        } as GenericJSONSchema;
+        // This case might never be hit in newer Zod versions, but keep it for compatibility
+        throw new Error(
+          'Discriminated unions are not supported with OpenAI strict mode.\n' +
+            "The schema contains a discriminated union which would require 'oneOf', " +
+            "but OpenAI's structured output does not support oneOf.\n" +
+            'Please refactor your schema to use a single object with optional/nullable fields.\n' +
+            "Example: Instead of z.discriminatedUnion('type', [...]), " +
+            'use z.object({ type: z.enum([...]), ...fields })',
+        );
       }
       default:
         // Fallback for unsupported types
@@ -601,24 +591,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
           try {
             const parsed = JSON.parse(content);
             if (isZodSchema(request.schema)) {
-              // Check if this is a discriminated union that was wrapped in a value property
-              const schemaWithDef = request.schema as {
-                _def?: { type?: string; typeName?: string };
-              };
-              const schemaDefType = schemaWithDef._def?.type;
-              const schemaTypeName = schemaWithDef._def?.typeName;
-              const isDiscriminatedUnion =
-                schemaDefType === 'discriminatedUnion' ||
-                schemaTypeName === 'ZodDiscriminatedUnion';
-              const isUnion = schemaDefType === 'union' || schemaTypeName === 'ZodUnion';
-
-              let dataToValidate = parsed;
-              if ((isDiscriminatedUnion || isUnion) && parsed.value !== undefined) {
-                // Unwrap the value for discriminated unions
-                dataToValidate = parsed.value;
-              }
-
-              parsedContent = request.schema.parse(dataToValidate) as T;
+              // Direct validation - no unwrapping needed since unions aren't supported
+              parsedContent = request.schema.parse(parsed) as T;
             } else if (isJSONSchema(request.schema)) {
               const validation = validateJSONSchema<T>(request.schema, parsed);
               if (validation.valid) {
@@ -708,7 +682,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       let jsonSchema: GenericJSONSchema;
 
       if (isZodSchema(request.schema)) {
-        jsonSchema = zodToOpenAISchema(request.schema);
+        jsonSchema = zodToOpenAIStrictSchema(request.schema);
       } else if (isJSONSchema(request.schema)) {
         // Use JSON Schema directly
         jsonSchema = request.schema as GenericJSONSchema;
@@ -721,8 +695,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         type: 'json_schema',
         json_schema: {
           name: 'response',
-          // Don't use strict mode for schemas with oneOf (discriminated unions)
-          strict: !JSON.stringify(jsonSchema).includes('"oneOf"'),
+          strict: true, // Always use strict mode
           schema: jsonSchema,
         },
       };
@@ -738,12 +711,10 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       logger.debug('Processing tools for request', { toolCount: request.tools.length });
       openAIRequest.tools = request.tools.map((tool) => {
         logger.verbose('Converting tool schema', { toolName: tool.name });
-        const parameters = zodToOpenAISchema(tool.parameters);
-        const strict = !JSON.stringify(parameters).includes('"oneOf"');
+        const parameters = zodToOpenAIStrictSchema(tool.parameters);
         logger.debug('Tool converted', {
           toolName: tool.name,
-          strictMode: strict,
-          hasOneOf: !strict,
+          strictMode: true,
         });
         return {
           type: 'function' as const,
@@ -751,8 +722,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             name: tool.name,
             description: tool.description,
             parameters,
-            // Don't use strict mode for schemas with oneOf (discriminated unions)
-            strict,
+            strict: true, // Always use strict mode
           },
         };
       });
@@ -842,23 +812,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
         if (isZodSchema(schema)) {
           logger.debug('Validating with Zod schema');
-
-          // Check if this is a discriminated union that was wrapped in a value property
-          const schemaWithDef = schema as { _def?: { type?: string; typeName?: string } };
-          const schemaDefType = schemaWithDef._def?.type;
-          const schemaTypeName = schemaWithDef._def?.typeName;
-          const isDiscriminatedUnion =
-            schemaDefType === 'discriminatedUnion' || schemaTypeName === 'ZodDiscriminatedUnion';
-          const isUnion = schemaDefType === 'union' || schemaTypeName === 'ZodUnion';
-
-          let dataToValidate = parsed;
-          if ((isDiscriminatedUnion || isUnion) && parsed.value !== undefined) {
-            // Unwrap the value for discriminated unions
-            logger.debug('Unwrapping discriminated union from value property');
-            dataToValidate = parsed.value;
-          }
-
-          content = schema.parse(dataToValidate) as T;
+          // Direct validation - no unwrapping needed since unions aren't supported
+          content = schema.parse(parsed) as T;
           logger.info('Zod validation successful for message content');
         } else if (isJSONSchema(schema)) {
           logger.debug('Validating with JSON Schema');
