@@ -120,6 +120,57 @@ interface OpenAIStreamChunk {
 }
 
 // Helper to convert Zod schema to OpenAI-compatible JSON Schema with strict mode
+// This function ensures JSON schemas are compatible with OpenAI's strict mode requirements
+function ensureStrictModeSchema(schema: GenericJSONSchema): GenericJSONSchema {
+  function processSchema(obj: GenericJSONSchema): GenericJSONSchema {
+    if (!obj || typeof obj !== 'object') return obj;
+
+    const result: GenericJSONSchema = { ...obj };
+
+    // Handle object types
+    if (result.type === 'object' && result.properties) {
+      // Ensure additionalProperties is false for strict mode
+      result.additionalProperties = false;
+
+      // Ensure all properties are in the required array for strict mode
+      const allKeys = Object.keys(result.properties);
+      result.required = allKeys;
+
+      // Recursively process nested schemas
+      for (const key in result.properties) {
+        const prop = result.properties[key];
+        if (prop) {
+          result.properties[key] = processSchema(prop);
+        }
+      }
+    }
+
+    // Handle arrays
+    if (result.type === 'array' && result.items) {
+      // items can be a schema or an array of schemas
+      if (Array.isArray(result.items)) {
+        result.items = result.items.map(processSchema);
+      } else {
+        result.items = processSchema(result.items);
+      }
+    }
+
+    // Handle anyOf (for optional fields)
+    if (result.anyOf && Array.isArray(result.anyOf)) {
+      result.anyOf = result.anyOf.map(processSchema);
+    }
+
+    // Handle allOf
+    if (result.allOf && Array.isArray(result.allOf)) {
+      result.allOf = result.allOf.map(processSchema);
+    }
+
+    return result;
+  }
+
+  return processSchema(schema);
+}
+
 // This converter ensures compatibility with OpenAI's structured output requirements
 function zodToOpenAIStrictSchema(schema: z.ZodSchema): GenericJSONSchema {
   const logger = getLogger('openai-strict-schema');
@@ -174,9 +225,34 @@ function zodToOpenAIStrictSchema(schema: z.ZodSchema): GenericJSONSchema {
         return arrayResult;
       }
       case 'object': {
-        const objectDef = def as ZodObjectDef & { catchall?: unknown };
+        const objectDef = def as ZodObjectDef & { catchall?: unknown; unknownKeys?: string };
         const properties: Record<string, GenericJSONSchema> = {};
         const required: string[] = [];
+
+        // Check if catchall is defined - passthrough sets catchall to unknown type
+        if (objectDef.catchall) {
+          const catchallDef = getZodDef(objectDef.catchall);
+          if (catchallDef && catchallDef.type === 'unknown') {
+            throw new Error(
+              'Passthrough objects are not supported with OpenAI strict mode.\n' +
+                '.passthrough() allows additional properties which is incompatible with additionalProperties: false.\n' +
+                'Please use .strict() or the default behavior instead.',
+            );
+          }
+          logger.warn(
+            'Schema contains .catchall() which is incompatible with OpenAI strict mode. ' +
+              'Additional properties will be set to false, which may cause validation issues.',
+          );
+        }
+
+        // Check for passthrough modifier (legacy check)
+        if (objectDef.unknownKeys === 'passthrough') {
+          throw new Error(
+            'Passthrough objects are not supported with OpenAI strict mode.\n' +
+              '.passthrough() allows additional properties which is incompatible with additionalProperties: false.\n' +
+              'Please use .strict() or the default behavior instead.',
+          );
+        }
 
         // Access shape directly from def
         const shape = objectDef.shape || {};
@@ -189,14 +265,6 @@ function zodToOpenAIStrictSchema(schema: z.ZodSchema): GenericJSONSchema {
             // For optional fields, we'll handle it differently in the API
             required.push(key);
           }
-        }
-
-        // Check if catchall is defined - if so, we cannot use strict mode
-        if (objectDef.catchall) {
-          logger.warn(
-            'Schema contains .catchall() which is incompatible with OpenAI strict mode. ' +
-              'Additional properties will be set to false, which may cause validation issues.',
-          );
         }
 
         return {
@@ -224,6 +292,27 @@ function zodToOpenAIStrictSchema(schema: z.ZodSchema): GenericJSONSchema {
 
         // For all types, use anyOf notation for union with null
         // OpenAI supports this format for nullable fields in strict mode
+        return {
+          anyOf: [innerType, { type: 'null' }],
+        } as GenericJSONSchema;
+      }
+      case 'nullable': {
+        // Handle nullable types (z.nullable())
+        const nullableDef = def as {
+          type: 'nullable';
+          innerType?: { _def?: ZodDef; def?: ZodDef };
+        };
+        const innerDef = getZodDef(nullableDef.innerType);
+        if (!innerDef) {
+          // Default to anyOf with string and null
+          return {
+            anyOf: [{ type: 'string' }, { type: 'null' }],
+          } as GenericJSONSchema;
+        }
+
+        const innerType = processZodType(innerDef);
+
+        // For nullable types, use anyOf notation for union with null
         return {
           anyOf: [innerType, { type: 'null' }],
         } as GenericJSONSchema;
@@ -292,6 +381,14 @@ function zodToOpenAIStrictSchema(schema: z.ZodSchema): GenericJSONSchema {
             'Please refactor your schema to use a single object with optional/nullable fields.\n' +
             "Example: Instead of z.discriminatedUnion('type', [...]), " +
             'use z.object({ type: z.enum([...]), ...fields })',
+        );
+      }
+      case 'record': {
+        throw new Error(
+          'Record types are not supported with OpenAI strict mode.\n' +
+            'Record types allow arbitrary keys which is incompatible with additionalProperties: false.\n' +
+            'Please refactor to use a fixed object schema with known properties.\n' +
+            'Example: Instead of z.record(z.string()), use z.object({ key1: z.string(), key2: z.string(), ... })',
         );
       }
       default:
@@ -684,8 +781,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       if (isZodSchema(request.schema)) {
         jsonSchema = zodToOpenAIStrictSchema(request.schema);
       } else if (isJSONSchema(request.schema)) {
-        // Use JSON Schema directly
-        jsonSchema = request.schema as GenericJSONSchema;
+        // Ensure JSON Schema is compatible with strict mode
+        jsonSchema = ensureStrictModeSchema(request.schema as GenericJSONSchema);
       } else {
         throw new Error('Invalid schema type provided');
       }
