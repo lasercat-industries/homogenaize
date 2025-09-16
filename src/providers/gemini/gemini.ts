@@ -52,6 +52,8 @@ interface GeminiNativeSchema {
   items?: GeminiNativeSchema;
   minItems?: number;
   maxItems?: number;
+  nullable?: boolean;
+  description?: string;
 }
 
 interface GeminiRequest {
@@ -296,6 +298,104 @@ function zodToGeminiSchema(schema: z.ZodSchema): GenericJSONSchema {
   }
 
   return processZodType(zodType);
+}
+
+// Convert JSON Schema to Gemini's native structured output format
+function jsonSchemaToGeminiNativeSchema(schema: GenericJSONSchema): GeminiNativeSchema {
+  const logger = getLogger('gemini-json-schema');
+  logger.debug('Converting JSON Schema to Gemini native format');
+
+  function convertType(jsonType: string | undefined): GeminiNativeSchema['type'] {
+    switch (jsonType) {
+      case 'string':
+        return 'STRING';
+      case 'number':
+        return 'NUMBER';
+      case 'integer':
+        return 'INTEGER';
+      case 'boolean':
+        return 'BOOLEAN';
+      case 'array':
+        return 'ARRAY';
+      case 'object':
+        return 'OBJECT';
+      default:
+        return 'STRING';
+    }
+  }
+
+  function processSchema(jsonSchema: GenericJSONSchema): GeminiNativeSchema {
+    // Handle basic types
+    const result: GeminiNativeSchema = {
+      type: convertType(jsonSchema.type as string),
+    };
+
+    // Handle anyOf (for nullable patterns)
+    if (jsonSchema.anyOf && Array.isArray(jsonSchema.anyOf)) {
+      // Check if it's a nullable pattern [type, null]
+      if (jsonSchema.anyOf.length === 2 && jsonSchema.anyOf.some((s) => s.type === 'null')) {
+        const nonNullSchema = jsonSchema.anyOf.find((s) => s.type !== 'null');
+        if (nonNullSchema) {
+          const converted = processSchema(nonNullSchema);
+          converted.nullable = true;
+          return converted;
+        }
+      }
+      // For other anyOf patterns, take the first non-null option
+      const firstNonNull = jsonSchema.anyOf.find((s) => s.type !== 'null') || jsonSchema.anyOf[0];
+      if (firstNonNull) {
+        return processSchema(firstNonNull);
+      }
+    }
+
+    // Handle object properties recursively
+    if (jsonSchema.type === 'object' && jsonSchema.properties) {
+      const convertedProperties: Record<string, GeminiNativeSchema> = {};
+
+      for (const [key, prop] of Object.entries(jsonSchema.properties)) {
+        if (prop) {
+          // Recursively process each property
+          convertedProperties[key] = processSchema(prop);
+        }
+      }
+
+      result.properties = convertedProperties;
+      if (jsonSchema.required) {
+        result.required = jsonSchema.required;
+      }
+    }
+
+    // Handle array items recursively
+    if (jsonSchema.type === 'array' && jsonSchema.items) {
+      if (Array.isArray(jsonSchema.items)) {
+        // Tuple-style array - take first item as the type for all
+        if (jsonSchema.items[0]) {
+          result.items = processSchema(jsonSchema.items[0]);
+        }
+      } else {
+        result.items = processSchema(jsonSchema.items);
+      }
+    }
+
+    // Handle enums
+    if (jsonSchema.enum && Array.isArray(jsonSchema.enum)) {
+      result.enum = jsonSchema.enum as string[];
+    }
+
+    // Handle format
+    if (jsonSchema.format) {
+      result.format = jsonSchema.format;
+    }
+
+    // Handle description
+    if (jsonSchema.description && typeof jsonSchema.description === 'string') {
+      result.description = jsonSchema.description;
+    }
+
+    return result;
+  }
+
+  return processSchema(schema);
 }
 
 // Convert Zod schema to Gemini's native structured output format
@@ -804,50 +904,10 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         geminiRequest.generationConfig.responseSchema = zodToGeminiNativeSchema(request.schema);
         logger.verbose('Converted Zod schema to Gemini native format');
       } else if (isJSONSchema(request.schema)) {
-        // Convert JSON Schema to Gemini format
-        // For now, we'll use the existing conversion and adapt it
-        // In the future, we could have a dedicated JSON Schema to Gemini converter
+        // Convert JSON Schema to Gemini format using recursive converter
         const jsonSchema = request.schema as GenericJSONSchema;
-
-        // Convert JSON Schema properties to Gemini native format
-        const convertedProperties: Record<string, GeminiNativeSchema> = {};
-        if (jsonSchema.properties) {
-          for (const [key, prop] of Object.entries(jsonSchema.properties)) {
-            // Simple conversion - maps lowercase types to uppercase
-            const propType = prop.type;
-            let geminiType: GeminiNativeSchema['type'] = 'STRING';
-
-            switch (propType) {
-              case 'string':
-                geminiType = 'STRING';
-                break;
-              case 'number':
-                geminiType = 'NUMBER';
-                break;
-              case 'integer':
-                geminiType = 'INTEGER';
-                break;
-              case 'boolean':
-                geminiType = 'BOOLEAN';
-                break;
-              case 'array':
-                geminiType = 'ARRAY';
-                break;
-              case 'object':
-                geminiType = 'OBJECT';
-                break;
-            }
-
-            convertedProperties[key] = { type: geminiType };
-          }
-        }
-
-        geminiRequest.generationConfig.responseSchema = {
-          type: 'OBJECT',
-          properties: convertedProperties,
-          required: jsonSchema.required,
-        };
-        logger.verbose('Using JSON Schema with basic conversion');
+        geminiRequest.generationConfig.responseSchema = jsonSchemaToGeminiNativeSchema(jsonSchema);
+        logger.verbose('Converted JSON Schema to Gemini native format');
       } else {
         throw new Error('Invalid schema type provided');
       }

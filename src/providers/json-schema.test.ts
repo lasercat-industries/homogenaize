@@ -155,7 +155,13 @@ describe('JSON Schema Support', () => {
       const transformed = (openaiProvider as any).transformRequest(request);
       expect(transformed.response_format).toBeDefined();
       expect(transformed.response_format.type).toBe('json_schema');
-      expect(transformed.response_format.json_schema.schema).toEqual(jsonSchema);
+
+      // OpenAI's strict mode adds additionalProperties: false and ensures all properties are in required array
+      const expectedSchema = {
+        ...jsonSchema,
+        additionalProperties: false,
+      };
+      expect(transformed.response_format.json_schema.schema).toEqual(expectedSchema);
     });
 
     it('should handle Zod Schema in OpenAI transformRequest', () => {
