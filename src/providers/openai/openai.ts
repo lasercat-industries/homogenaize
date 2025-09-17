@@ -700,8 +700,14 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             } else {
               parsedContent = parsed as T;
             }
-          } catch {
-            parsedContent = content as T;
+          } catch (e) {
+            // Re-throw validation errors, only catch JSON parsing errors
+            if (e instanceof SyntaxError) {
+              // JSON parsing failed - this shouldn't happen with structured output
+              logger.error('Failed to parse structured output', { content, error: e.message });
+              throw new Error(`Failed to parse structured output: ${e.message}`);
+            }
+            throw e; // Re-throw validation errors
           }
         } else {
           parsedContent = content as T;
@@ -904,7 +910,9 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     if (schema && message.content) {
       logger.debug('Processing response without tool calls');
       try {
-        const parsed = JSON.parse(message.content);
+        // Handle both string and already-parsed object responses
+        const parsed =
+          typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
         logger.debug('Parsed message content for validation', { parsed });
 
         if (isZodSchema(schema)) {
@@ -949,7 +957,18 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             messageType: typeof message.content,
           });
         }
-        content = message.content as T;
+        // If we have a schema but validation failed, try to return parsed content
+        // This handles the case where JSON is valid but doesn't match schema
+        if (typeof message.content === 'string') {
+          try {
+            content = JSON.parse(message.content) as T;
+          } catch {
+            // If parsing fails, return the raw string
+            content = message.content as T;
+          }
+        } else {
+          content = message.content as T;
+        }
       }
     } else {
       content = (message.content || '') as T;

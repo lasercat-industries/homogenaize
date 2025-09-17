@@ -157,13 +157,42 @@ function zodToAnthropicSchema(schema: z.ZodSchema): GenericJSONSchema {
       case 'optional': {
         const optionalDef = def as ZodOptionalDef;
         const innerDef = getZodDef(optionalDef.innerType);
-        return innerDef ? processZodType(innerDef) : { type: 'object', properties: {} };
+        // For optional fields, just return the inner type schema
+        // The parent object will handle making it not required
+        if (!innerDef) {
+          throw new Error('Optional type has no inner type definition');
+        }
+        return processZodType(innerDef);
+      }
+      case 'nullable': {
+        // Handle nullable types by allowing null as a type option
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const nullableDef = def as any;
+        const innerDef = getZodDef(nullableDef.innerType);
+        if (!innerDef) {
+          throw new Error('Nullable type has no inner type definition');
+        }
+        // For nullable, we need to create a union with null
+        // But Anthropic's tool schema doesn't support anyOf/oneOf
+        // So we just return the inner type and let Anthropic handle null
+        return processZodType(innerDef);
       }
       case 'enum': {
         const enumDef = def as ZodEnumDef;
+        let enumValues: unknown[] = [];
+
+        // Zod stores enum values in different fields depending on how it was created
+        if (enumDef.values) {
+          enumValues = enumDef.values;
+        } else if (enumDef.options) {
+          enumValues = enumDef.options;
+        } else if (enumDef.entries) {
+          enumValues = Object.values(enumDef.entries);
+        }
+
         return {
           type: 'string',
-          enum: enumDef.values || [],
+          enum: enumValues,
         };
       }
       case 'literal': {
@@ -774,7 +803,9 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
             toolName: structuredOutputTool.name,
           });
         }
-        parsedContent = content as T;
+        // Don't fall back to content (which is empty for tool calls)
+        // Re-throw the error to let the caller handle it
+        throw e;
       }
     } else if (schema && content) {
       logger.debug('Processing content for schema validation');

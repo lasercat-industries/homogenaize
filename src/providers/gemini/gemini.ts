@@ -572,6 +572,17 @@ function zodToGeminiNativeSchema(schema: z.ZodSchema): GeminiNativeSchema {
         }
       }
 
+      case 'record': {
+        // Record types allow arbitrary keys, which is incompatible with structured output
+        // that requires predefined schemas
+        throw new Error(
+          'Record types are not supported with Gemini structured output.\n' +
+            'Record types allow arbitrary keys which cannot be represented in a fixed schema.\n' +
+            'Please refactor to use a fixed object schema with known properties.\n' +
+            'Example: Instead of z.record(z.string()), use z.object({ key1: z.string(), key2: z.string(), ... })',
+        );
+      }
+
       default:
         logger.warn('Unsupported Zod type for Gemini native schema', { type: def.type });
         return { type: 'STRING' };

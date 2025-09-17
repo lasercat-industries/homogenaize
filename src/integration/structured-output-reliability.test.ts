@@ -23,7 +23,7 @@ const ComplexSchema = z.object({
     verified: z.boolean(),
   }),
   status: z.enum(['active', 'inactive', 'pending']),
-  optionalField: z.string().optional(),
+  optionalField: z.string().nullable().optional(),
 });
 
 type ComplexData = z.infer<typeof ComplexSchema>;
@@ -74,11 +74,18 @@ describe('Structured Output Reliability Tests', () => {
           expect(parsed.metadata.score).toBeLessThanOrEqual(1);
           expect(['active', 'inactive', 'pending']).toContain(parsed.status);
         } catch (error) {
+          console.error(`OpenAI iteration ${i + 1} failed:`, (error as Error).message);
+          if ((error as any).issues) {
+            console.error('Validation issues:', (error as any).issues);
+          }
           errors.push(error as Error);
         }
       }
 
       // All iterations should succeed
+      if (errors.length > 0) {
+        console.error('Total OpenAI failures:', errors.length);
+      }
       expect(errors).toHaveLength(0);
       expect(results).toHaveLength(ITERATIONS);
     });
@@ -129,10 +136,17 @@ describe('Structured Output Reliability Tests', () => {
           expect(parsed.metadata.score).toBeLessThanOrEqual(1);
           expect(['active', 'inactive', 'pending']).toContain(parsed.status);
         } catch (error) {
+          console.error(`Anthropic iteration ${i + 1} failed:`, (error as Error).message);
+          if ((error as any).issues) {
+            console.error('Validation issues:', (error as any).issues);
+          }
           errors.push(error as Error);
         }
       }
       // All iterations should succeed
+      if (errors.length > 0) {
+        console.error('Total Anthropic failures:', errors.length);
+      }
       expect(errors).toHaveLength(0);
       expect(results).toHaveLength(ITERATIONS);
     });
