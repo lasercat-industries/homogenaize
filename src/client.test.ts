@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { LLMClient } from './client';
 import { createLLM, createOpenAILLM, createAnthropicLLM, createGeminiLLM } from './client';
 import type { ProviderChatResponse, ProviderModels } from './providers/types';
+import type { RetryConfig } from './retry/types';
 
 describe('LLM Client', () => {
   describe('Factory functions', () => {
@@ -166,6 +167,20 @@ describe('LLM Client', () => {
           { id: 'mock-model-1', name: 'Mock Model 1' },
           { id: 'mock-model-2', name: 'Mock Model 2' },
         ];
+      }
+
+      private retryConfig?: RetryConfig;
+
+      setRetryConfig(retry: RetryConfig | undefined): void {
+        this.retryConfig = retry;
+      }
+
+      getRetryConfig(): RetryConfig | undefined {
+        return this.retryConfig;
+      }
+
+      get retry(): RetryConfig | undefined {
+        return this.retryConfig;
       }
     }
 

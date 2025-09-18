@@ -107,20 +107,31 @@ export interface LLMClient<P extends ProviderName> {
 
   // Model methods
   listModels(): Promise<ModelInfo[]>;
+
+  // Retry configuration methods
+  setRetryConfig(retry: RetryConfig | undefined): void;
+  getRetryConfig(): RetryConfig | undefined;
 }
 
 // Implementation class
 export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
   private tools = new Map<string, ExecutableTool>();
+  private retryConfig?: RetryConfig;
 
   constructor(
     public readonly provider: P,
     public readonly apiKey: string,
     public readonly model: ProviderModels[P],
     public readonly defaultOptions?: LLMConfig<P>['defaultOptions'],
-    public readonly retry?: RetryConfig,
+    retry?: RetryConfig,
     private providerImpl?: TypedProvider<P>,
-  ) {}
+  ) {
+    this.retryConfig = retry;
+  }
+
+  get retry(): RetryConfig | undefined {
+    return this.retryConfig;
+  }
 
   async chat<T = string>(options: ChatOptions<P, T>): Promise<ProviderChatResponse<P, T>> {
     const logger = getLogger('client');
@@ -149,7 +160,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
     } as ProviderChatRequest<P, T>;
 
     // Use override retry config if provided, otherwise use client's default
-    const retryConfig = options.retry ?? this.retry;
+    const retryConfig = options.retry ?? this.retryConfig;
 
     const response = await this.providerImpl.chat<T>(request, retryConfig);
 
@@ -187,7 +198,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
     } as ProviderChatRequest<P, T>;
 
     // Use override retry config if provided, otherwise use client's default
-    const retryConfig = options.retry ?? this.retry;
+    const retryConfig = options.retry ?? this.retryConfig;
 
     return this.providerImpl.stream<T>(request, retryConfig);
   }
@@ -252,6 +263,16 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       throw new Error('Provider not initialized');
     }
     return this.providerImpl.listModels();
+  }
+
+  setRetryConfig(retry: RetryConfig | undefined): void {
+    const logger = getLogger('client');
+    logger.debug('Updating client retry configuration', { hasConfig: !!retry });
+    this.retryConfig = retry;
+  }
+
+  getRetryConfig(): RetryConfig | undefined {
+    return this.retryConfig;
   }
 }
 
