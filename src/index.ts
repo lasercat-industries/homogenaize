@@ -76,3 +76,6 @@ export {
   type GenericExecuteToolsOptions,
   type GenericChatResponse,
 } from './generic-client';
+
+// Export retry configuration
+export type { RetryConfig } from './retry/types';
