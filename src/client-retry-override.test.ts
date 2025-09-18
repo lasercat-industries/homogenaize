@@ -1,10 +1,21 @@
-import { describe, expect, it, beforeEach, mock } from 'bun:test';
+import { describe, expect, it, beforeEach, afterEach, mock } from 'bun:test';
 import { createOpenAILLM } from './client';
 import { LLMError } from './retry/errors';
 
 describe('Retry Config Override', () => {
+  let originalFetch: typeof global.fetch;
+
   beforeEach(() => {
+    // Save the original fetch
+    originalFetch = global.fetch;
     // Reset all mocks before each test
+    mock.restore();
+  });
+
+  afterEach(() => {
+    // Restore the original fetch
+    global.fetch = originalFetch;
+    // Clean up mocks
     mock.restore();
   });
 
@@ -76,6 +87,9 @@ describe('Retry Config Override', () => {
 
     expect(attemptCount).toBe(2); // maxRetries: 2 means up to 2 retries after initial attempt
     expect(response.content).toBe('Success after retry');
+
+    // Restore original fetch
+    global.fetch = originalFetch;
   });
 
   it('should use client default retry config when no override provided', async () => {
@@ -146,6 +160,9 @@ describe('Retry Config Override', () => {
 
     expect(attemptCount).toBe(2);
     expect(response.content).toBe('Success with default retry');
+
+    // Restore original fetch
+    global.fetch = originalFetch;
   });
 
   it('should disable retries when override sets maxAttempts to 1', async () => {
@@ -191,6 +208,9 @@ describe('Retry Config Override', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(LLMError);
       expect(attemptCount).toBe(1); // maxRetries: 0 means no retries
+    } finally {
+      // Restore original fetch
+      global.fetch = originalFetch;
     }
   });
 
@@ -286,5 +306,8 @@ describe('Retry Config Override', () => {
     expect(attemptCounts.req2).toBe(3); // maxRetries: 2 means 2 retries after initial
     expect(response1.content).toBe('Response 1');
     expect(response2.content).toBe('Response 2');
+
+    // Restore original fetch
+    global.fetch = originalFetch;
   });
 });
