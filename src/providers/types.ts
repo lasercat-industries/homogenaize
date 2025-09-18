@@ -1,5 +1,6 @@
 import type { ChatRequest, ChatResponse, Provider, ModelInfo } from './provider';
 import type { OpenaiModel, AnthropicModel, GeminiModel } from '../generated/model-types';
+import type { RetryConfig } from '../retry/types';
 
 // Re-export ModelInfo from provider
 export type { ModelInfo };
@@ -102,9 +103,13 @@ export type ProviderChatResponse<P extends ProviderName, T = string> = P extends
 // Provider with specific type
 export interface TypedProvider<P extends ProviderName> extends Provider {
   readonly name: P;
-  chat<T = string>(request: ProviderChatRequest<P, T>): Promise<ProviderChatResponse<P, T>>;
+  chat<T = string>(
+    request: ProviderChatRequest<P, T>,
+    retryConfig?: RetryConfig,
+  ): Promise<ProviderChatResponse<P, T>>;
   stream<T = string>(
     request: ProviderChatRequest<P, T>,
+    retryConfig?: RetryConfig,
   ): Promise<{
     [Symbol.asyncIterator](): AsyncIterator<T>;
     complete(): Promise<ProviderChatResponse<P, T>>;

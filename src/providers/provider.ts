@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { JSONSchemaType } from 'ajv';
 import type { GenericJSONSchema } from '../types/schema';
+import type { RetryConfig } from '../retry/types';
 
 // Model information
 export interface ModelInfo {
@@ -97,8 +98,11 @@ export interface Provider {
   readonly name: string;
   readonly capabilities: ProviderCapabilities;
 
-  chat<T = string>(request: ChatRequest<T>): Promise<ChatResponse<T>>;
-  stream<T = string>(request: ChatRequest<T>): Promise<StreamingResponse<T>>;
+  chat<T = string>(request: ChatRequest<T>, retryConfig?: RetryConfig): Promise<ChatResponse<T>>;
+  stream<T = string>(
+    request: ChatRequest<T>,
+    retryConfig?: RetryConfig,
+  ): Promise<StreamingResponse<T>>;
   supportsFeature(feature: string): boolean;
   listModels(): Promise<ModelInfo[]>;
 }

@@ -616,6 +616,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
 
   async chat<T = string>(
     request: ProviderChatRequest<'gemini', T>,
+    retryConfig?: RetryConfig,
   ): Promise<ProviderChatResponse<'gemini', T>> {
     const logger = getLogger('gemini');
     const model = request.model || 'gemini-1.5-pro-latest';
@@ -720,8 +721,11 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
       return this.transformResponse<T>(data, model, request.schema);
     };
 
-    if (this.retryConfig) {
-      return retry(makeRequest, this.retryConfig);
+    // Use override retry config if provided, otherwise use instance config
+    const activeRetryConfig = retryConfig ?? this.retryConfig;
+
+    if (activeRetryConfig) {
+      return retry(makeRequest, activeRetryConfig);
     }
 
     return makeRequest();
@@ -729,6 +733,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
 
   async stream<T = string>(
     request: ProviderChatRequest<'gemini', T>,
+    _retryConfig?: RetryConfig, // Streaming doesn't use retry (single long-lived connection)
   ): Promise<StreamingResponse<T>> {
     const logger = getLogger('gemini');
     const model = request.model || 'gemini-1.5-pro-latest';

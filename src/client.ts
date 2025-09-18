@@ -63,6 +63,7 @@ export interface BaseChatOptions<T = string> {
   schema?: z.ZodSchema<T>;
   tools?: Tool[];
   toolChoice?: 'auto' | 'required' | 'none' | { name: string };
+  retry?: RetryConfig;
 }
 
 // Provider-specific chat options
@@ -147,7 +148,10 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       model: this.model,
     } as ProviderChatRequest<P, T>;
 
-    const response = await this.providerImpl.chat<T>(request);
+    // Use override retry config if provided, otherwise use client's default
+    const retryConfig = options.retry ?? this.retry;
+
+    const response = await this.providerImpl.chat<T>(request, retryConfig);
 
     return response;
   }
@@ -182,7 +186,10 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       model: this.model,
     } as ProviderChatRequest<P, T>;
 
-    return this.providerImpl.stream<T>(request);
+    // Use override retry config if provided, otherwise use client's default
+    const retryConfig = options.retry ?? this.retry;
+
+    return this.providerImpl.stream<T>(request, retryConfig);
   }
 
   defineTool<T extends z.ZodSchema>(config: ToolConfig<T>): ExecutableTool<T> {

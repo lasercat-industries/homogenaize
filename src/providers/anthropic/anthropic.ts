@@ -237,6 +237,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
   async chat<T = string>(
     request: ProviderChatRequest<'anthropic', T>,
+    retryConfig?: RetryConfig,
   ): Promise<ProviderChatResponse<'anthropic', T>> {
     const logger = getLogger('anthropic');
     logger.info('Anthropic chat request initiated', { model: request.model });
@@ -348,8 +349,11 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
       return this.transformResponse<T>(data, request.schema);
     };
 
-    if (this.retryConfig) {
-      return retry(makeRequest, this.retryConfig);
+    // Use override retry config if provided, otherwise use instance config
+    const activeRetryConfig = retryConfig ?? this.retryConfig;
+
+    if (activeRetryConfig) {
+      return retry(makeRequest, activeRetryConfig);
     }
 
     return makeRequest();
@@ -357,6 +361,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
   async stream<T = string>(
     request: ProviderChatRequest<'anthropic', T>,
+    _retryConfig?: RetryConfig, // Streaming doesn't use retry (single long-lived connection)
   ): Promise<StreamingResponse<T>> {
     const logger = getLogger('anthropic');
     logger.info('Anthropic stream request initiated', { model: request.model });

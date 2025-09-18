@@ -424,6 +424,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
   async chat<T = string>(
     request: ProviderChatRequest<'openai', T>,
+    retryConfig?: RetryConfig,
   ): Promise<ProviderChatResponse<'openai', T>> {
     const logger = getLogger('openai');
     logger.info('OpenAI chat request initiated', { model: request.model });
@@ -530,9 +531,12 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       return this.transformResponse<T>(data, request.schema);
     };
 
+    // Use override retry config if provided, otherwise use instance config
+    const activeRetryConfig = retryConfig ?? this.retryConfig;
+
     // Use retry wrapper if config is provided
-    if (this.retryConfig) {
-      return retry(makeRequest, this.retryConfig);
+    if (activeRetryConfig) {
+      return retry(makeRequest, activeRetryConfig);
     }
 
     return makeRequest();
@@ -540,6 +544,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
   async stream<T = string>(
     request: ProviderChatRequest<'openai', T>,
+    retryConfig?: RetryConfig,
   ): Promise<StreamingResponse<T>> {
     const logger = getLogger('openai');
     logger.info('OpenAI stream request initiated', { model: request.model });
@@ -582,9 +587,12 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       return response;
     };
 
+    // Use override retry config if provided, otherwise use instance config
+    const activeRetryConfig = retryConfig ?? this.retryConfig;
+
     // Get response with retry support
-    const response = this.retryConfig
-      ? await retry(makeRequest, this.retryConfig)
+    const response = activeRetryConfig
+      ? await retry(makeRequest, activeRetryConfig)
       : await makeRequest();
 
     const reader = response.body!.getReader();
