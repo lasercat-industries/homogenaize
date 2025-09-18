@@ -12,10 +12,22 @@ const ITERATIONS = 3;
 
 // Complex schema to test edge cases
 const ComplexSchema = z.object({
-  id: z.string().uuid(),
+  id: z
+    .string()
+    .regex(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      'Must be a valid UUID v4 format (e.g., 123e4567-e89b-12d3-a456-426614174000)',
+    )
+    .describe('A unique identifier in UUID v4 format'),
   name: z.string().min(1).max(100),
   age: z.number().int().min(0).max(150),
-  email: z.string().email(),
+  email: z
+    .string()
+    .regex(
+      /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+      'Must be a valid email address format (e.g., user@example.com)',
+    )
+    .describe('A valid email address'),
   tags: z.array(z.string()).min(1).max(5),
   metadata: z.object({
     created: z.string().datetime(),
@@ -46,14 +58,17 @@ describe('Structured Output Reliability Tests', () => {
               {
                 role: 'user',
                 content: `Generate a user profile with:
-                - A valid UUID for id
-                - Name between 1-100 chars
-                - Age between 0-150
-                - Valid email
-                - 1-5 tags
-                - Metadata with ISO datetime, score 0-1, and verified boolean
-                - Status as either active, inactive, or pending
-                - Optionally include optionalField`,
+                - id: A valid UUID v4 format (example: 123e4567-e89b-12d3-a456-426614174000) - must be lowercase hexadecimal digits with dashes in the pattern 8-4-4-4-12
+                - name: Between 1-100 characters
+                - age: Integer between 0-150
+                - email: Valid email address format (example: user@example.com) - must have username@domain.extension format
+                - tags: Array of 1-5 strings
+                - metadata: Object containing:
+                  - created: ISO 8601 datetime string
+                  - score: Number between 0 and 1
+                  - verified: Boolean value
+                - status: Must be exactly one of: "active", "inactive", or "pending"
+                - optionalField: Optional string or null`,
               },
             ],
             schema: ComplexSchema,
@@ -108,14 +123,17 @@ describe('Structured Output Reliability Tests', () => {
               {
                 role: 'user',
                 content: `Generate a user profile with:
-                - A valid UUID for id
-                - Name between 1-100 chars
-                - Age between 0-150
-                - Valid email
-                - 1-5 tags
-                - Metadata with ISO datetime, score 0-1, and verified boolean
-                - Status as either active, inactive, or pending
-                - Optionally include optionalField`,
+                - id: A valid UUID v4 format (example: 123e4567-e89b-12d3-a456-426614174000) - must be lowercase hexadecimal digits with dashes in the pattern 8-4-4-4-12
+                - name: Between 1-100 characters
+                - age: Integer between 0-150
+                - email: Valid email address format (example: user@example.com) - must have username@domain.extension format
+                - tags: Array of 1-5 strings
+                - metadata: Object containing:
+                  - created: ISO 8601 datetime string
+                  - score: Number between 0 and 1
+                  - verified: Boolean value
+                - status: Must be exactly one of: "active", "inactive", or "pending"
+                - optionalField: Optional string or null`,
               },
             ],
             schema: ComplexSchema,
@@ -160,13 +178,31 @@ describe('Structured Output Reliability Tests', () => {
 
     // Gemini-specific schema that's more lenient with UUID format
     const GeminiComplexSchema = z.object({
-      id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
+      id: z
+        .string()
+        .regex(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+          'Must be a valid UUID format',
+        )
+        .describe('A unique identifier in UUID format'),
       name: z.string().min(1).max(100),
       age: z.number().int().min(0).max(150),
-      email: z.string().email(),
+      email: z
+        .string()
+        .regex(
+          /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+          'Must be a valid email address format',
+        )
+        .describe('A valid email address'),
       tags: z.array(z.string()).min(1).max(5),
       metadata: z.object({
-        created: z.string().datetime(),
+        created: z
+          .string()
+          .regex(
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/,
+            'Must be a valid ISO 8601 datetime string',
+          )
+          .describe('ISO 8601 datetime string'),
         score: z.number().min(0).max(1),
         verified: z.boolean(),
       }),
@@ -185,14 +221,17 @@ describe('Structured Output Reliability Tests', () => {
               {
                 role: 'user',
                 content: `Generate a user profile with:
-                - A valid UUID for id (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-                - Name between 1-100 chars
-                - Age between 0-150
-                - Valid email
-                - 1-5 tags
-                - Metadata with ISO datetime, score 0-1, and verified boolean
-                - Status as either active, inactive, or pending
-                - Optionally include optionalField`,
+                - id: A valid UUID format (example: 123e4567-e89b-12d3-a456-426614174000) - must be lowercase hexadecimal digits with dashes in the pattern 8-4-4-4-12
+                - name: Between 1-100 characters
+                - age: Integer between 0-150
+                - email: Valid email address format (example: user@example.com) - must have username@domain.extension format
+                - tags: Array of 1-5 strings
+                - metadata: Object containing:
+                  - created: ISO 8601 datetime string (example: 2024-01-01T12:00:00Z)
+                  - score: Number between 0 and 1
+                  - verified: Boolean value
+                - status: Must be exactly one of: "active", "inactive", or "pending"
+                - optionalField: Optional string (do not include null)`,
               },
             ],
             schema: GeminiComplexSchema,
