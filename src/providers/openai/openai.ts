@@ -1,6 +1,12 @@
 import { z, ZodError } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, Message } from '../provider';
-import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInfo } from '../types';
+import type {
+  TypedProvider,
+  ProviderChatRequest,
+  ProviderChatResponse,
+  OpenAIChatResponse,
+  ModelInfo,
+} from '../types';
 import type { RetryConfig } from '../../retry/types';
 import { retry } from '../../retry';
 import { LLMError } from '../../retry/errors';
@@ -61,6 +67,7 @@ interface OpenAIRequest {
   };
   tools?: OpenAITool[];
   tool_choice?: 'none' | 'auto' | 'required' | { type: 'function'; function: { name: string } };
+  reasoning_effort?: 'minimal' | 'low' | 'medium' | 'high';
 }
 
 interface OpenAIResponse {
@@ -73,6 +80,7 @@ interface OpenAIResponse {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
+    reasoning_tokens?: number;
   };
   choices: Array<{
     index: number;
@@ -116,6 +124,7 @@ interface OpenAIStreamChunk {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
+    reasoning_tokens?: number;
   };
 }
 
@@ -599,7 +608,12 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     const decoder = new TextDecoder();
     let buffer = '';
     let content = '';
-    let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } = {};
+    let usage: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      total_tokens?: number;
+      reasoning_tokens?: number;
+    } = {};
     let model = '';
     let finishReason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | undefined;
     // These are assigned during streaming but not used after structured output refactor
@@ -668,6 +682,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
                     prompt_tokens: chunk.usage.prompt_tokens,
                     completion_tokens: chunk.usage.completion_tokens,
                     total_tokens: chunk.usage.total_tokens,
+                    reasoning_tokens: chunk.usage.reasoning_tokens,
                   };
                 }
 
@@ -721,16 +736,24 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
           parsedContent = content as T;
         }
 
-        return {
+        const result: ProviderChatResponse<'openai', T> = {
           content: parsedContent,
           usage: {
             inputTokens: usage.prompt_tokens || 0,
             outputTokens: usage.completion_tokens || 0,
             totalTokens: usage.total_tokens || 0,
+            reasoningTokens: usage.reasoning_tokens,
           },
           model,
           finishReason,
         };
+
+        // Add reasoningTokens to the response if present
+        if (usage.reasoning_tokens !== undefined) {
+          (result as OpenAIChatResponse<T>).reasoningTokens = usage.reasoning_tokens;
+        }
+
+        return result;
       },
     };
 
@@ -763,6 +786,10 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       }
       if (request.features.seed !== undefined) {
         openAIRequest.seed = request.features.seed;
+      }
+      if (request.features.reasoningEffort !== undefined) {
+        openAIRequest.reasoning_effort = request.features.reasoningEffort;
+        logger.debug('Setting reasoning effort', { effort: request.features.reasoningEffort });
       }
       if (request.features.responseFormat !== undefined) {
         // Handle legacy responseFormat from features (for backward compatibility)
@@ -988,11 +1015,17 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         inputTokens: response.usage.prompt_tokens,
         outputTokens: response.usage.completion_tokens,
         totalTokens: response.usage.total_tokens,
+        reasoningTokens: response.usage.reasoning_tokens,
       },
       model: response.model,
       finishReason: choice.finish_reason,
       systemFingerprint: response.system_fingerprint,
     };
+
+    // Add reasoningTokens to the response if present
+    if (response.usage.reasoning_tokens !== undefined) {
+      (result as OpenAIChatResponse<T>).reasoningTokens = response.usage.reasoning_tokens;
+    }
 
     // Handle tool calls - but not if we used schema-based tool calling
     if (message.tool_calls && !schema) {

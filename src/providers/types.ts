@@ -22,6 +22,7 @@ export interface OpenAIChatRequest<T = string> extends ChatRequest<T> {
     topLogprobs?: number;
     seed?: number;
     responseFormat?: { type: 'json_object' | 'json_schema'; json_schema?: unknown };
+    reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high';
   };
 }
 
@@ -65,6 +66,7 @@ export interface OpenAIChatResponse<T = string> extends ChatResponse<T> {
     topLogprobs?: Array<{ token: string; logprob: number }>;
   }>;
   systemFingerprint?: string;
+  reasoningTokens?: number;
 }
 
 export interface AnthropicChatResponse<T = string> extends ChatResponse<T> {

@@ -68,6 +68,7 @@ export interface Usage {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  reasoningTokens?: number;
 }
 
 export interface ChatResponse<T = string> {

@@ -41,3 +41,4 @@ C36E380B-D09D-4578-807F-A0C1185F57E0,Add comprehensive logging to all providers 
 24A7AAC7-9FAE-409C-A436-D5C2396B646F,Add detailed schema parsing failure logging,done,,20250110-1745-detailed-schema-logging.md
 2C56D48D-31EB-4DDB-A232-16ECEB38EFE7,Implement native structured output for Gemini,done,,20250110-1900-gemini-native-structured-output.md
 EFE45FED-8C6F-4D07-98E8-F81A6EC2F7A0,Implement native structured output for OpenAI,done,,20250113-1500-openai-native-structured-output.md
+99BE063F-981C-4993-B54C-0A1D090196B0,Implement OpenAI reasoning effort feature,done,,20250924-1143-implement-openai-reasoning.md
