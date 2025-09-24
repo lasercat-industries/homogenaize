@@ -1,7 +1,7 @@
 /**
  * Auto-generated model types
- * Generated on: 2025-07-24T21:35:16.012Z
- *
+ * Generated on: 2025-09-24T18:11:24.121Z
+ * 
  * DO NOT EDIT MANUALLY
  * Run 'bun run generate-model-types' to update
  */
@@ -10,11 +10,11 @@ export type OpenaiModel =
   | 'gpt-4-0613'
   | 'gpt-4'
   | 'gpt-3.5-turbo'
-  | 'o4-mini-deep-research-2025-06-26'
-  | 'o3-pro-2025-06-10'
-  | 'o4-mini-deep-research'
-  | 'o3-deep-research'
-  | 'o3-deep-research-2025-06-26'
+  | 'gpt-5-codex'
+  | 'gpt-audio-2025-08-28'
+  | 'gpt-realtime'
+  | 'gpt-realtime-2025-08-28'
+  | 'gpt-audio'
   | 'davinci-002'
   | 'babbage-002'
   | 'gpt-3.5-turbo-instruct'
@@ -39,8 +39,6 @@ export type OpenaiModel =
   | 'gpt-4o-mini'
   | 'gpt-4o-2024-08-06'
   | 'chatgpt-4o-latest'
-  | 'o1-preview-2024-09-12'
-  | 'o1-preview'
   | 'o1-mini-2024-09-12'
   | 'o1-mini'
   | 'gpt-4o-realtime-preview-2024-10-01'
@@ -86,12 +84,25 @@ export type OpenaiModel =
   | 'o3-pro'
   | 'gpt-4o-realtime-preview-2025-06-03'
   | 'gpt-4o-audio-preview-2025-06-03'
+  | 'o3-pro-2025-06-10'
+  | 'o4-mini-deep-research'
+  | 'o3-deep-research'
+  | 'o3-deep-research-2025-06-26'
+  | 'o4-mini-deep-research-2025-06-26'
+  | 'gpt-5-chat-latest'
+  | 'gpt-5-2025-08-07'
+  | 'gpt-5'
+  | 'gpt-5-mini-2025-08-07'
+  | 'gpt-5-mini'
+  | 'gpt-5-nano-2025-08-07'
+  | 'gpt-5-nano'
   | 'gpt-3.5-turbo-16k'
   | 'tts-1'
   | 'whisper-1'
   | 'text-embedding-ada-002';
 
 export type AnthropicModel =
+  | 'claude-opus-4-1-20250805'
   | 'claude-opus-4-20250514'
   | 'claude-sonnet-4-20250514'
   | 'claude-3-7-sonnet-20250219'
@@ -103,8 +114,6 @@ export type AnthropicModel =
 
 export type GeminiModel =
   | 'embedding-gecko-001'
-  | 'gemini-1.0-pro-vision-latest'
-  | 'gemini-pro-vision'
   | 'gemini-1.5-pro-latest'
   | 'gemini-1.5-pro-002'
   | 'gemini-1.5-pro'
@@ -146,12 +155,15 @@ export type GeminiModel =
   | 'gemma-3n-e4b-it'
   | 'gemma-3n-e2b-it'
   | 'gemini-2.5-flash-lite'
+  | 'gemini-2.5-flash-image-preview'
   | 'embedding-001'
   | 'text-embedding-004'
   | 'gemini-embedding-exp-03-07'
   | 'gemini-embedding-exp'
   | 'gemini-embedding-001'
-  | 'aqa';
+  | 'aqa'
+  | 'imagen-3.0-generate-002';
+
 
 export type AllProviderModels = OpenaiModel | AnthropicModel | GeminiModel;
 
@@ -159,11 +171,11 @@ export const OPENAI_MODELS = [
   'gpt-4-0613',
   'gpt-4',
   'gpt-3.5-turbo',
-  'o4-mini-deep-research-2025-06-26',
-  'o3-pro-2025-06-10',
-  'o4-mini-deep-research',
-  'o3-deep-research',
-  'o3-deep-research-2025-06-26',
+  'gpt-5-codex',
+  'gpt-audio-2025-08-28',
+  'gpt-realtime',
+  'gpt-realtime-2025-08-28',
+  'gpt-audio',
   'davinci-002',
   'babbage-002',
   'gpt-3.5-turbo-instruct',
@@ -188,8 +200,6 @@ export const OPENAI_MODELS = [
   'gpt-4o-mini',
   'gpt-4o-2024-08-06',
   'chatgpt-4o-latest',
-  'o1-preview-2024-09-12',
-  'o1-preview',
   'o1-mini-2024-09-12',
   'o1-mini',
   'gpt-4o-realtime-preview-2024-10-01',
@@ -235,13 +245,26 @@ export const OPENAI_MODELS = [
   'o3-pro',
   'gpt-4o-realtime-preview-2025-06-03',
   'gpt-4o-audio-preview-2025-06-03',
+  'o3-pro-2025-06-10',
+  'o4-mini-deep-research',
+  'o3-deep-research',
+  'o3-deep-research-2025-06-26',
+  'o4-mini-deep-research-2025-06-26',
+  'gpt-5-chat-latest',
+  'gpt-5-2025-08-07',
+  'gpt-5',
+  'gpt-5-mini-2025-08-07',
+  'gpt-5-mini',
+  'gpt-5-nano-2025-08-07',
+  'gpt-5-nano',
   'gpt-3.5-turbo-16k',
   'tts-1',
   'whisper-1',
-  'text-embedding-ada-002',
+  'text-embedding-ada-002'
 ] as const;
 
 export const ANTHROPIC_MODELS = [
+  'claude-opus-4-1-20250805',
   'claude-opus-4-20250514',
   'claude-sonnet-4-20250514',
   'claude-3-7-sonnet-20250219',
@@ -249,13 +272,11 @@ export const ANTHROPIC_MODELS = [
   'claude-3-5-haiku-20241022',
   'claude-3-5-sonnet-20240620',
   'claude-3-haiku-20240307',
-  'claude-3-opus-20240229',
+  'claude-3-opus-20240229'
 ] as const;
 
 export const GEMINI_MODELS = [
   'embedding-gecko-001',
-  'gemini-1.0-pro-vision-latest',
-  'gemini-pro-vision',
   'gemini-1.5-pro-latest',
   'gemini-1.5-pro-002',
   'gemini-1.5-pro',
@@ -297,10 +318,12 @@ export const GEMINI_MODELS = [
   'gemma-3n-e4b-it',
   'gemma-3n-e2b-it',
   'gemini-2.5-flash-lite',
+  'gemini-2.5-flash-image-preview',
   'embedding-001',
   'text-embedding-004',
   'gemini-embedding-exp-03-07',
   'gemini-embedding-exp',
   'gemini-embedding-001',
   'aqa',
+  'imagen-3.0-generate-002'
 ] as const;
