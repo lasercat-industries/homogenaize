@@ -12,10 +12,23 @@ const CHAT_MODEL_PATTERNS = {
 async function listChatModels() {
   const results: Record<string, string[]> = {};
 
+  const openAiKey =
+    process !== undefined
+      ? process.env.OPENAI_API_KEY
+      : import.meta.env.OPENAI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY;
+  const anthropicKey =
+    process !== undefined
+      ? process.env.ANTHROPIC_API_KEY
+      : import.meta.env.ANTHROPIC_API_KEY || import.meta.env.VITE_ANTHROPIC_API_KEY;
+  const geminiKey =
+    process !== undefined
+      ? process.env.GEMINI_API_KEY
+      : import.meta.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+
   // OpenAI
-  if (process.env.OPENAI_API_KEY) {
+  if (openAiKey) {
     try {
-      const client = createOpenAILLM({ apiKey: process.env.OPENAI_API_KEY, model: 'gpt-4' });
+      const client = createOpenAILLM({ apiKey: openAiKey, model: 'gpt-4' });
       const models = await client.listModels();
       results.openai = models
         .filter((m) => CHAT_MODEL_PATTERNS.openai.test(m.id))
@@ -29,10 +42,10 @@ async function listChatModels() {
   }
 
   // Anthropic
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (anthropicKey) {
     try {
       const client = createAnthropicLLM({
-        apiKey: process.env.ANTHROPIC_API_KEY,
+        apiKey: anthropicKey,
         model: 'claude-3-opus-20240229',
       });
       const models = await client.listModels();
@@ -48,10 +61,10 @@ async function listChatModels() {
   }
 
   // Gemini
-  if (process.env.GEMINI_API_KEY) {
+  if (geminiKey) {
     try {
       const client = createGeminiLLM({
-        apiKey: process.env.GEMINI_API_KEY,
+        apiKey: geminiKey,
         model: 'gemini-2.5-flash',
       });
       const models = await client.listModels();

@@ -18,7 +18,10 @@ async function listModelsForProvider(
   createClient: (apiKey: string) => { listModels: () => Promise<ModelInfo[]> },
   apiKeyEnvVar: string,
 ): Promise<ProviderModels> {
-  const apiKey = process.env[apiKeyEnvVar];
+  const apiKey =
+    process !== undefined
+      ? process.env[apiKeyEnvVar]
+      : import.meta.env[apiKeyEnvVar] || import.meta.env[`VITE_${apiKeyEnvVar}`];
 
   if (!apiKey) {
     return {

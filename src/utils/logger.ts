@@ -1,6 +1,18 @@
 import winston from 'winston';
 import type { Logger as WinstonLogger } from 'winston';
 
+function getLogLevelFromEnv() {
+  return process !== undefined
+    ? process.env.HOMOGENAIZE_LOG_LEVEL
+    : import.meta.env.HOMOGENAIZE_LOG_LEVEL || import.meta.env.VITE_HOMOGENAIZE_LOG_LEVEL;
+}
+
+function getLogFormatFromEnv() {
+  return process !== undefined
+    ? process.env.HOMOGENAIZE_LOG_FORMAT
+    : import.meta.env.HOMOGENAIZE_LOG_FORMAT || import.meta.env.VITE_HOMOGENAIZE_LOG_FORMAT;
+}
+
 /**
  * Logger configuration options
  */
@@ -127,11 +139,9 @@ function createFormat(config: LoggerConfig): winston.Logform.Format {
  */
 function createLogger(config: LoggerConfig): WinstonLogger {
   // Get configuration from environment variables if not explicitly set
-  const level =
-    config.level || (process.env.HOMOGENAIZE_LOG_LEVEL as LoggerConfig['level']) || 'silent';
+  const level = config.level || (getLogLevelFromEnv() as LoggerConfig['level']) || 'silent';
 
-  const format =
-    config.format || (process.env.HOMOGENAIZE_LOG_FORMAT as LoggerConfig['format']) || 'pretty';
+  const format = config.format || (getLogFormatFromEnv() as LoggerConfig['format']) || 'pretty';
 
   const finalConfig: LoggerConfig = {
     ...config,
@@ -221,8 +231,8 @@ export function getLogger(context?: string): WinstonLogger {
   if (!loggerInstance) {
     // Initialize with environment variables or defaults
     const config: LoggerConfig = {
-      level: (process.env.HOMOGENAIZE_LOG_LEVEL as LoggerConfig['level']) || 'silent',
-      format: (process.env.HOMOGENAIZE_LOG_FORMAT as LoggerConfig['format']) || 'pretty',
+      level: (getLogLevelFromEnv() as LoggerConfig['level']) || 'silent',
+      format: (getLogFormatFromEnv() as LoggerConfig['format']) || 'pretty',
     };
     loggerInstance = createLogger(config);
   }
