@@ -210,7 +210,7 @@ describe('Complex Nested Schema Tests Across Providers', () => {
             ? 'gpt-4o-mini'
             : providerName === 'Anthropic'
               ? 'claude-3-haiku-20240307'
-              : 'gemini-1.5-flash',
+              : 'gemini-2.0-flash',
         messages: [
           {
             role: 'user',

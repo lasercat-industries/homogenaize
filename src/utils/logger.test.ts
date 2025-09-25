@@ -85,7 +85,10 @@ describe('Logger Module', () => {
       const logger = getLogger();
 
       // Create a child logger with context
-      const contextLogger = logger.child({ provider: 'openai', requestId: '123' });
+      const contextLogger = logger.child({
+        provider: 'openai',
+        requestId: '123',
+      });
       expect(contextLogger).toBeDefined();
     });
 

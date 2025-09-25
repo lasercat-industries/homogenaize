@@ -1,6 +1,6 @@
 {
   "name": "@lasercat/homogenaize",
-  "version": "1.2.20",
+  "version": "1.2.21",
   "description": "A TypeScript-native library that provides a unified interface for multiple LLM providers (OpenAI, Anthropic, Gemini)",
   "author": "Ryland Goldstein",
   "license": "MIT",
@@ -68,7 +68,6 @@
     "@types/ajv": "^1.0.4",
     "@types/bun": "latest",
     "@types/node": "^24.0.13",
-    "@types/winston": "^2.4.4",
     "dotenv": "^17.2.0",
     "eslint": "^9.30.1",
     "eslint-import-resolver-typescript": "^4.4.4",
@@ -91,8 +90,6 @@
   },
   "dependencies": {
     "ajv": "^8.17.1",
-    "openai": "^5.12.0",
-    "winston": "^3.17.0",
-    "winston-transport-browserconsole": "^1.0.5"
+    "openai": "^5.12.0"
   }
 }

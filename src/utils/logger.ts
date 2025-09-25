@@ -1,18 +1,7 @@
-import winston from 'winston';
-import type { Logger as WinstonLogger } from 'winston';
-import BrowserConsole from 'winston-transport-browserconsole';
-
-function getLogLevelFromEnv() {
-  return process !== undefined
-    ? process.env.HOMOGENAIZE_LOG_LEVEL
-    : import.meta.env.HOMOGENAIZE_LOG_LEVEL || import.meta.env.VITE_HOMOGENAIZE_LOG_LEVEL;
-}
-
-function getLogFormatFromEnv() {
-  return process !== undefined
-    ? process.env.HOMOGENAIZE_LOG_FORMAT
-    : import.meta.env.HOMOGENAIZE_LOG_FORMAT || import.meta.env.VITE_HOMOGENAIZE_LOG_FORMAT;
-}
+/**
+ * Browser-safe logger implementation that mimics Winston API
+ * Works in both Node.js and browser environments with colors support
+ */
 
 /**
  * Logger configuration options
@@ -24,33 +13,82 @@ export interface LoggerConfig {
   format?: 'json' | 'pretty';
   /** Optional prefix for all log messages */
   prefix?: string;
-  /** Custom Winston transports */
-  transports?: winston.transport[];
+  /** Custom transports (for compatibility, not used in this implementation) */
+  transports?: unknown[];
 }
 
-// Custom silent level
-const CUSTOM_LEVELS = {
-  levels: {
-    error: 0,
-    warn: 1,
-    info: 2,
-    debug: 3,
-    verbose: 4,
-    silent: 5,
-  },
-  colors: {
-    error: 'red',
-    warn: 'yellow',
-    info: 'green',
-    debug: 'blue',
-    verbose: 'cyan',
-    silent: 'grey',
-  },
-};
+// Log level priorities
+const LEVELS = {
+  error: 0,
+  warn: 1,
+  info: 2,
+  debug: 3,
+  verbose: 4,
+  silent: 5,
+} as const;
 
-// Singleton logger instance
-let loggerInstance: WinstonLogger | null = null;
-let currentConfig: LoggerConfig = { level: 'silent' };
+// Console colors for different log levels
+const COLORS = {
+  error: '\x1b[31m', // red
+  warn: '\x1b[33m', // yellow
+  info: '\x1b[32m', // green
+  debug: '\x1b[34m', // blue
+  verbose: '\x1b[36m', // cyan
+  reset: '\x1b[0m',
+} as const;
+
+// Browser console colors (CSS)
+const BROWSER_COLORS = {
+  error: 'color: #dc3545; font-weight: bold',
+  warn: 'color: #ffc107; font-weight: bold',
+  info: 'color: #28a745; font-weight: bold',
+  debug: 'color: #007bff; font-weight: bold',
+  verbose: 'color: #17a2b8; font-weight: bold',
+} as const;
+
+type LogLevel = keyof typeof LEVELS;
+type LogMethod = 'error' | 'warn' | 'info' | 'debug' | 'verbose';
+
+// Detect environment
+const isBrowser = typeof globalThis !== 'undefined' && 'document' in globalThis;
+const isNode =
+  typeof globalThis !== 'undefined' &&
+  'process' in globalThis &&
+  (globalThis as { process?: { versions?: { node?: string } } }).process?.versions?.node;
+
+function getLogLevelFromEnv(): string | undefined {
+  if (isNode && typeof process !== 'undefined') {
+    return process.env.HOMOGENAIZE_LOG_LEVEL;
+  }
+  // For Vite and other bundlers that replace import.meta.env at build time
+  try {
+    // Check for import.meta.env (Vite, Snowpack, etc.)
+    const metaEnv = (import.meta as any)?.env;
+    if (metaEnv) {
+      return metaEnv.HOMOGENAIZE_LOG_LEVEL || metaEnv.VITE_HOMOGENAIZE_LOG_LEVEL;
+    }
+  } catch {
+    // Ignore errors from import.meta access
+  }
+  return undefined;
+}
+
+function getLogFormatFromEnv(): string | undefined {
+  if (isNode && typeof process !== 'undefined') {
+    return process.env.HOMOGENAIZE_LOG_FORMAT;
+  }
+  // For Vite and other bundlers that replace import.meta.env at build time
+  try {
+    // Check for import.meta.env (Vite, Snowpack, etc.)
+    const metaEnv = (import.meta as any)?.env;
+    if (metaEnv) {
+      return metaEnv.HOMOGENAIZE_LOG_FORMAT || metaEnv.VITE_HOMOGENAIZE_LOG_FORMAT;
+    }
+  } catch {
+    // Ignore errors from import.meta access
+  }
+  return undefined;
+}
 
 /**
  * Masks sensitive data in log messages
@@ -88,129 +126,179 @@ function sanitizeData(data: unknown): unknown {
   return data;
 }
 
-/**
- * Creates a Winston format based on configuration
- */
-function createFormat(config: LoggerConfig): winston.Logform.Format {
-  const formats: winston.Logform.Format[] = [winston.format.timestamp()];
+class BrowserSafeLogger {
+  private currentLevel: LogLevel = 'silent';
+  private currentFormat: 'json' | 'pretty' = 'pretty';
+  private prefix?: string;
+  private context?: string;
 
-  // Add prefix if provided
-  if (config.prefix) {
-    formats.push(
-      winston.format((info) => {
-        info.message = `${config.prefix} ${info.message}`;
-        return info;
-      })(),
-    );
+  constructor(config?: LoggerConfig, context?: string) {
+    if (config) {
+      this.updateConfig(config);
+    }
+    this.context = context;
   }
 
-  // Add sanitization
-  formats.push(
-    winston.format((info) => {
-      info.message = sanitizeData(info.message);
-      if (info.metadata) {
-        info.metadata = sanitizeData(info.metadata);
-      }
-      return info;
-    })(),
-  );
-
-  // Apply format based on configuration
-  if (config.format === 'json') {
-    formats.push(winston.format.json());
-  } else {
-    formats.push(
-      winston.format.colorize(),
-      winston.format.simple(),
-      winston.format.printf(({ level, message, timestamp, ...metadata }) => {
-        let msg = `${timestamp} [${level}]: ${message}`;
-        if (Object.keys(metadata).length > 0) {
-          msg += ` ${JSON.stringify(metadata)}`;
-        }
-        return msg;
-      }),
-    );
+  private updateConfig(config: LoggerConfig): void {
+    this.currentLevel = config.level || this.currentLevel;
+    this.currentFormat = config.format || this.currentFormat;
+    this.prefix = config.prefix;
   }
 
-  return winston.format.combine(...formats);
-}
+  /**
+   * Check if a log level is enabled
+   */
+  private isLevelEnabled(level: LogLevel): boolean {
+    if (this.currentLevel === 'silent') return false;
+    return LEVELS[level] <= LEVELS[this.currentLevel];
+  }
 
-/**
- * Creates or updates the logger instance
- */
-function createLogger(config: LoggerConfig): WinstonLogger {
-  // Get configuration from environment variables if not explicitly set
-  const level = config.level || (getLogLevelFromEnv() as LoggerConfig['level']) || 'silent';
+  /**
+   * Format the timestamp
+   */
+  private getTimestamp(): string {
+    return new Date().toISOString();
+  }
 
-  const format = config.format || (getLogFormatFromEnv() as LoggerConfig['format']) || 'pretty';
+  /**
+   * Format the log message based on configuration
+   */
+  private formatMessage(
+    level: LogLevel,
+    message: string,
+    metadata?: unknown,
+  ): { formattedMessage: string; args: unknown[] } {
+    const timestamp = this.getTimestamp();
+    const sanitizedMessage = sanitizeData(message);
+    const sanitizedMetadata = metadata ? sanitizeData(metadata) : undefined;
+    const contextPrefix = this.context ? `[${this.context}] ` : '';
+    const customPrefix = this.prefix ? `${this.prefix} ` : '';
 
-  const finalConfig: LoggerConfig = {
-    ...config,
-    level,
-    format,
-  };
-
-  // Store current configuration
-  currentConfig = finalConfig;
-
-  // Handle silent level by not adding any transports
-  let transports: winston.transport[] = config.transports || [];
-
-  if (level === 'silent') {
-    transports = [];
-  } else if (process === undefined) {
-    transports = [
-      new BrowserConsole({
-        format: winston.format.simple(),
+    if (this.currentFormat === 'json') {
+      const logObject: Record<string, unknown> = {
+        timestamp,
         level,
-      }),
-    ];
-  } else if (!config.transports) {
-    transports.push(
-      new winston.transports.Console({
-        level: level,
-        silent: false,
-      }),
-    );
-  }
-
-  const logger = winston.createLogger({
-    levels: CUSTOM_LEVELS.levels,
-    level: level === 'silent' ? 'error' : level, // Winston doesn't have built-in silent
-    format: createFormat(finalConfig),
-    transports,
-    silent: level === 'silent', // Disable all logging when silent
-  });
-
-  if (process !== undefined) {
-    // Add colors for console output
-    winston.addColors(CUSTOM_LEVELS.colors);
-  }
-
-  // Override level property for testing
-  Object.defineProperty(logger, 'level', {
-    get() {
-      return currentConfig.level || 'silent';
-    },
-    set(value) {
-      currentConfig.level = value;
-      // Don't call configure to avoid infinite recursion
-      // Just update the transports directly
-      if (value === 'silent') {
-        logger.silent = true;
-      } else {
-        logger.silent = false;
-        logger.transports.forEach((transport) => {
-          transport.level = value;
-          transport.silent = false;
-        });
+        message: `${customPrefix}${contextPrefix}${sanitizedMessage}`,
+      };
+      if (sanitizedMetadata) {
+        logObject.metadata = sanitizedMetadata;
       }
-    },
-    configurable: true,
-  });
+      return { formattedMessage: JSON.stringify(logObject), args: [] };
+    }
 
-  return logger;
+    // Pretty format with colors
+    let formattedMessage = '';
+    const args: unknown[] = [];
+
+    if (isBrowser) {
+      // Browser with CSS colors
+      const style = BROWSER_COLORS[level as keyof typeof BROWSER_COLORS] || '';
+      formattedMessage = `%c${timestamp} [${level.toUpperCase()}]: %c${customPrefix}${contextPrefix}${sanitizedMessage}`;
+      args.push(style, 'color: inherit');
+    } else if (isNode) {
+      // Node.js with ANSI colors
+      const color = COLORS[level as keyof typeof COLORS] || '';
+      formattedMessage = `${color}${timestamp} [${level.toUpperCase()}]: ${COLORS.reset}${customPrefix}${contextPrefix}${sanitizedMessage}`;
+    } else {
+      // Fallback - no colors
+      formattedMessage = `${timestamp} [${level.toUpperCase()}]: ${customPrefix}${contextPrefix}${sanitizedMessage}`;
+    }
+
+    if (sanitizedMetadata && Object.keys(sanitizedMetadata as object).length > 0) {
+      formattedMessage += ' ' + JSON.stringify(sanitizedMetadata);
+    }
+
+    return { formattedMessage, args };
+  }
+
+  /**
+   * Core logging method
+   */
+  private log(level: LogMethod, message: string, ...meta: unknown[]): void {
+    if (!this.isLevelEnabled(level)) return;
+
+    const metadata = meta.length > 0 ? (meta.length === 1 ? meta[0] : meta) : undefined;
+    const { formattedMessage, args } = this.formatMessage(level, message, metadata);
+
+    // Use appropriate console method
+    const consoleMethod = level === 'verbose' ? 'log' : level;
+    if (args.length > 0) {
+      console[consoleMethod](formattedMessage, ...args);
+    } else {
+      console[consoleMethod](formattedMessage);
+    }
+  }
+
+  // Winston-compatible logging methods
+  error(message: string, ...meta: unknown[]): void {
+    this.log('error', message, ...meta);
+  }
+
+  warn(message: string, ...meta: unknown[]): void {
+    this.log('warn', message, ...meta);
+  }
+
+  info(message: string, ...meta: unknown[]): void {
+    this.log('info', message, ...meta);
+  }
+
+  debug(message: string, ...meta: unknown[]): void {
+    this.log('debug', message, ...meta);
+  }
+
+  verbose(message: string, ...meta: unknown[]): void {
+    this.log('verbose', message, ...meta);
+  }
+
+  // Winston-compatible child logger
+  child(options: { context?: string; [key: string]: unknown }): BrowserSafeLogger {
+    const childContext = options.context
+      ? this.context
+        ? `${this.context}:${options.context}`
+        : options.context
+      : this.context;
+    const childLogger = new BrowserSafeLogger(
+      {
+        level: this.currentLevel,
+        format: this.currentFormat,
+        prefix: this.prefix,
+      },
+      childContext,
+    );
+    return childLogger;
+  }
+
+  // Property getters/setters for Winston compatibility
+  get level(): string {
+    return this.currentLevel;
+  }
+
+  set level(value: string) {
+    this.currentLevel = value as LogLevel;
+  }
+
+  get silent(): boolean {
+    return this.currentLevel === 'silent';
+  }
+
+  set silent(value: boolean) {
+    if (value) {
+      this.currentLevel = 'silent';
+    }
+  }
+
+  // Configure method for Winston compatibility
+  configure(config: LoggerConfig): void {
+    this.updateConfig(config);
+  }
+
+  // Transports array for compatibility (not actually used)
+  transports: unknown[] = [];
 }
+
+// Singleton logger instance
+let loggerInstance: BrowserSafeLogger | null = null;
+let currentConfig: LoggerConfig = { level: 'silent' };
 
 /**
  * Configure the global logger
@@ -220,33 +308,29 @@ export function configureLogger(config: LoggerConfig | boolean): void {
   const loggerConfig: LoggerConfig =
     typeof config === 'boolean' ? { level: config ? 'info' : 'silent' } : config;
 
+  currentConfig = loggerConfig;
+
   if (loggerInstance) {
-    // Update existing logger
-    const newLogger = createLogger(loggerConfig);
-    Object.setPrototypeOf(loggerInstance, Object.getPrototypeOf(newLogger));
-    Object.keys(newLogger).forEach((key) => {
-      (loggerInstance as unknown as Record<string, unknown>)[key] = (
-        newLogger as unknown as Record<string, unknown>
-      )[key];
-    });
+    loggerInstance.configure(loggerConfig);
   } else {
-    loggerInstance = createLogger(loggerConfig);
+    loggerInstance = new BrowserSafeLogger(loggerConfig);
   }
 }
 
 /**
  * Get the logger instance
  * @param context - Optional context for the logger (e.g., provider name)
- * @returns Winston logger instance
+ * @returns Logger instance
  */
-export function getLogger(context?: string): WinstonLogger {
+export function getLogger(context?: string): BrowserSafeLogger {
   if (!loggerInstance) {
     // Initialize with environment variables or defaults
     const config: LoggerConfig = {
       level: (getLogLevelFromEnv() as LoggerConfig['level']) || 'silent',
       format: (getLogFormatFromEnv() as LoggerConfig['format']) || 'pretty',
     };
-    loggerInstance = createLogger(config);
+    currentConfig = config;
+    loggerInstance = new BrowserSafeLogger(config);
   }
 
   if (context) {
@@ -268,10 +352,13 @@ export function resetLogger(): void {
  * Utility function to check if logging is enabled at a specific level
  */
 export function isLogLevelEnabled(level: LoggerConfig['level']): boolean {
-  const levelValue = CUSTOM_LEVELS.levels[level || 'silent'];
-  const currentLevelValue = CUSTOM_LEVELS.levels[currentConfig.level || 'silent'];
-  return levelValue <= currentLevelValue;
+  if (!level) return false;
+  if (currentConfig.level === 'silent') return false;
+  if (level === 'silent') return true;
+  return LEVELS[level] <= LEVELS[currentConfig.level || 'silent'];
 }
 
 // Export types for convenience
-export type { WinstonLogger as Logger };
+export type Logger = BrowserSafeLogger;
+// For Winston compatibility
+export type { BrowserSafeLogger as WinstonLogger };
