@@ -73,11 +73,18 @@ describe('Client Retry Config Update', () => {
               choices: [
                 {
                   index: 0,
-                  message: { role: 'assistant', content: 'Success after retries' },
+                  message: {
+                    role: 'assistant',
+                    content: 'Success after retries',
+                  },
                   finish_reason: 'stop',
                 },
               ],
-              usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+              usage: {
+                prompt_tokens: 10,
+                completion_tokens: 5,
+                total_tokens: 15,
+              },
             }),
         });
       });
@@ -134,7 +141,11 @@ describe('Client Retry Config Update', () => {
                   finish_reason: 'stop',
                 },
               ],
-              usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+              usage: {
+                prompt_tokens: 10,
+                completion_tokens: 5,
+                total_tokens: 15,
+              },
             }),
         });
       });
@@ -233,14 +244,20 @@ describe('Client Retry Config Update', () => {
       client1.setRetryConfig({ maxRetries: 10, initialDelay: 100 });
 
       // Verify client2 is unaffected
-      expect(client1.getRetryConfig()).toEqual({ maxRetries: 10, initialDelay: 100 });
+      expect(client1.getRetryConfig()).toEqual({
+        maxRetries: 10,
+        initialDelay: 100,
+      });
       expect(client2.getRetryConfig()).toEqual({ maxRetries: 5 });
 
       // Update client2's config
       client2.setRetryConfig(undefined);
 
       // Verify configs remain independent
-      expect(client1.getRetryConfig()).toEqual({ maxRetries: 10, initialDelay: 100 });
+      expect(client1.getRetryConfig()).toEqual({
+        maxRetries: 10,
+        initialDelay: 100,
+      });
       expect(client2.getRetryConfig()).toBeUndefined();
     });
   });

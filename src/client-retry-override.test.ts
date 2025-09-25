@@ -127,7 +127,10 @@ describe('Retry Config Override', () => {
             choices: [
               {
                 index: 0,
-                message: { role: 'assistant', content: 'Success with default retry' },
+                message: {
+                  role: 'assistant',
+                  content: 'Success with default retry',
+                },
                 finish_reason: 'stop',
               },
             ],

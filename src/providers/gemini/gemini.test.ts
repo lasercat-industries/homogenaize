@@ -152,7 +152,11 @@ describe('Gemini Provider', () => {
               content: {
                 parts: [
                   {
-                    text: JSON.stringify({ name: 'John', age: 30, city: 'NYC' }),
+                    text: JSON.stringify({
+                      name: 'John',
+                      age: 30,
+                      city: 'NYC',
+                    }),
                   },
                 ],
                 role: 'model',
@@ -239,7 +243,9 @@ describe('Gemini Provider', () => {
       const response = await provider.chat<z.infer<typeof schema>>(request);
 
       // Provider returns parsed content when schema is provided
-      expect(response.content).toEqual({ summary: 'Weather retrieved successfully' });
+      expect(response.content).toEqual({
+        summary: 'Weather retrieved successfully',
+      });
 
       // Check that tools were created (including the schema tool) when both are provided
       const callArgs = JSON.parse((global.fetch as any).mock.calls[0][1].body);

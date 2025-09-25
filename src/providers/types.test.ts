@@ -44,7 +44,10 @@ describe('Provider Types', () => {
         messages: [{ role: 'user', content: 'Hello' }],
         features: {
           safetySettings: [
-            { category: 'HARM_CATEGORY_DANGEROUS', threshold: 'BLOCK_LOW_AND_ABOVE' },
+            {
+              category: 'HARM_CATEGORY_DANGEROUS',
+              threshold: 'BLOCK_LOW_AND_ABOVE',
+            },
           ],
           generationConfig: {
             temperature: 0.7,

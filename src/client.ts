@@ -284,7 +284,10 @@ export function createLLM<P extends ProviderName>(config: LLMConfig<P>): LLMClie
   }
 
   const logger = getLogger('client');
-  logger.info('Creating LLM client', { provider: config.provider, model: config.model });
+  logger.info('Creating LLM client', {
+    provider: config.provider,
+    model: config.model,
+  });
 
   let providerImpl: TypedProvider<P> | undefined;
 

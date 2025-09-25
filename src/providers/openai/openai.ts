@@ -234,7 +234,10 @@ function zodToOpenAIStrictSchema(schema: z.ZodSchema): GenericJSONSchema {
         return arrayResult;
       }
       case 'object': {
-        const objectDef = def as ZodObjectDef & { catchall?: unknown; unknownKeys?: string };
+        const objectDef = def as ZodObjectDef & {
+          catchall?: unknown;
+          unknownKeys?: string;
+        };
         const properties: Record<string, GenericJSONSchema> = {};
         const required: string[] = [];
 
@@ -349,7 +352,11 @@ function zodToOpenAIStrictSchema(schema: z.ZodSchema): GenericJSONSchema {
         };
       }
       case 'literal': {
-        const literalDef = def as { type: 'literal'; value?: unknown; values?: unknown[] };
+        const literalDef = def as {
+          type: 'literal';
+          value?: unknown;
+          values?: unknown[];
+        };
         // Zod stores literal value in 'values' array
         const actualValue = literalDef.value ?? literalDef.values?.[0];
         const valueType = typeof actualValue;
@@ -727,7 +734,10 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             // Re-throw validation errors, only catch JSON parsing errors
             if (e instanceof SyntaxError) {
               // JSON parsing failed - this shouldn't happen with structured output
-              logger.error('Failed to parse structured output', { content, error: e.message });
+              logger.error('Failed to parse structured output', {
+                content,
+                error: e.message,
+              });
               throw new Error(`Failed to parse structured output: ${e.message}`);
             }
             throw e; // Re-throw validation errors
@@ -789,7 +799,9 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
       }
       if (request.features.reasoningEffort !== undefined) {
         openAIRequest.reasoning_effort = request.features.reasoningEffort;
-        logger.debug('Setting reasoning effort', { effort: request.features.reasoningEffort });
+        logger.debug('Setting reasoning effort', {
+          effort: request.features.reasoningEffort,
+        });
       }
       if (request.features.responseFormat !== undefined) {
         // Handle legacy responseFormat from features (for backward compatibility)
@@ -846,7 +858,9 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     // Handle tools
     if (request.tools) {
-      logger.debug('Processing tools for request', { toolCount: request.tools.length });
+      logger.debug('Processing tools for request', {
+        toolCount: request.tools.length,
+      });
       openAIRequest.tools = request.tools.map((tool) => {
         logger.verbose('Converting tool schema', { toolName: tool.name });
         const parameters = zodToOpenAIStrictSchema(tool.parameters);
@@ -871,7 +885,9 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     // Handle tool choice
     if (request.toolChoice) {
-      logger.debug('Processing tool choice', { toolChoice: request.toolChoice });
+      logger.debug('Processing tool choice', {
+        toolChoice: request.toolChoice,
+      });
       switch (request.toolChoice) {
         case 'required': {
           openAIRequest.tool_choice = 'required';

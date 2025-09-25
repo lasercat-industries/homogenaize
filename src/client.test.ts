@@ -216,7 +216,10 @@ describe('LLM Client', () => {
         name: 'get_weather',
         description: 'Get weather',
         schema: z.object({ location: z.string() }),
-        execute: async (params: any) => ({ temp: 20, location: params.location }),
+        execute: async (params: any) => ({
+          temp: 20,
+          location: params.location,
+        }),
       });
 
       expect(tool.name).toBe('get_weather');

@@ -139,7 +139,11 @@ function zodToGeminiSchema(schema: z.ZodSchema): GenericJSONSchema {
             const checkDef = check.def || check._def || check;
             if (!checkDef || typeof checkDef !== 'object') continue;
 
-            const checkObj = checkDef as { kind?: string; format?: string; value?: unknown };
+            const checkObj = checkDef as {
+              kind?: string;
+              format?: string;
+              value?: unknown;
+            };
 
             if (checkObj.kind === 'uuid' || checkObj.format === 'uuid') {
               // Gemini doesn't support 'uuid' format, use pattern instead
@@ -566,7 +570,9 @@ function zodToGeminiNativeSchema(schema: z.ZodSchema): GeminiNativeSchema {
           };
         } else if (valueType === 'number') {
           // Gemini doesn't support enum for numbers, just return the type
-          return { type: Number.isInteger(value as number) ? 'INTEGER' : 'NUMBER' };
+          return {
+            type: Number.isInteger(value as number) ? 'INTEGER' : 'NUMBER',
+          };
         } else {
           return { type: 'BOOLEAN' };
         }
@@ -584,7 +590,9 @@ function zodToGeminiNativeSchema(schema: z.ZodSchema): GeminiNativeSchema {
       }
 
       default:
-        logger.warn('Unsupported Zod type for Gemini native schema', { type: def.type });
+        logger.warn('Unsupported Zod type for Gemini native schema', {
+          type: def.type,
+        });
         return { type: 'STRING' };
     }
   }
@@ -938,7 +946,9 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
 
     // Handle tools (and schema via tools if both are provided)
     if (request.tools) {
-      logger.debug('Processing tools for request', { toolCount: request.tools.length });
+      logger.debug('Processing tools for request', {
+        toolCount: request.tools.length,
+      });
 
       // If we have both schema and tools, we need to use the tool-based approach for schema
       // because Gemini doesn't support both responseSchema and tools simultaneously
@@ -991,7 +1001,9 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
 
     // Handle tool choice
     if (request.toolChoice) {
-      logger.debug('Processing tool choice', { toolChoice: request.toolChoice });
+      logger.debug('Processing tool choice', {
+        toolChoice: request.toolChoice,
+      });
       switch (request.toolChoice) {
         case 'required': {
           geminiRequest.toolConfig = {

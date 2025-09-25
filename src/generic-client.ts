@@ -286,7 +286,10 @@ export function createGenericLLM(config: GenericLLMConfig): GenericLLMClient {
   }
 
   const logger = getLogger('generic-client');
-  logger.info('Creating generic LLM client', { provider: config.provider, model: config.model });
+  logger.info('Creating generic LLM client', {
+    provider: config.provider,
+    model: config.model,
+  });
 
   return new GenericLLMClientImpl(
     config.provider,

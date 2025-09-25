@@ -299,7 +299,9 @@ describe('OpenAI Strict Mode Schema Conversion', () => {
 
       // Check user.settings is anyOf with null
       expect(result.properties.user.properties.settings.anyOf).toBeDefined();
-      expect(result.properties.user.properties.settings.anyOf).toContainEqual({ type: 'null' });
+      expect(result.properties.user.properties.settings.anyOf).toContainEqual({
+        type: 'null',
+      });
 
       // Check strict mode is enabled
       expect(request.response_format.json_schema.strict).toBe(true);

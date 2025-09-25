@@ -87,7 +87,11 @@ describe('Gemini Client Integration', () => {
             content: {
               parts: [
                 {
-                  text: JSON.stringify({ name: 'Alice', age: 30, city: 'New York' }),
+                  text: JSON.stringify({
+                    name: 'Alice',
+                    age: 30,
+                    city: 'New York',
+                  }),
                 },
               ],
               role: 'model',

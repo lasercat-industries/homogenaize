@@ -18,7 +18,12 @@ export interface ZodStringDef extends ZodDefBase {
 
 export interface ZodNumberDef extends ZodDefBase {
   type: 'number';
-  checks?: Array<{ kind?: string; value?: unknown; def?: unknown; _def?: unknown }>;
+  checks?: Array<{
+    kind?: string;
+    value?: unknown;
+    def?: unknown;
+    _def?: unknown;
+  }>;
 }
 
 export interface ZodBooleanDef extends ZodDefBase {
@@ -29,7 +34,12 @@ export interface ZodArrayDef extends ZodDefBase {
   type: 'array';
   valueType?: { _def?: ZodDef; def?: ZodDef };
   element?: { _def?: ZodDef; def?: ZodDef };
-  checks?: Array<{ kind?: string; value?: unknown; def?: unknown; _def?: unknown }>;
+  checks?: Array<{
+    kind?: string;
+    value?: unknown;
+    def?: unknown;
+    _def?: unknown;
+  }>;
 }
 
 export interface ZodObjectDef extends ZodDefBase {

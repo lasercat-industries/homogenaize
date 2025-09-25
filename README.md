@@ -245,7 +245,11 @@ const response = await client.chat({
 
 // response.content is typed as unknown when using generic schemas
 // You'll need to cast or validate the type yourself
-const data = response.content as { result: string; confidence: number; tags?: string[] };
+const data = response.content as {
+  result: string;
+  confidence: number;
+  tags?: string[];
+};
 console.log(data.result);
 ```
 

@@ -46,7 +46,11 @@ export async function retry<T>(fn: () => Promise<T>, config?: RetryConfig): Prom
     onRetry,
   } = { ...DEFAULT_RETRY_CONFIG, ...config };
 
-  logger.debug('Starting retry operation', { maxRetries, initialDelay, backoffMultiplier });
+  logger.debug('Starting retry operation', {
+    maxRetries,
+    initialDelay,
+    backoffMultiplier,
+  });
 
   let lastError: Error | undefined;
 
@@ -97,10 +101,16 @@ export async function retry<T>(fn: () => Promise<T>, config?: RetryConfig): Prom
       // Check for Retry-After header
       if (lastError instanceof LLMError && lastError.retryAfter) {
         delay = lastError.retryAfter * 1000; // Convert seconds to milliseconds
-        logger.debug('Using Retry-After header', { retryAfter: lastError.retryAfter, delay });
+        logger.debug('Using Retry-After header', {
+          retryAfter: lastError.retryAfter,
+          delay,
+        });
       } else if ('retryAfter' in lastError && typeof lastError.retryAfter === 'number') {
         delay = lastError.retryAfter * 1000;
-        logger.debug('Using retryAfter property', { retryAfter: lastError.retryAfter, delay });
+        logger.debug('Using retryAfter property', {
+          retryAfter: lastError.retryAfter,
+          delay,
+        });
       }
 
       // Apply jitter if enabled

@@ -21,7 +21,10 @@ describe('Real API Integration Tests', () => {
     it('should make a real chat completion request', async () => {
       const response = await client.chat({
         messages: [
-          { role: 'system', content: 'You are a helpful assistant. Be concise.' },
+          {
+            role: 'system',
+            content: 'You are a helpful assistant. Be concise.',
+          },
           { role: 'user', content: 'Say hello in exactly 3 words.' },
         ],
         temperature: 0.1,
@@ -184,7 +187,10 @@ describe('Real API Integration Tests', () => {
     it('should make a real chat completion request', async () => {
       const response = await client.chat({
         messages: [
-          { role: 'system', content: 'You are a helpful assistant. Be concise.' },
+          {
+            role: 'system',
+            content: 'You are a helpful assistant. Be concise.',
+          },
           { role: 'user', content: 'Say hello in exactly 3 words.' },
         ],
         temperature: 0.1,
@@ -221,7 +227,10 @@ describe('Real API Integration Tests', () => {
     it('should handle streaming', async () => {
       const stream = await client.stream({
         messages: [
-          { role: 'user', content: 'Please write a short message that says "Hello from Claude"' },
+          {
+            role: 'user',
+            content: 'Please write a short message that says "Hello from Claude"',
+          },
         ],
         temperature: 0,
       });
@@ -343,7 +352,10 @@ describe('Real API Integration Tests', () => {
     it('should make a real chat completion request', async () => {
       const response = await client.chat({
         messages: [
-          { role: 'system', content: 'You are a helpful assistant. Be concise.' },
+          {
+            role: 'system',
+            content: 'You are a helpful assistant. Be concise.',
+          },
           { role: 'user', content: 'Say hello in exactly 3 words.' },
         ],
         temperature: 0.1,

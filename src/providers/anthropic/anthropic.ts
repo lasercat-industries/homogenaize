@@ -607,7 +607,10 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         },
       ];
       // Force the model to use this specific tool
-      anthropicRequest.tool_choice = { type: 'tool', name: 'respond_with_structured_output' };
+      anthropicRequest.tool_choice = {
+        type: 'tool',
+        name: 'respond_with_structured_output',
+      };
     }
 
     // Handle Anthropic-specific features
@@ -620,7 +623,9 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
     // Handle tools
     if (request.tools) {
-      logger.debug('Processing tools for request', { toolCount: request.tools.length });
+      logger.debug('Processing tools for request', {
+        toolCount: request.tools.length,
+      });
       anthropicRequest.tools = request.tools.map((tool) => {
         logger.verbose('Converting tool schema', { toolName: tool.name });
         const schema = tool.parameters
@@ -650,10 +655,15 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
     // Handle tool choice
     if (request.toolChoice) {
-      logger.debug('Processing tool choice', { toolChoice: request.toolChoice });
+      logger.debug('Processing tool choice', {
+        toolChoice: request.toolChoice,
+      });
       switch (request.toolChoice) {
         case 'required': {
-          anthropicRequest.tool_choice = { type: 'tool', name: request.tools?.[0]?.name };
+          anthropicRequest.tool_choice = {
+            type: 'tool',
+            name: request.tools?.[0]?.name,
+          };
           logger.verbose('Tool choice set to required', {
             toolName: request.tools?.[0]?.name,
           });

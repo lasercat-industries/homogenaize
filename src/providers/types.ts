@@ -21,7 +21,10 @@ export interface OpenAIChatRequest<T = string> extends ChatRequest<T> {
     logprobs?: boolean;
     topLogprobs?: number;
     seed?: number;
-    responseFormat?: { type: 'json_object' | 'json_schema'; json_schema?: unknown };
+    responseFormat?: {
+      type: 'json_object' | 'json_schema';
+      json_schema?: unknown;
+    };
     reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high';
   };
 }
