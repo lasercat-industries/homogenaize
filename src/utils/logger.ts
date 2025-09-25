@@ -1,5 +1,6 @@
 import winston from 'winston';
 import type { Logger as WinstonLogger } from 'winston';
+import BrowserConsole from 'winston-transport-browserconsole';
 
 function getLogLevelFromEnv() {
   return process !== undefined
@@ -153,9 +154,18 @@ function createLogger(config: LoggerConfig): WinstonLogger {
   currentConfig = finalConfig;
 
   // Handle silent level by not adding any transports
-  const transports: winston.transport[] = config.transports || [];
+  let transports: winston.transport[] = config.transports || [];
 
-  if (level !== 'silent' && !config.transports) {
+  if (level === 'silent') {
+    transports = [];
+  } else if (process === undefined) {
+    transports = [
+      new BrowserConsole({
+        format: winston.format.simple(),
+        level,
+      }),
+    ];
+  } else if (!config.transports) {
     transports.push(
       new winston.transports.Console({
         level: level,
@@ -172,8 +182,10 @@ function createLogger(config: LoggerConfig): WinstonLogger {
     silent: level === 'silent', // Disable all logging when silent
   });
 
-  // Add colors for console output
-  winston.addColors(CUSTOM_LEVELS.colors);
+  if (process !== undefined) {
+    // Add colors for console output
+    winston.addColors(CUSTOM_LEVELS.colors);
+  }
 
   // Override level property for testing
   Object.defineProperty(logger, 'level', {

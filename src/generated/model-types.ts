@@ -1,6 +1,6 @@
 /**
  * Auto-generated model types
- * Generated on: 2025-09-24T18:11:24.121Z
+ * Generated on: 2025-09-25T18:56:22.832Z
  *
  * DO NOT EDIT MANUALLY
  * Run 'bun run generate-model-types' to update
@@ -154,15 +154,15 @@ export type GeminiModel =
   | 'gemma-3-27b-it'
   | 'gemma-3n-e4b-it'
   | 'gemma-3n-e2b-it'
+  | 'gemini-flash-latest'
+  | 'gemini-flash-lite-latest'
+  | 'gemini-pro-latest'
   | 'gemini-2.5-flash-lite'
   | 'gemini-2.5-flash-image-preview'
-  | 'embedding-001'
-  | 'text-embedding-004'
-  | 'gemini-embedding-exp-03-07'
-  | 'gemini-embedding-exp'
-  | 'gemini-embedding-001'
-  | 'aqa'
-  | 'imagen-3.0-generate-002';
+  | 'gemini-2.5-flash-preview-09-2025'
+  | 'gemini-2.5-flash-lite-preview-09-2025'
+  | 'gemini-robotics-er-1.5-preview'
+  | 'embedding-001';
 
 export type AllProviderModels = OpenaiModel | AnthropicModel | GeminiModel;
 
@@ -316,13 +316,13 @@ export const GEMINI_MODELS = [
   'gemma-3-27b-it',
   'gemma-3n-e4b-it',
   'gemma-3n-e2b-it',
+  'gemini-flash-latest',
+  'gemini-flash-lite-latest',
+  'gemini-pro-latest',
   'gemini-2.5-flash-lite',
   'gemini-2.5-flash-image-preview',
+  'gemini-2.5-flash-preview-09-2025',
+  'gemini-2.5-flash-lite-preview-09-2025',
+  'gemini-robotics-er-1.5-preview',
   'embedding-001',
-  'text-embedding-004',
-  'gemini-embedding-exp-03-07',
-  'gemini-embedding-exp',
-  'gemini-embedding-001',
-  'aqa',
-  'imagen-3.0-generate-002',
 ] as const;
