@@ -63,9 +63,12 @@ function getLogLevelFromEnv(): string | undefined {
   // For Vite and other bundlers that replace import.meta.env at build time
   try {
     // Check for import.meta.env (Vite, Snowpack, etc.)
-    const metaEnv = (import.meta as any)?.env;
+    const metaEnv = (import.meta as { env?: Record<string, unknown> })?.env;
     if (metaEnv) {
-      return metaEnv.HOMOGENAIZE_LOG_LEVEL || metaEnv.VITE_HOMOGENAIZE_LOG_LEVEL;
+      return (
+        (metaEnv.HOMOGENAIZE_LOG_LEVEL as string | undefined) ||
+        (metaEnv.VITE_HOMOGENAIZE_LOG_LEVEL as string | undefined)
+      );
     }
   } catch {
     // Ignore errors from import.meta access
@@ -80,9 +83,12 @@ function getLogFormatFromEnv(): string | undefined {
   // For Vite and other bundlers that replace import.meta.env at build time
   try {
     // Check for import.meta.env (Vite, Snowpack, etc.)
-    const metaEnv = (import.meta as any)?.env;
+    const metaEnv = (import.meta as { env?: Record<string, unknown> })?.env;
     if (metaEnv) {
-      return metaEnv.HOMOGENAIZE_LOG_FORMAT || metaEnv.VITE_HOMOGENAIZE_LOG_FORMAT;
+      return (
+        (metaEnv.HOMOGENAIZE_LOG_FORMAT as string | undefined) ||
+        (metaEnv.VITE_HOMOGENAIZE_LOG_FORMAT as string | undefined)
+      );
     }
   } catch {
     // Ignore errors from import.meta access

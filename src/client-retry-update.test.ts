@@ -201,7 +201,7 @@ describe('Client Retry Config Update', () => {
     it('should update and get retry config', () => {
       const client = createGeminiLLM({
         apiKey: 'test-key',
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-pro',
       });
 
       // Initially undefined

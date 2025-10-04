@@ -65,7 +65,7 @@ async function main() {
     ),
     listModelsForProvider(
       'gemini',
-      (apiKey) => createGeminiLLM({ apiKey, model: 'gemini-1.5-pro' }),
+      (apiKey) => createGeminiLLM({ apiKey, model: 'gemini-2.5-pro' }),
       'GEMINI_API_KEY',
     ),
   ]);

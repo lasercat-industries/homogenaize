@@ -1,6 +1,6 @@
 /**
  * Auto-generated model types
- * Generated on: 2025-09-25T18:56:22.832Z
+ * Generated on: 2025-10-04T18:46:05.254Z
  *
  * DO NOT EDIT MANUALLY
  * Run 'bun run generate-model-types' to update
@@ -102,6 +102,7 @@ export type OpenaiModel =
   | 'text-embedding-ada-002';
 
 export type AnthropicModel =
+  | 'claude-sonnet-4-5-20250929'
   | 'claude-opus-4-1-20250805'
   | 'claude-opus-4-20250514'
   | 'claude-sonnet-4-20250514'
@@ -114,15 +115,6 @@ export type AnthropicModel =
 
 export type GeminiModel =
   | 'embedding-gecko-001'
-  | 'gemini-1.5-pro-latest'
-  | 'gemini-1.5-pro-002'
-  | 'gemini-1.5-pro'
-  | 'gemini-1.5-flash-latest'
-  | 'gemini-1.5-flash'
-  | 'gemini-1.5-flash-002'
-  | 'gemini-1.5-flash-8b'
-  | 'gemini-1.5-flash-8b-001'
-  | 'gemini-1.5-flash-8b-latest'
   | 'gemini-2.5-pro-preview-03-25'
   | 'gemini-2.5-flash-preview-05-20'
   | 'gemini-2.5-flash'
@@ -159,10 +151,19 @@ export type GeminiModel =
   | 'gemini-pro-latest'
   | 'gemini-2.5-flash-lite'
   | 'gemini-2.5-flash-image-preview'
+  | 'gemini-2.5-flash-image'
   | 'gemini-2.5-flash-preview-09-2025'
   | 'gemini-2.5-flash-lite-preview-09-2025'
   | 'gemini-robotics-er-1.5-preview'
-  | 'embedding-001';
+  | 'embedding-001'
+  | 'text-embedding-004'
+  | 'gemini-embedding-exp-03-07'
+  | 'gemini-embedding-exp'
+  | 'gemini-embedding-001'
+  | 'aqa'
+  | 'imagen-3.0-generate-002'
+  | 'imagen-4.0-generate-preview-06-06'
+  | 'imagen-4.0-ultra-generate-preview-06-06';
 
 export type AllProviderModels = OpenaiModel | AnthropicModel | GeminiModel;
 
@@ -263,6 +264,7 @@ export const OPENAI_MODELS = [
 ] as const;
 
 export const ANTHROPIC_MODELS = [
+  'claude-sonnet-4-5-20250929',
   'claude-opus-4-1-20250805',
   'claude-opus-4-20250514',
   'claude-sonnet-4-20250514',
@@ -276,15 +278,6 @@ export const ANTHROPIC_MODELS = [
 
 export const GEMINI_MODELS = [
   'embedding-gecko-001',
-  'gemini-1.5-pro-latest',
-  'gemini-1.5-pro-002',
-  'gemini-1.5-pro',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-002',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-flash-8b-001',
-  'gemini-1.5-flash-8b-latest',
   'gemini-2.5-pro-preview-03-25',
   'gemini-2.5-flash-preview-05-20',
   'gemini-2.5-flash',
@@ -321,8 +314,17 @@ export const GEMINI_MODELS = [
   'gemini-pro-latest',
   'gemini-2.5-flash-lite',
   'gemini-2.5-flash-image-preview',
+  'gemini-2.5-flash-image',
   'gemini-2.5-flash-preview-09-2025',
   'gemini-2.5-flash-lite-preview-09-2025',
   'gemini-robotics-er-1.5-preview',
   'embedding-001',
+  'text-embedding-004',
+  'gemini-embedding-exp-03-07',
+  'gemini-embedding-exp',
+  'gemini-embedding-001',
+  'aqa',
+  'imagen-3.0-generate-002',
+  'imagen-4.0-generate-preview-06-06',
+  'imagen-4.0-ultra-generate-preview-06-06',
 ] as const;
