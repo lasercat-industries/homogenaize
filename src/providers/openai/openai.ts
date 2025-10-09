@@ -47,6 +47,7 @@ interface OpenAIRequest {
   messages: OpenAIMessage[];
   temperature?: number;
   max_tokens?: number;
+  max_completion_tokens?: number;
   top_p?: number;
   frequency_penalty?: number;
   presence_penalty?: number;
@@ -438,6 +439,11 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     this.retryConfig = retryConfig;
   }
 
+  private isGPT5Model(model: string): boolean {
+    // Check if model is a GPT-5 variant
+    return model.startsWith('gpt-5');
+  }
+
   async chat<T = string>(
     request: ProviderChatRequest<'openai', T>,
     retryConfig?: RetryConfig,
@@ -779,12 +785,46 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
   private transformRequest<T = string>(request: ProviderChatRequest<'openai', T>): OpenAIRequest {
     const logger = getLogger('openai');
+    const isGPT5 = this.isGPT5Model(request.model || 'gpt-4o-mini');
+
     const openAIRequest: OpenAIRequest = {
       model: request.model || 'gpt-4o-mini', // Default fallback
       messages: request.messages.map(this.transformMessage),
-      temperature: request.temperature,
-      max_tokens: request.maxTokens,
     };
+
+    // Handle temperature parameter
+    // GPT-5 models only support temperature=1 (default)
+    if (isGPT5) {
+      if (request.temperature !== undefined && request.temperature !== 1) {
+        logger.warn(
+          'GPT-5 models only support temperature=1. Ignoring provided temperature value.',
+          {
+            model: request.model,
+            providedTemperature: request.temperature,
+          },
+        );
+        // Don't set temperature - let it use the default
+      } else if (request.temperature === 1) {
+        openAIRequest.temperature = 1;
+      }
+      // If undefined, leave it undefined to use OpenAI's default
+    } else {
+      openAIRequest.temperature = request.temperature;
+    }
+
+    // Handle max tokens parameter based on model version
+    // GPT-5 models require max_completion_tokens instead of max_tokens
+    if (request.maxTokens !== undefined) {
+      if (isGPT5) {
+        openAIRequest.max_completion_tokens = request.maxTokens;
+        logger.debug('Using max_completion_tokens for GPT-5 model', {
+          model: request.model,
+          maxCompletionTokens: request.maxTokens,
+        });
+      } else {
+        openAIRequest.max_tokens = request.maxTokens;
+      }
+    }
 
     // Handle OpenAI-specific features
     if (request.features) {
