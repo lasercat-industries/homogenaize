@@ -143,13 +143,16 @@ describe('Gemini Enum Handling', () => {
     const provider = new GeminiProvider('test-key');
 
     // Should throw a ValidationError when enum values don't match
-    expect(
+    try {
       await provider.chat({
         messages: [{ role: 'user', content: 'Create a task' }],
         model: 'gemini-2.5-flash',
         schema: TestSchema,
-      }),
-    ).rejects.toThrow('Schema validation failed');
+      });
+      expect(false).toBe(true); // Should not reach here
+    } catch (error: any) {
+      expect(error.message).toContain('Schema validation failed');
+    }
   });
 
   it('should correctly handle different Zod enum internal structures', () => {
