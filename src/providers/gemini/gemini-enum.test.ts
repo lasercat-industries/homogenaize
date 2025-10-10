@@ -1,13 +1,26 @@
-import { describe, expect, it, beforeEach, mock } from 'bun:test';
+import { describe, expect, it, beforeEach, afterEach, beforeAll, afterAll, mock } from 'bun:test';
 import { z } from 'zod';
 import { GeminiProvider } from './gemini';
 
 describe('Gemini Enum Handling', () => {
   let mockFetch: any;
+  let originalFetch: typeof global.fetch;
+
+  beforeAll(() => {
+    originalFetch = global.fetch;
+  });
 
   beforeEach(() => {
     mockFetch = mock();
     global.fetch = mockFetch as any;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
   });
 
   it('should correctly convert Zod enums to Gemini native schema format', () => {
@@ -128,20 +141,15 @@ describe('Gemini Enum Handling', () => {
     });
 
     const provider = new GeminiProvider('test-key');
-    const response = await provider.chat({
-      messages: [{ role: 'user', content: 'Create a task' }],
-      model: 'gemini-2.5-flash',
-      schema: TestSchema,
-    });
 
-    // Currently returns string when validation fails (this is the bug)
-    // TODO: This should either throw an error or return parsed object with warning
-    expect(typeof response.content).toBe('string');
-
-    // Verify the string contains the actual response
-    const parsed = JSON.parse(response.content as unknown as string);
-    expect(parsed.status).toBe('The project is currently active');
-    expect(parsed.priority).toBe('This is extremely important');
+    // Should throw a ValidationError when enum values don't match
+    expect(
+      await provider.chat({
+        messages: [{ role: 'user', content: 'Create a task' }],
+        model: 'gemini-2.5-flash',
+        schema: TestSchema,
+      }),
+    ).rejects.toThrow('Schema validation failed');
   });
 
   it('should correctly handle different Zod enum internal structures', () => {

@@ -9,7 +9,7 @@ import type {
 } from '../types';
 import type { RetryConfig } from '../../retry/types';
 import { retry } from '../../retry';
-import { LLMError } from '../../retry/errors';
+import { LLMError, ValidationError } from '../../retry/errors';
 import type { ZodDef, ZodArrayDef, ZodObjectDef } from '../zod-types';
 import { getZodDef } from '../zod-types';
 import type { JSONSchemaType } from 'ajv';
@@ -746,7 +746,15 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
               });
               throw new Error(`Failed to parse structured output: ${e.message}`);
             }
-            throw e; // Re-throw validation errors
+            if (e instanceof ZodError) {
+              // Wrap ZodError to make it retriable
+              throw new ValidationError(`Schema validation failed: ${e.message}`, e);
+            }
+            if (e instanceof Error && e.message.includes('JSON Schema validation failed')) {
+              // Wrap JSON Schema validation errors as retriable
+              throw new ValidationError(e.message, e);
+            }
+            throw e; // Re-throw other validation errors
           }
         } else {
           parsedContent = content as T;
@@ -1040,6 +1048,14 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             message: e.message,
             formattedError: e.format(),
           });
+          // Wrap in ValidationError to make it retriable
+          throw new ValidationError(`Schema validation failed: ${e.message}`, e);
+        } else if (e instanceof Error && e.message.includes('JSON Schema validation failed')) {
+          logger.error('JSON Schema validation failed - retryable', {
+            error: e.message,
+          });
+          // Wrap JSON Schema validation errors as retriable
+          throw new ValidationError(e.message, e);
         } else {
           logger.error('Error parsing message content - Full Details', {
             error: e instanceof Error ? e.message : String(e),
@@ -1047,18 +1063,8 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
             rawContent: message.content,
             messageType: typeof message.content,
           });
-        }
-        // If we have a schema but validation failed, try to return parsed content
-        // This handles the case where JSON is valid but doesn't match schema
-        if (typeof message.content === 'string') {
-          try {
-            content = JSON.parse(message.content) as T;
-          } catch {
-            // If parsing fails, return the raw string
-            content = message.content as T;
-          }
-        } else {
-          content = message.content as T;
+          // Re-throw other errors as-is
+          throw e;
         }
       }
     } else {

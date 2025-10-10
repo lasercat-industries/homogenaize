@@ -1,14 +1,16 @@
-import { describe, expect, it, beforeEach, afterAll, mock } from 'bun:test';
+import { describe, expect, it, beforeEach, beforeAll, afterAll, mock } from 'bun:test';
 import { z } from 'zod';
 import { createOpenAILLM } from '../client';
 
-// Store original fetch
-const originalFetch = global.fetch;
-
-// Mock fetch globally
-global.fetch = mock() as any;
-
 describe('OpenAI Client Integration', () => {
+  let originalFetch: typeof global.fetch;
+
+  beforeAll(() => {
+    // Store original fetch and replace with mock
+    originalFetch = global.fetch;
+    global.fetch = mock() as any;
+  });
+
   beforeEach(() => {
     (global.fetch as any).mockClear();
   });

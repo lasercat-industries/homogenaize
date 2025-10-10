@@ -1,7 +1,7 @@
 import { z, ZodError } from 'zod';
 import type { StreamingResponse, ProviderCapabilities, ToolCall, Message } from '../provider';
 import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInfo } from '../types';
-import { LLMError } from '../../retry/errors';
+import { LLMError, ValidationError } from '../../retry/errors';
 import { retry } from '../../retry';
 import type { RetryConfig } from '../../retry/types';
 import type { JSONSchemaType } from 'ajv';
@@ -1150,14 +1150,22 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
             message: e.message,
             formattedError: e.format(),
           });
+          // Wrap in ValidationError to make it retriable
+          throw new ValidationError(`Schema validation failed: ${e.message}`, e);
+        } else if (e instanceof Error && e.message.includes('JSON Schema validation failed')) {
+          logger.error('JSON Schema validation failed - retryable', {
+            error: e.message,
+          });
+          // Wrap JSON Schema validation errors as retriable
+          throw new ValidationError(e.message, e);
         } else {
           logger.error('Error parsing native structured output - Full Details', {
             error: e instanceof Error ? e.message : String(e),
             errorType: e?.constructor?.name,
             rawContent: content,
           });
+          throw e;
         }
-        parsedContent = content as T;
       }
     } else if (schema && structuredOutputTool) {
       logger.debug('Extracting structured output from tool call');
@@ -1195,6 +1203,14 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
             message: e.message,
             formattedError: e.format(),
           });
+          // Wrap in ValidationError to make it retriable
+          throw new ValidationError(`Schema validation failed: ${e.message}`, e);
+        } else if (e instanceof Error && e.message.includes('JSON Schema validation failed')) {
+          logger.error('JSON Schema validation failed - retryable', {
+            error: e.message,
+          });
+          // Wrap JSON Schema validation errors as retriable
+          throw new ValidationError(e.message, e);
         } else {
           logger.error('Error parsing tool call - Full Details', {
             error: e instanceof Error ? e.message : String(e),
@@ -1202,8 +1218,8 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
             failedData: structuredOutputTool.arguments,
             toolName: structuredOutputTool.name,
           });
+          throw e;
         }
-        parsedContent = content as T;
       }
     } else if (schema && content) {
       logger.debug('Processing content for schema validation');
@@ -1244,14 +1260,22 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
             message: e.message,
             formattedError: e.format(),
           });
+          // Wrap in ValidationError to make it retriable
+          throw new ValidationError(`Schema validation failed: ${e.message}`, e);
+        } else if (e instanceof Error && e.message.includes('JSON Schema validation failed')) {
+          logger.error('JSON Schema validation failed - retryable', {
+            error: e.message,
+          });
+          // Wrap JSON Schema validation errors as retriable
+          throw new ValidationError(e.message, e);
         } else {
           logger.error('Error parsing content - Full Details', {
             error: e instanceof Error ? e.message : String(e),
             errorType: e?.constructor?.name,
             rawContent: content,
           });
+          throw e;
         }
-        parsedContent = content as T;
       }
     } else {
       parsedContent = content as T;

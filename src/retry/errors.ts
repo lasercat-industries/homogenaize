@@ -63,6 +63,21 @@ export class RateLimitError extends LLMError {
 }
 
 /**
+ * Validation error (e.g., Zod schema validation failure)
+ * These are retryable because the LLM might return valid data on retry
+ */
+export class ValidationError extends Error {
+  public readonly isRetryable = true;
+  public originalError?: Error;
+
+  constructor(message: string, originalError?: Error) {
+    super(message);
+    this.name = 'ValidationError';
+    this.originalError = originalError;
+  }
+}
+
+/**
  * Check if a status code indicates a retryable error
  */
 function isRetryableStatusCode(statusCode: number): boolean {
@@ -88,6 +103,16 @@ export function isRetryableError(
   // Use custom classifier if provided
   if (customClassifier) {
     return customClassifier(error);
+  }
+
+  // Check if it's a ValidationError
+  if (error instanceof ValidationError) {
+    return true;
+  }
+
+  // Check if it's a ZodError (by name or constructor)
+  if (error.name === 'ZodError' || error.constructor.name === 'ZodError') {
+    return true;
   }
 
   // Check explicit isRetryable property

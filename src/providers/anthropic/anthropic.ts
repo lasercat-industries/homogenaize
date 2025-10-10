@@ -3,7 +3,7 @@ import type { StreamingResponse, ProviderCapabilities, ToolCall, Message } from 
 import type { TypedProvider, ProviderChatRequest, ProviderChatResponse, ModelInfo } from '../types';
 import type { RetryConfig } from '../../retry/types';
 import { retry } from '../../retry';
-import { LLMError } from '../../retry/errors';
+import { LLMError, ValidationError } from '../../retry/errors';
 import type {
   ZodDef,
   ZodArrayDef,
@@ -810,6 +810,14 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
             message: e.message,
             formattedError: e.format(),
           });
+          // Wrap in ValidationError to make it retriable
+          throw new ValidationError(`Schema validation failed: ${e.message}`, e);
+        } else if (e instanceof Error && e.message.includes('JSON Schema validation failed')) {
+          logger.error('JSON Schema validation failed - retryable', {
+            error: e.message,
+          });
+          // Wrap JSON Schema validation errors as retriable
+          throw new ValidationError(e.message, e);
         } else {
           logger.error('Error parsing tool call - Full Details', {
             error: e instanceof Error ? e.message : String(e),
@@ -817,10 +825,9 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
             failedData: structuredOutputTool.arguments,
             toolName: structuredOutputTool.name,
           });
+          // Re-throw other errors as-is
+          throw e;
         }
-        // Don't fall back to content (which is empty for tool calls)
-        // Re-throw the error to let the caller handle it
-        throw e;
       }
     } else if (schema && content) {
       logger.debug('Processing content for schema validation');
@@ -861,14 +868,23 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
             message: e.message,
             formattedError: e.format(),
           });
+          // Wrap in ValidationError to make it retriable
+          throw new ValidationError(`Schema validation failed: ${e.message}`, e);
+        } else if (e instanceof Error && e.message.includes('JSON Schema validation failed')) {
+          logger.error('JSON Schema validation failed - retryable', {
+            error: e.message,
+          });
+          // Wrap JSON Schema validation errors as retriable
+          throw new ValidationError(e.message, e);
         } else {
           logger.error('Error parsing content - Full Details', {
             error: e instanceof Error ? e.message : String(e),
             errorType: e?.constructor?.name,
             rawContent: content,
           });
+          // Re-throw other errors
+          throw e;
         }
-        parsedContent = content as T;
       }
     } else {
       parsedContent = content as T;
