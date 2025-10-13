@@ -15,6 +15,24 @@ interface ProviderModels {
   error?: string;
 }
 
+// Per-provider model aliases that should be added to the generated types
+// These are version-less names that point to the latest version of a model family
+const PROVIDER_ALIASES: Record<string, string[]> = {
+  anthropic: [
+    'claude-sonnet-4-5',
+    'claude-opus-4-1',
+    'claude-opus-4',
+    'claude-sonnet-4',
+    'claude-3-7-sonnet',
+    'claude-3-5-sonnet',
+    'claude-3-5-haiku',
+    'claude-3-haiku',
+    'claude-3-opus',
+  ],
+  openai: [],
+  gemini: [],
+};
+
 async function listModelsForProvider(
   provider: string,
   createClient: (apiKey: string) => { listModels: () => Promise<ModelInfo[]> },
@@ -57,9 +75,12 @@ function generateTypeDefinitions(results: ProviderModels[]): string {
   const header = `/**
  * Auto-generated model types
  * Generated on: ${new Date().toISOString()}
- * 
+ *
  * DO NOT EDIT MANUALLY
  * Run 'bun run generate-model-types' to update
+ *
+ * Note: Some providers include version-less aliases (e.g., 'claude-sonnet-4-5')
+ * that point to the latest version of that model family.
  */
 
 `;
@@ -72,7 +93,13 @@ function generateTypeDefinitions(results: ProviderModels[]): string {
       }
 
       const typeName = `${capitalizeFirst(result.provider)}Model`;
-      const modelIds = result.models.map((m) => `  | '${m.id}'`).join('\n');
+
+      // Combine API models with hardcoded aliases
+      const apiModels = result.models.map((m) => m.id);
+      const aliases = PROVIDER_ALIASES[result.provider] || [];
+      const allModels = [...apiModels, ...aliases];
+
+      const modelIds = allModels.map((m) => `  | '${m}'`).join('\n');
 
       return `export type ${typeName} =\n${modelIds};\n`;
     })
@@ -91,7 +118,13 @@ function generateTypeDefinitions(results: ProviderModels[]): string {
       }
 
       const constName = `${result.provider.toUpperCase()}_MODELS`;
-      const modelIds = result.models.map((m) => `  '${m.id}'`).join(',\n');
+
+      // Combine API models with hardcoded aliases
+      const apiModels = result.models.map((m) => m.id);
+      const aliases = PROVIDER_ALIASES[result.provider] || [];
+      const allModels = [...apiModels, ...aliases];
+
+      const modelIds = allModels.map((m) => `  '${m}'`).join(',\n');
 
       return `export const ${constName} = [\n${modelIds}\n] as const;`;
     })

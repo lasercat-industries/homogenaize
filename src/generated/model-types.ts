@@ -1,20 +1,23 @@
 /**
  * Auto-generated model types
- * Generated on: 2025-10-04T18:46:05.254Z
+ * Generated on: 2025-10-13T18:44:23.609Z
  *
  * DO NOT EDIT MANUALLY
  * Run 'bun run generate-model-types' to update
+ *
+ * Note: Some providers include version-less aliases (e.g., 'claude-sonnet-4-5')
+ * that point to the latest version of that model family.
  */
 
 export type OpenaiModel =
   | 'gpt-4-0613'
   | 'gpt-4'
   | 'gpt-3.5-turbo'
-  | 'gpt-5-codex'
-  | 'gpt-audio-2025-08-28'
-  | 'gpt-realtime'
-  | 'gpt-realtime-2025-08-28'
-  | 'gpt-audio'
+  | 'sora-2-pro'
+  | 'gpt-audio-mini-2025-10-06'
+  | 'gpt-realtime-mini'
+  | 'gpt-realtime-mini-2025-10-06'
+  | 'sora-2'
   | 'davinci-002'
   | 'babbage-002'
   | 'gpt-3.5-turbo-instruct'
@@ -96,6 +99,15 @@ export type OpenaiModel =
   | 'gpt-5-mini'
   | 'gpt-5-nano-2025-08-07'
   | 'gpt-5-nano'
+  | 'gpt-audio-2025-08-28'
+  | 'gpt-realtime'
+  | 'gpt-realtime-2025-08-28'
+  | 'gpt-audio'
+  | 'gpt-5-codex'
+  | 'gpt-image-1-mini'
+  | 'gpt-5-pro-2025-10-06'
+  | 'gpt-5-pro'
+  | 'gpt-audio-mini'
   | 'gpt-3.5-turbo-16k'
   | 'tts-1'
   | 'whisper-1'
@@ -111,7 +123,16 @@ export type AnthropicModel =
   | 'claude-3-5-haiku-20241022'
   | 'claude-3-5-sonnet-20240620'
   | 'claude-3-haiku-20240307'
-  | 'claude-3-opus-20240229';
+  | 'claude-3-opus-20240229'
+  | 'claude-sonnet-4-5'
+  | 'claude-opus-4-1'
+  | 'claude-opus-4'
+  | 'claude-sonnet-4'
+  | 'claude-3-7-sonnet'
+  | 'claude-3-5-sonnet'
+  | 'claude-3-5-haiku'
+  | 'claude-3-haiku'
+  | 'claude-3-opus';
 
 export type GeminiModel =
   | 'embedding-gecko-001'
@@ -155,6 +176,7 @@ export type GeminiModel =
   | 'gemini-2.5-flash-preview-09-2025'
   | 'gemini-2.5-flash-lite-preview-09-2025'
   | 'gemini-robotics-er-1.5-preview'
+  | 'gemini-2.5-computer-use-preview-10-2025'
   | 'embedding-001'
   | 'text-embedding-004'
   | 'gemini-embedding-exp-03-07'
@@ -162,8 +184,7 @@ export type GeminiModel =
   | 'gemini-embedding-001'
   | 'aqa'
   | 'imagen-3.0-generate-002'
-  | 'imagen-4.0-generate-preview-06-06'
-  | 'imagen-4.0-ultra-generate-preview-06-06';
+  | 'imagen-4.0-generate-preview-06-06';
 
 export type AllProviderModels = OpenaiModel | AnthropicModel | GeminiModel;
 
@@ -171,11 +192,11 @@ export const OPENAI_MODELS = [
   'gpt-4-0613',
   'gpt-4',
   'gpt-3.5-turbo',
-  'gpt-5-codex',
-  'gpt-audio-2025-08-28',
-  'gpt-realtime',
-  'gpt-realtime-2025-08-28',
-  'gpt-audio',
+  'sora-2-pro',
+  'gpt-audio-mini-2025-10-06',
+  'gpt-realtime-mini',
+  'gpt-realtime-mini-2025-10-06',
+  'sora-2',
   'davinci-002',
   'babbage-002',
   'gpt-3.5-turbo-instruct',
@@ -257,6 +278,15 @@ export const OPENAI_MODELS = [
   'gpt-5-mini',
   'gpt-5-nano-2025-08-07',
   'gpt-5-nano',
+  'gpt-audio-2025-08-28',
+  'gpt-realtime',
+  'gpt-realtime-2025-08-28',
+  'gpt-audio',
+  'gpt-5-codex',
+  'gpt-image-1-mini',
+  'gpt-5-pro-2025-10-06',
+  'gpt-5-pro',
+  'gpt-audio-mini',
   'gpt-3.5-turbo-16k',
   'tts-1',
   'whisper-1',
@@ -274,6 +304,15 @@ export const ANTHROPIC_MODELS = [
   'claude-3-5-sonnet-20240620',
   'claude-3-haiku-20240307',
   'claude-3-opus-20240229',
+  'claude-sonnet-4-5',
+  'claude-opus-4-1',
+  'claude-opus-4',
+  'claude-sonnet-4',
+  'claude-3-7-sonnet',
+  'claude-3-5-sonnet',
+  'claude-3-5-haiku',
+  'claude-3-haiku',
+  'claude-3-opus',
 ] as const;
 
 export const GEMINI_MODELS = [
@@ -318,6 +357,7 @@ export const GEMINI_MODELS = [
   'gemini-2.5-flash-preview-09-2025',
   'gemini-2.5-flash-lite-preview-09-2025',
   'gemini-robotics-er-1.5-preview',
+  'gemini-2.5-computer-use-preview-10-2025',
   'embedding-001',
   'text-embedding-004',
   'gemini-embedding-exp-03-07',
@@ -326,5 +366,4 @@ export const GEMINI_MODELS = [
   'aqa',
   'imagen-3.0-generate-002',
   'imagen-4.0-generate-preview-06-06',
-  'imagen-4.0-ultra-generate-preview-06-06',
 ] as const;
