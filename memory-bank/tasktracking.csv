@@ -45,3 +45,4 @@ EFE45FED-8C6F-4D07-98E8-F81A6EC2F7A0,Implement native structured output for Open
 AB761B27-3A1B-49CA-9E1B-37DEEC381BC0,Investigate network/fetch mocking test suite failures,inprogress,,20250110-1800-investigate-fetch-mocking-failures.md
 AB761B27-3A1B-49CA-9E1B-37DEEC381BC0,Investigate network/fetch mocking test suite failures,done,,20250110-1800-investigate-fetch-mocking-failures.md
 C49A2AA2-74EE-4853-8AEF-37AB095701B6,Fix module-level fetch mocking in test files,inprogress,AB761B27-3A1B-49CA-9E1B-37DEEC381BC0,20250110-1830-fix-module-level-fetch-mocking.md
+A4EC87FD-A5ED-4C44-BAA7-B762D00EE530,Implement abort signal support for requests,done,,20251017-0000-implement-abort-signal.md

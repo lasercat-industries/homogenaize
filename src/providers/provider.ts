@@ -61,6 +61,7 @@ export interface ChatRequest<T = string> {
   schema?: z.ZodSchema<T> | JSONSchemaType<T> | GenericJSONSchema;
   tools?: Tool[];
   toolChoice?: 'auto' | 'required' | 'none' | { name: string };
+  signal?: AbortSignal;
 }
 
 // Response types

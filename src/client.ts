@@ -64,6 +64,7 @@ export interface BaseChatOptions<T = string> {
   tools?: Tool[];
   toolChoice?: 'auto' | 'required' | 'none' | { name: string };
   retry?: RetryConfig;
+  signal?: AbortSignal;
 }
 
 // Provider-specific chat options
@@ -157,6 +158,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       toolChoice: options.toolChoice,
       features: options.features,
       model: this.model,
+      signal: options.signal,
     } as ProviderChatRequest<P, T>;
 
     // Use override retry config if provided, otherwise use client's default
@@ -195,6 +197,7 @@ export class LLMClientImpl<P extends ProviderName> implements LLMClient<P> {
       toolChoice: options.toolChoice,
       features: options.features,
       model: this.model,
+      signal: options.signal,
     } as ProviderChatRequest<P, T>;
 
     // Use override retry config if provided, otherwise use client's default

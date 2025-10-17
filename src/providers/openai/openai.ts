@@ -477,6 +477,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
           'Content-Type': 'application/json',
         },
         body: requestBody,
+        signal: request.signal,
       });
 
       if (!response) {
@@ -558,7 +559,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     // Use retry wrapper if config is provided
     if (activeRetryConfig) {
-      return retry(makeRequest, activeRetryConfig);
+      return retry(makeRequest, activeRetryConfig, request.signal);
     }
 
     return makeRequest();
@@ -584,6 +585,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(openAIRequest),
+        signal: request.signal,
       });
 
       if (!response.ok) {
@@ -614,7 +616,7 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
 
     // Get response with retry support
     const response = activeRetryConfig
-      ? await retry(makeRequest, activeRetryConfig)
+      ? await retry(makeRequest, activeRetryConfig, request.signal)
       : await makeRequest();
 
     const reader = response.body!.getReader();

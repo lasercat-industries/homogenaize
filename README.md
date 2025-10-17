@@ -13,6 +13,7 @@ A TypeScript-native library that provides a unified interface for multiple LLM p
 - 🛠️ **Tool Calling** - Define and execute tools with automatic validation
 - 🎯 **Provider Features** - Access provider-specific capabilities while maintaining type safety
 - 🔁 **Retry Logic** - Built-in exponential backoff with configurable retry strategies
+- 🚫 **Request Cancellation** - Cancel in-flight requests and retry loops with AbortSignal
 - 📋 **Model Discovery** - List available models for each provider
 - 🧠 **Thinking Tokens** - Support for Anthropic's thinking tokens feature
 - 📊 **Structured Logging** - Configurable Winston logging with automatic sensitive data redaction
@@ -377,6 +378,107 @@ const customClient = createLLM({
   },
 });
 ```
+
+## Request Cancellation
+
+Cancel in-flight requests and retry loops using AbortSignal:
+
+```typescript
+import { createLLM } from 'homogenaize';
+
+const client = createLLM({
+  provider: 'openai',
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: 'gpt-4o-mini',
+  retry: {
+    maxRetries: 3,
+    initialDelay: 1000,
+  },
+});
+
+// Create an AbortController
+const controller = new AbortController();
+
+// Pass the signal to your request
+const responsePromise = client.chat({
+  messages: [{ role: 'user', content: 'Write a long essay about AI' }],
+  signal: controller.signal, // Pass the abort signal
+});
+
+// Cancel from anywhere (e.g., user clicks cancel button)
+setTimeout(() => {
+  controller.abort(); // Cancels the request immediately
+}, 5000);
+
+try {
+  const response = await responsePromise;
+  console.log(response.content);
+} catch (error) {
+  if (error.name === 'AbortError') {
+    console.log('Request was cancelled by user');
+  } else {
+    console.error('Request failed:', error);
+  }
+}
+```
+
+### Abort During Retries
+
+The abort signal works seamlessly with retry logic, cancelling even during backoff delays:
+
+```typescript
+const controller = new AbortController();
+
+// This request will retry on errors
+const promise = client.chat({
+  messages: [{ role: 'user', content: 'Hello' }],
+  signal: controller.signal,
+});
+
+// Even if the request is retrying, it will abort immediately
+controller.abort();
+
+// The promise will reject with an AbortError
+await promise; // Throws AbortError
+```
+
+### Abort Streaming Requests
+
+Abort signals work with streaming as well:
+
+```typescript
+const controller = new AbortController();
+
+const stream = await client.stream({
+  messages: [{ role: 'user', content: 'Write a long story' }],
+  signal: controller.signal,
+});
+
+// Start consuming the stream
+(async () => {
+  try {
+    for await (const chunk of stream) {
+      process.stdout.write(chunk);
+    }
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('\nStream cancelled');
+    }
+  }
+})();
+
+// Cancel the stream after 2 seconds
+setTimeout(() => controller.abort(), 2000);
+```
+
+### Features
+
+- ✅ Cancels fetch requests immediately
+- ✅ Breaks out of retry loops instantly
+- ✅ Cancels backoff delays between retries
+- ✅ Works with both streaming and non-streaming requests
+- ✅ Compatible with all providers (OpenAI, Anthropic, Gemini)
+- ✅ Fully backward compatible (signal parameter is optional)
 
 ## Provider-Specific Features
 

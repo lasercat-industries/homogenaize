@@ -1,6 +1,6 @@
 import type { RetryConfig } from './types';
 import { DEFAULT_RETRY_CONFIG } from './types';
-import { isRetryableError, LLMError } from './errors';
+import { isRetryableError, LLMError, AbortError } from './errors';
 import { getLogger } from '../utils/logger';
 
 /**
@@ -26,15 +26,38 @@ export function withJitter(delay: number): number {
 
 /**
  * Sleep for a specified number of milliseconds
+ * Can be cancelled via AbortSignal
  */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Check if already aborted
+    if (signal?.aborted) {
+      reject(new AbortError('Sleep aborted', signal.reason));
+      return;
+    }
+
+    const timeout = setTimeout(resolve, ms);
+
+    // Set up abort handler
+    const onAbort = () => {
+      clearTimeout(timeout);
+      reject(new AbortError('Sleep aborted', signal?.reason));
+    };
+
+    // Use { once: true } to automatically remove listener after first call
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 /**
  * Retry a function with exponential backoff
+ * Supports cancellation via AbortSignal
  */
-export async function retry<T>(fn: () => Promise<T>, config?: RetryConfig): Promise<T> {
+export async function retry<T>(
+  fn: () => Promise<T>,
+  config?: RetryConfig,
+  signal?: AbortSignal,
+): Promise<T> {
   const logger = getLogger('retry');
   const {
     maxRetries,
@@ -55,6 +78,12 @@ export async function retry<T>(fn: () => Promise<T>, config?: RetryConfig): Prom
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // Check if aborted before attempting
+    if (signal?.aborted) {
+      logger.info('Retry loop aborted before attempt', { attempt });
+      throw new AbortError('Retry aborted', signal.reason);
+    }
+
     try {
       if (attempt > 0) {
         logger.info(`Retry attempt ${attempt} of ${maxRetries}`);
@@ -135,8 +164,8 @@ export async function retry<T>(fn: () => Promise<T>, config?: RetryConfig): Prom
         onRetry(attempt + 1, lastError, delay);
       }
 
-      // Wait before retrying
-      await sleep(delay);
+      // Wait before retrying (will throw AbortError if signal is triggered)
+      await sleep(delay, signal);
     }
   }
 
@@ -150,8 +179,9 @@ export async function retry<T>(fn: () => Promise<T>, config?: RetryConfig): Prom
 export function withRetry<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   config?: RetryConfig,
+  signal?: AbortSignal,
 ): T {
   return (async (...args: Parameters<T>) => {
-    return retry(() => fn(...args), config);
+    return retry(() => fn(...args), config, signal);
   }) as T;
 }

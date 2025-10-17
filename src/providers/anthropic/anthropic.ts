@@ -271,6 +271,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
           'Content-Type': 'application/json',
         },
         body: requestBody,
+        signal: request.signal,
       });
 
       if (!response) {
@@ -353,7 +354,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     const activeRetryConfig = retryConfig ?? this.retryConfig;
 
     if (activeRetryConfig) {
-      return retry(makeRequest, activeRetryConfig);
+      return retry(makeRequest, activeRetryConfig, request.signal);
     }
 
     return makeRequest();
@@ -378,6 +379,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(anthropicRequest),
+      signal: request.signal,
     });
 
     if (!response.ok) {

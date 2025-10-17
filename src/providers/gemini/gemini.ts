@@ -657,6 +657,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
           'x-goog-api-key': this.apiKey,
         },
         body: requestBody,
+        signal: request.signal,
       });
 
       if (!response) {
@@ -733,7 +734,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     const activeRetryConfig = retryConfig ?? this.retryConfig;
 
     if (activeRetryConfig) {
-      return retry(makeRequest, activeRetryConfig);
+      return retry(makeRequest, activeRetryConfig, request.signal);
     }
 
     return makeRequest();
@@ -757,6 +758,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         'x-goog-api-key': this.apiKey,
       },
       body: JSON.stringify(geminiRequest),
+      signal: request.signal,
     });
 
     if (!response.ok) {

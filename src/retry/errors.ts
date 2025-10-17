@@ -78,6 +78,21 @@ export class ValidationError extends Error {
 }
 
 /**
+ * Abort error (thrown when AbortSignal is triggered)
+ * These are NOT retryable because the user explicitly cancelled the request
+ */
+export class AbortError extends Error {
+  public readonly isRetryable = false;
+  public reason?: unknown;
+
+  constructor(message: string, reason?: unknown) {
+    super(message);
+    this.name = 'AbortError';
+    this.reason = reason;
+  }
+}
+
+/**
  * Check if a status code indicates a retryable error
  */
 function isRetryableStatusCode(statusCode: number): boolean {
@@ -103,6 +118,11 @@ export function isRetryableError(
   // Use custom classifier if provided
   if (customClassifier) {
     return customClassifier(error);
+  }
+
+  // Check if it's an AbortError - NEVER retry these
+  if (error instanceof AbortError || error.name === 'AbortError') {
+    return false;
   }
 
   // Check if it's a ValidationError
