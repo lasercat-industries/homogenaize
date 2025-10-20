@@ -1,6 +1,6 @@
 /**
  * Auto-generated model types
- * Generated on: 2025-10-13T18:44:23.609Z
+ * Generated on: 2025-10-20T17:16:23.661Z
  *
  * DO NOT EDIT MANUALLY
  * Run 'bun run generate-model-types' to update
@@ -13,11 +13,11 @@ export type OpenaiModel =
   | 'gpt-4-0613'
   | 'gpt-4'
   | 'gpt-3.5-turbo'
-  | 'sora-2-pro'
-  | 'gpt-audio-mini-2025-10-06'
+  | 'gpt-5-search-api-2025-10-14'
   | 'gpt-realtime-mini'
   | 'gpt-realtime-mini-2025-10-06'
   | 'sora-2'
+  | 'sora-2-pro'
   | 'davinci-002'
   | 'babbage-002'
   | 'gpt-3.5-turbo-instruct'
@@ -90,6 +90,7 @@ export type OpenaiModel =
   | 'o3-pro-2025-06-10'
   | 'o4-mini-deep-research'
   | 'o3-deep-research'
+  | 'gpt-4o-transcribe-diarize'
   | 'o3-deep-research-2025-06-26'
   | 'o4-mini-deep-research-2025-06-26'
   | 'gpt-5-chat-latest'
@@ -108,12 +109,15 @@ export type OpenaiModel =
   | 'gpt-5-pro-2025-10-06'
   | 'gpt-5-pro'
   | 'gpt-audio-mini'
+  | 'gpt-audio-mini-2025-10-06'
+  | 'gpt-5-search-api'
   | 'gpt-3.5-turbo-16k'
   | 'tts-1'
   | 'whisper-1'
   | 'text-embedding-ada-002';
 
 export type AnthropicModel =
+  | 'claude-haiku-4-5-20251001'
   | 'claude-sonnet-4-5-20250929'
   | 'claude-opus-4-1-20250805'
   | 'claude-opus-4-20250514'
@@ -128,6 +132,7 @@ export type AnthropicModel =
   | 'claude-opus-4-1'
   | 'claude-opus-4'
   | 'claude-sonnet-4'
+  | 'claude-haiku-4-5'
   | 'claude-3-7-sonnet'
   | 'claude-3-5-sonnet'
   | 'claude-3-5-haiku'
@@ -192,11 +197,11 @@ export const OPENAI_MODELS = [
   'gpt-4-0613',
   'gpt-4',
   'gpt-3.5-turbo',
-  'sora-2-pro',
-  'gpt-audio-mini-2025-10-06',
+  'gpt-5-search-api-2025-10-14',
   'gpt-realtime-mini',
   'gpt-realtime-mini-2025-10-06',
   'sora-2',
+  'sora-2-pro',
   'davinci-002',
   'babbage-002',
   'gpt-3.5-turbo-instruct',
@@ -269,6 +274,7 @@ export const OPENAI_MODELS = [
   'o3-pro-2025-06-10',
   'o4-mini-deep-research',
   'o3-deep-research',
+  'gpt-4o-transcribe-diarize',
   'o3-deep-research-2025-06-26',
   'o4-mini-deep-research-2025-06-26',
   'gpt-5-chat-latest',
@@ -287,6 +293,8 @@ export const OPENAI_MODELS = [
   'gpt-5-pro-2025-10-06',
   'gpt-5-pro',
   'gpt-audio-mini',
+  'gpt-audio-mini-2025-10-06',
+  'gpt-5-search-api',
   'gpt-3.5-turbo-16k',
   'tts-1',
   'whisper-1',
@@ -294,6 +302,7 @@ export const OPENAI_MODELS = [
 ] as const;
 
 export const ANTHROPIC_MODELS = [
+  'claude-haiku-4-5-20251001',
   'claude-sonnet-4-5-20250929',
   'claude-opus-4-1-20250805',
   'claude-opus-4-20250514',
@@ -308,6 +317,7 @@ export const ANTHROPIC_MODELS = [
   'claude-opus-4-1',
   'claude-opus-4',
   'claude-sonnet-4',
+  'claude-haiku-4-5',
   'claude-3-7-sonnet',
   'claude-3-5-sonnet',
   'claude-3-5-haiku',
