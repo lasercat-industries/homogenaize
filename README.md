@@ -777,6 +777,105 @@ class ConversationManager<P extends ProviderName> {
 - `DefineToolOptions<T>` - Options for defining tools
 - `ExecuteToolsOptions` - Array of tool calls to execute
 
+## Type Utilities
+
+Homogenaize provides helpful type utilities for working with provider-specific models:
+
+### Model Type Guards
+
+Runtime type guards to check if a string is a valid model for a specific provider:
+
+```typescript
+import { isOpenAIModel, isAnthropicModel, isGeminiModel } from 'homogenaize';
+
+const userInput = 'gpt-4o';
+
+if (isOpenAIModel(userInput)) {
+  // TypeScript knows userInput is OpenaiModel here
+  const client = createOpenAILLM({
+    apiKey: process.env.OPENAI_API_KEY!,
+    model: userInput, // ✅ Type-safe
+  });
+}
+
+// Check Anthropic models
+if (isAnthropicModel('claude-sonnet-4-5')) {
+  // Valid Anthropic model
+}
+
+// Check Gemini models
+if (isGeminiModel('gemini-2.5-flash')) {
+  // Valid Gemini model
+}
+```
+
+### ModelsForProvider Type
+
+Extract the model type for a specific provider:
+
+```typescript
+import type { ModelsForProvider } from 'homogenaize';
+
+// Get model type for a specific provider
+type OpenAIModels = ModelsForProvider<'openai'>; // OpenaiModel
+type AnthropicModels = ModelsForProvider<'anthropic'>; // AnthropicModel
+type GeminiModels = ModelsForProvider<'gemini'>; // GeminiModel
+
+// Use in generic functions
+function validateModel<P extends 'openai' | 'anthropic' | 'gemini'>(
+  provider: P,
+  model: ModelsForProvider<P>,
+): boolean {
+  switch (provider) {
+    case 'openai':
+      return isOpenAIModel(model);
+    case 'anthropic':
+      return isAnthropicModel(model);
+    case 'gemini':
+      return isGeminiModel(model);
+  }
+}
+
+// Usage
+validateModel('openai', 'gpt-4o'); // ✅ Type-safe
+validateModel('anthropic', 'claude-sonnet-4-5'); // ✅ Type-safe
+// validateModel('openai', 'claude-sonnet-4-5'); // ❌ TypeScript error
+```
+
+### Available Model Arrays
+
+Access the full list of models for each provider:
+
+```typescript
+import { OPENAI_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS } from 'homogenaize';
+
+// All available OpenAI models
+console.log(OPENAI_MODELS); // ['gpt-4o', 'gpt-4o-mini', 'gpt-5', ...]
+
+// All available Anthropic models
+console.log(ANTHROPIC_MODELS); // ['claude-sonnet-4-5', 'claude-opus-4', ...]
+
+// All available Gemini models
+console.log(GEMINI_MODELS); // ['gemini-2.5-flash', 'gemini-2.5-pro', ...]
+
+// Build a model selector UI
+function ModelSelector({ provider }: { provider: 'openai' | 'anthropic' | 'gemini' }) {
+  const models = provider === 'openai'
+    ? OPENAI_MODELS
+    : provider === 'anthropic'
+      ? ANTHROPIC_MODELS
+      : GEMINI_MODELS;
+
+  return (
+    <select>
+      {models.map(model => (
+        <option key={model} value={model}>{model}</option>
+      ))}
+    </select>
+  );
+}
+```
+
 ## API Reference
 
 ### Creating Clients

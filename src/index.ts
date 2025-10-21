@@ -44,6 +44,7 @@ export type {
   AnthropicChatResponse,
   GeminiChatResponse,
   TypedProvider,
+  ModelsForProvider,
 } from './providers/types';
 
 // Type guard exports
@@ -57,7 +58,14 @@ export type {
   AllProviderModels,
 } from './generated/model-types';
 
-export { OPENAI_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS } from './generated/model-types';
+export {
+  OPENAI_MODELS,
+  ANTHROPIC_MODELS,
+  GEMINI_MODELS,
+  isOpenAIModel,
+  isAnthropicModel,
+  isGeminiModel,
+} from './generated/model-types';
 
 // Generic client exports (without provider type parameters)
 export {

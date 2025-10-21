@@ -377,3 +377,24 @@ export const GEMINI_MODELS = [
   'imagen-3.0-generate-002',
   'imagen-4.0-generate-preview-06-06',
 ] as const;
+
+/**
+ * Type guard to check if a string is a valid OpenAI model
+ */
+export const isOpenAIModel = (model: string): model is OpenaiModel => {
+  return OPENAI_MODELS.includes(model as OpenaiModel);
+};
+
+/**
+ * Type guard to check if a string is a valid Anthropic model
+ */
+export const isAnthropicModel = (model: string): model is AnthropicModel => {
+  return ANTHROPIC_MODELS.includes(model as AnthropicModel);
+};
+
+/**
+ * Type guard to check if a string is a valid Gemini model
+ */
+export const isGeminiModel = (model: string): model is GeminiModel => {
+  return GEMINI_MODELS.includes(model as GeminiModel);
+};

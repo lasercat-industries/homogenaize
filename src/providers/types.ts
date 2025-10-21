@@ -15,6 +15,20 @@ export type ProviderModels = {
   gemini: GeminiModel;
 };
 
+/**
+ * Helper type to get the model type for a specific provider
+ * @example
+ * type OpenAIModels = ModelsForProvider<'openai'>; // OpenaiModel
+ * type AnthropicModels = ModelsForProvider<'anthropic'>; // AnthropicModel
+ */
+export type ModelsForProvider<P extends ProviderName> = P extends 'openai'
+  ? OpenaiModel
+  : P extends 'anthropic'
+    ? AnthropicModel
+    : P extends 'gemini'
+      ? GeminiModel
+      : never;
+
 // Provider-specific request types
 export interface OpenAIChatRequest<T = string> extends ChatRequest<T> {
   features?: {
