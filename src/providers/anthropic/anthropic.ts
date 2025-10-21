@@ -20,6 +20,7 @@ import { validateJSONSchema } from '../../utils/json-schema-validator';
 import { normalizeAnthropicFinishReason } from './anthropic-types';
 import type { AnthropicStopReason } from './anthropic-types';
 import { getLogger } from '../../utils/logger';
+import { isBrowser, isServiceWorker } from '../../utils/runtimeDetector';
 
 // Anthropic-specific types
 interface AnthropicMessage {
@@ -263,13 +264,21 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
         max_tokens: anthropicRequest.max_tokens,
       });
 
+      // Build headers object
+      const headers: Record<string, string> = {
+        'x-api-key': this.apiKey,
+        'anthropic-version': this.apiVersion,
+        'Content-Type': 'application/json',
+      };
+
+      // Add browser access header if in browser or service worker
+      if (isBrowser || isServiceWorker) {
+        headers['anthropic-dangerous-direct-browser-access'] = 'true';
+      }
+
       const response = await fetch(`${this.baseURL}/messages`, {
         method: 'POST',
-        headers: {
-          'x-api-key': this.apiKey,
-          'anthropic-version': this.apiVersion,
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: requestBody,
         signal: request.signal,
       });
@@ -371,13 +380,21 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     logger.debug('Transformed streaming request for Anthropic API');
     anthropicRequest.stream = true;
 
+    // Build headers object
+    const headers: Record<string, string> = {
+      'x-api-key': this.apiKey,
+      'anthropic-version': this.apiVersion,
+      'Content-Type': 'application/json',
+    };
+
+    // Add browser access header if in browser or service worker
+    if (isBrowser || isServiceWorker) {
+      headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    }
+
     const response = await fetch(`${this.baseURL}/messages`, {
       method: 'POST',
-      headers: {
-        'x-api-key': this.apiKey,
-        'anthropic-version': this.apiVersion,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(anthropicRequest),
       signal: request.signal,
     });
