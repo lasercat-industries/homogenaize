@@ -631,17 +631,15 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
     } = {};
     let model = '';
     let finishReason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | undefined;
-    // These are assigned during streaming but not used after structured output refactor
-    // Keeping assignments to avoid breaking tool call streaming logic
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    let toolCallArguments = '';
-    // @ts-expect-error - assigned but not read after refactor
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    let currentToolCall: {
-      id: string;
-      type: 'function';
-      function: { name: string; arguments: string };
-    } | null = null;
+    // Track all tool calls by index (OpenAI sends tool_calls with index field for parallel calls)
+    const toolCallsMap = new Map<
+      number,
+      {
+        id: string;
+        name: string;
+        arguments: string;
+      }
+    >();
 
     const streamResponse = {
       async *[Symbol.asyncIterator](): AsyncIterator<T> {
@@ -672,22 +670,31 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
                   }
                 }
 
-                // Handle tool call streaming
+                // Handle tool call streaming - accumulate by index
                 if (chunk.choices[0]?.delta?.tool_calls) {
                   for (const toolCallDelta of chunk.choices[0].delta.tool_calls) {
+                    const index = toolCallDelta.index;
+
+                    // Initialize tool call entry if not exists
+                    if (!toolCallsMap.has(index)) {
+                      toolCallsMap.set(index, {
+                        id: '',
+                        name: '',
+                        arguments: '',
+                      });
+                    }
+
+                    const toolCall = toolCallsMap.get(index)!;
+
+                    // Update fields as they stream in
                     if (toolCallDelta.id) {
-                      currentToolCall = {
-                        id: toolCallDelta.id!,
-                        type: 'function' as const,
-                        function: {
-                          name: toolCallDelta.function?.name || '',
-                          arguments: '',
-                        },
-                      };
-                      toolCallArguments = '';
+                      toolCall.id = toolCallDelta.id;
+                    }
+                    if (toolCallDelta.function?.name) {
+                      toolCall.name = toolCallDelta.function.name;
                     }
                     if (toolCallDelta.function?.arguments) {
-                      toolCallArguments += toolCallDelta.function.arguments;
+                      toolCall.arguments += toolCallDelta.function.arguments;
                     }
                   }
                 }
@@ -777,6 +784,17 @@ export class OpenAIProvider implements TypedProvider<'openai'> {
         // Add reasoningTokens to the response if present
         if (usage.reasoning_tokens !== undefined) {
           (result as OpenAIChatResponse<T>).reasoningTokens = usage.reasoning_tokens;
+        }
+
+        // Add tool calls if present and not using schema-based structured output
+        if (toolCallsMap.size > 0 && !request.schema) {
+          result.toolCalls = Array.from(toolCallsMap.entries())
+            .sort(([a], [b]) => a - b) // Sort by index
+            .map(([, tc]) => ({
+              id: tc.id,
+              name: tc.name,
+              arguments: JSON.parse(tc.arguments),
+            }));
         }
 
         return result;

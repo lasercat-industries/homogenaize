@@ -421,8 +421,10 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
     let usage = { input_tokens: 0, output_tokens: 0 };
     let model = '';
     let anthropicFinishReason: string | undefined;
-    let currentToolUse: { id: string; name: string; input?: unknown } | null = null;
-    let toolUseInput = '';
+    // Track all tool calls
+    const toolCalls: Array<{ id: string; name: string; arguments: unknown }> = [];
+    let currentToolUse: { id: string; name: string } | null = null;
+    let currentToolInput = '';
     // let messageId = ''; // Not needed since id is not part of response type
 
     const streamResponse = {
@@ -467,7 +469,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
                         yield text as T;
                       }
                     } else if (event.delta?.type === 'input_json_delta' && currentToolUse) {
-                      toolUseInput += event.delta.partial_json;
+                      currentToolInput += event.delta.partial_json;
                     }
                     break;
                   }
@@ -481,13 +483,37 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
                   case 'content_block_start': {
                     if (event.content_block?.type === 'tool_use') {
-                      currentToolUse = event.content_block;
-                      toolUseInput = '';
+                      currentToolUse = {
+                        id: event.content_block.id,
+                        name: event.content_block.name,
+                      };
+                      currentToolInput = '';
                     }
                     break;
                   }
 
-                  // Duplicate case removed - handled in first content_block_delta case
+                  case 'content_block_stop': {
+                    // Finalize the current tool call when its block ends
+                    if (currentToolUse && currentToolInput) {
+                      try {
+                        toolCalls.push({
+                          id: currentToolUse.id,
+                          name: currentToolUse.name,
+                          arguments: JSON.parse(currentToolInput),
+                        });
+                      } catch {
+                        // If JSON parsing fails, store as raw string
+                        toolCalls.push({
+                          id: currentToolUse.id,
+                          name: currentToolUse.name,
+                          arguments: currentToolInput,
+                        });
+                      }
+                    }
+                    currentToolUse = null;
+                    currentToolInput = '';
+                    break;
+                  }
                 }
               } catch {
                 // Ignore parsing errors
@@ -506,14 +532,15 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
 
         let parsedContent: T;
 
+        // Check for schema-based structured output tool
+        const structuredOutputTool = toolCalls.find(
+          (tc) => tc.name === 'respond_with_structured_output',
+        );
+
         // If we used schema-based tool calling, extract from tool call
-        if (
-          request.schema &&
-          currentToolUse?.name === 'respond_with_structured_output' &&
-          toolUseInput
-        ) {
+        if (request.schema && structuredOutputTool) {
           try {
-            const parsed = JSON.parse(toolUseInput);
+            const parsed = structuredOutputTool.arguments;
             if (isZodSchema(request.schema)) {
               parsedContent = request.schema.parse(parsed) as T;
             } else if (isJSONSchema(request.schema)) {
@@ -556,7 +583,7 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
           ? normalizeAnthropicFinishReason(anthropicFinishReason)
           : undefined;
 
-        return {
+        const result: ProviderChatResponse<'anthropic', T> = {
           content: parsedContent,
           usage: {
             inputTokens: usage.input_tokens,
@@ -565,8 +592,17 @@ export class AnthropicProvider implements TypedProvider<'anthropic'> {
           },
           model,
           finishReason,
-          // id: messageId // Not part of the response type
         };
+
+        // Add tool calls if present and not using schema-based structured output
+        const nonStructuredToolCalls = toolCalls.filter(
+          (tc) => tc.name !== 'respond_with_structured_output',
+        );
+        if (nonStructuredToolCalls.length > 0 && !request.schema) {
+          result.toolCalls = nonStructuredToolCalls;
+        }
+
+        return result;
       },
     };
 

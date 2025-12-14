@@ -782,6 +782,9 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
     let content = '';
     let usage = { promptTokenCount: 0, candidatesTokenCount: 0 };
     let finishReason: string | undefined;
+    // Track all tool calls (function calls in Gemini terminology)
+    const toolCalls: Array<{ id: string; name: string; arguments: unknown }> = [];
+    let toolCallIndex = 0;
 
     const streamResponse = {
       async *[Symbol.asyncIterator](): AsyncIterator<T> {
@@ -806,7 +809,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
               if (data.candidates && data.candidates[0]) {
                 const candidate = data.candidates[0];
 
-                // Extract text from parts
+                // Extract text and function calls from parts
                 if (candidate.content && candidate.content.parts) {
                   for (const part of candidate.content.parts) {
                     if ('text' in part && part.text) {
@@ -815,6 +818,13 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
                       if (!request.schema) {
                         yield part.text as T;
                       }
+                    } else if ('functionCall' in part) {
+                      // Handle function calls (Gemini's term for tool calls)
+                      toolCalls.push({
+                        id: `${part.functionCall.name}_${toolCallIndex++}`,
+                        name: part.functionCall.name,
+                        arguments: part.functionCall.args,
+                      });
                     }
                   }
                 }
@@ -844,7 +854,32 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
         }
 
         let parsedContent: T;
-        if (request.schema && content) {
+
+        // Check for schema-based structured output tool
+        const structuredOutputTool = toolCalls.find(
+          (tc) => tc.name === 'respond_with_structured_output',
+        );
+
+        // If we used schema-based tool calling, extract from tool call
+        if (request.schema && structuredOutputTool) {
+          try {
+            const parsed = structuredOutputTool.arguments;
+            if (isZodSchema(request.schema)) {
+              parsedContent = request.schema.parse(parsed) as T;
+            } else if (isJSONSchema(request.schema)) {
+              const validation = validateJSONSchema<T>(request.schema, parsed);
+              if (validation.valid) {
+                parsedContent = validation.data;
+              } else {
+                throw new Error(`JSON Schema validation failed: ${validation.errors.join('; ')}`);
+              }
+            } else {
+              parsedContent = parsed as T;
+            }
+          } catch {
+            parsedContent = content as T;
+          }
+        } else if (request.schema && content) {
           try {
             const parsed = JSON.parse(content);
             if (isZodSchema(request.schema)) {
@@ -866,7 +901,7 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
           parsedContent = content as T;
         }
 
-        return {
+        const result: ProviderChatResponse<'gemini', T> = {
           content: parsedContent,
           usage: {
             inputTokens: usage.promptTokenCount,
@@ -876,6 +911,16 @@ export class GeminiProvider implements TypedProvider<'gemini'> {
           model,
           finishReason: normalizeGeminiFinishReason(finishReason || ''),
         };
+
+        // Add tool calls if present and not using schema-based structured output
+        const nonStructuredToolCalls = toolCalls.filter(
+          (tc) => tc.name !== 'respond_with_structured_output',
+        );
+        if (nonStructuredToolCalls.length > 0 && !request.schema) {
+          result.toolCalls = nonStructuredToolCalls;
+        }
+
+        return result;
       },
     };
 

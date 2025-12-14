@@ -311,6 +311,60 @@ if (response.toolCalls) {
 }
 ```
 
+### Tool Calls with Streaming
+
+Tool calls work seamlessly with streaming. When the model decides to call a tool during a streaming request, the tool calls are available after calling `complete()`:
+
+```typescript
+const weatherTool = client.defineTool({
+  name: 'get_weather',
+  description: 'Get the current weather for a location',
+  schema: z.object({
+    location: z.string().describe('City and country'),
+  }),
+  execute: async (params) => {
+    return { temperature: 22, condition: 'sunny', location: params.location };
+  },
+});
+
+// Start a streaming request with tools
+const stream = await client.stream({
+  messages: [{ role: 'user', content: "What's the weather in Paris and London?" }],
+  tools: [weatherTool],
+  toolChoice: 'auto',
+});
+
+// Stream any text content (may be empty if model only calls tools)
+for await (const chunk of stream) {
+  process.stdout.write(chunk);
+}
+
+// Get the complete response including tool calls
+const complete = await stream.complete();
+
+// Check for tool calls
+if (complete.toolCalls) {
+  console.log(`Model called ${complete.toolCalls.length} tool(s)`);
+
+  // Execute the tools
+  const results = await client.executeTools(complete.toolCalls);
+
+  // Each result contains:
+  // - toolCallId: unique identifier for this call
+  // - toolName: which tool was called
+  // - result: the return value from execute()
+  // - error?: any error message if execution failed
+  for (const result of results) {
+    console.log(`${result.toolName}: ${JSON.stringify(result.result)}`);
+  }
+}
+
+// Token usage is also available
+console.log(`Total tokens: ${complete.usage.totalTokens}`);
+```
+
+**Note:** During streaming, text content is yielded as chunks, but tool calls are only available after calling `complete()`. This is because tool call arguments are streamed incrementally and must be fully assembled before they can be parsed and executed.
+
 ## List Available Models
 
 Discover available models for each provider:
